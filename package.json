@@ -1,0 +1,35 @@
+{
+  "name": "yugioh-deck-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "sync:cards": "tsx scripts/sync-cards.ts",
+    "sync:meta-decks": "tsx scripts/sync-meta-decks.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "swr": "^2.4.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.4",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}

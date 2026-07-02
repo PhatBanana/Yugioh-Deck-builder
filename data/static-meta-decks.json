@@ -1,0 +1,2636 @@
+[
+  {
+    "id": "static-kewl-tune-719580",
+    "name": "Kewl Tune",
+    "archetype": "Kewl Tune",
+    "tier": "Tier 1",
+    "cards": [
+      {
+        "cardName": "Kewl Tune Cue",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Rotary",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Reco",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Clip",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Mix",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Fydraulis Harmonia",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ghost Ogre & Snow Rabbit",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ghost Belle & Haunted Mansion",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Effect Veiler",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "JJ \"Kewl Tune\"",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Synchro",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Synchro Overtake",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Duelist Genesis",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pot of Prosperity",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Kewl Tune B2B",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune RS",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Remix",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Track Maker",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Kewl Tune Loudness War",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Zalen the Shackled Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Wind Pegasus @Ignister",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Golden Cloud Beast - Malong",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Deep Sea Prima Donna",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Visas Amritara",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-fiendsmith-mitsurugi-yummy-719597",
+    "name": "Fiendsmith Mitsurugi Yummy",
+    "archetype": "Fiendsmith",
+    "tier": "Tier 1",
+    "cards": [
+      {
+        "cardName": "Cupsy☆Yummy",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Marshmao☆Yummy",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Cooky☆Yummy",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Lollipo☆Yummy",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fabled Lurrie",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Lacrima the Crimson Tears",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Fiendsmith Engraver",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Kusanagi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Saji",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ame no Murakumo no Mitsurugi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ame no Habakiri no Mitsurugi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ghost Belle & Haunted Mansion",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Effect Veiler",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Yummy☆Surprise",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Yummyusment☆Mignon",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Yummyusment★Acroquey",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pre-Preparation of Rites",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fiendsmith's Tract",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Mecha - Hornet Drones",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sky Striker Mobilize - Engage!",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Droplet",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Piri Reis Map",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Illusion Gate",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Thrust",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Talent",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Crossout Designator",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "One for One",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Prayers",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Ritual",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Mirror",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Infinite Impermanence",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Great Purification",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Cupsy★Yummy Way",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Lollipo★Yummy Way",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Cooky★Yummy Way",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "D/D/D Wave High King Caesar",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fiendsmith's Desirae",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Fiendsmith's Lacrima",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Fiendsmith's Sequence",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Fiendsmith's Requiem",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Linkuriboh",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Salamangreat Almiraj",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Reprodocus",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "S:P Little Knight",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sky Striker Ace - Camellia",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sky Striker Ace - Kagari",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Yummy★Snatchy",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-sky-striker-719593",
+    "name": "Sky Striker",
+    "archetype": "Sky Striker",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Sky Striker Ace - Raye",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Roze",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sky Striker Mecha - Hornet Drones",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Mobilize - Engage!",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Mobilize - Linkage!",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Special Maneuver - Lemnisgate!",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Mecha - Widow Anchor",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Mecha - Shark Cannon",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Vision",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Droplet",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Upstart Goblin",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Polymerization",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pot of Desires",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Talent",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Reinforcement of the Army",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sky Striker Ace = Zero",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Kagari",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Shizuku",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Hayate",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Prototype Sky Striker Ace - Amatsu",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Zeke",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Azalea",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Sky Striker Ace - Camellia",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mudragon of the Swamp",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Garura, Wings of Resonant Life",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sea Monster of Theseus",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-d-d-d-719591",
+    "name": "D/D/D",
+    "archetype": "D/D",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "D/D/D Oblivion King Abyss Ragnarok",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Zero Doom Queen Machinex",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Savant Kepler",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Gryphon",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Savant Copernicus",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Scale Surveyor",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Count Surveyor",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Lance Soldier",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Swirl Slime",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D Necro Slime",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dark Contract with the Gate",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Dark Contract with the Zero King",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Infinite Impermanence",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dominus Impulse",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dark Contract with the Eternal Darkness",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Flame King Genghis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Flame High King Genghis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Alfred the Divine Sage King",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D/D Dimensional King Arc Crisis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Cursed King Siegfried",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D First King Clovis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Deviser King Deus Machinex",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Wave King Caesar",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Wave High King Caesar",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Wise King Solomon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Marksman King Tell",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Abyss King Gilgamesh",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "D/D/D Sky King Zeus Ragnarok",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      }
+    ]
+  },
+  {
+    "id": "static-despia-branded-719589",
+    "name": "Despia Branded",
+    "archetype": "Branded",
+    "tier": "Tier 1",
+    "cards": [
+      {
+        "cardName": "Aluber the Jester of Despia",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of the White Dragon",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of Albaz",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Guiding Quem, the Virtuous",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Blazing Cartesia, the Virtuous",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Incredible Ecclesia, the Virtuous",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dogmatika Ecclesia, the Virtuous",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Tri-Brigade Mercourier",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Shrouded Dragon",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Saronir",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Branded Fusion",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Branded Opening",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Branded in High Spirits",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Nadir Servant",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Polymerization",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Gold Sarcophagus",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Branded Sword",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Branded Retribution",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Despian Proskenion",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mirrorjade the Iceblade Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Lubellion the Searing Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Alba-Lenatus the Abyss Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Granguignol the Dusk Dragon",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Titaniklad the Ash Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Rindbrumm the Striking Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Starving Venom Fusion Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Khaos Starsource Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-mitsurugi-719587",
+    "name": "Mitsurugi",
+    "archetype": "Mitsurugi",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Ame no Habakiri no Mitsurugi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Ame no Murakumo no Mitsurugi",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Saji",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Aramasa",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Kusanagi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi no Miko, Wousu",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Lamia",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Prayers",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi Ritual",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi Mirror",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Pre-Preparation of Rites",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Polymerization",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pot of Extravagance",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pot of Prosperity",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dominus Impulse",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dominus Spark",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Great Purification",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Evilswarm Exciton Knight",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Number 60: Dugares the Timeless",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Starslayer TY-PHON - Sky Crisis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Number 41: Bagooska the Terribly Tired Tapir",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Starving Venom Fusion Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sea Monster of Theseus",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Garura, Wings of Resonant Life",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mudragon of the Swamp",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dyna Mondo",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dharc the Dark Charmer, Gloomy",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "S:P Little Knight",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Haggard Lizardose",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-doomz-719293",
+    "name": "DoomZ",
+    "archetype": "DoomZ",
+    "tier": "Tier 1",
+    "cards": [
+      {
+        "cardName": "DoomZ VII Seven - Elara",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ V Five - Amalthe",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ XII Zero - Drastea",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Jupredo the Shademachine Power Patron",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Power Patron DoomZ",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Vidolium the Unstable Power Patron of Unity",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Medius the Pure",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Therion \"King\" Regulus",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dimension Shifter",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Magnamhut",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "DoomZ Change",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "DoomZ Raiders",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ Command \"A.D.R.A.S.T.E.I.A.\"",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ Command \"D.O.O.M.D.U.R.G.\"",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Plundered Power Patron Plane - Vidolia",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Prohibited Power Patron Portal - Terminus",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Book of Eclipse",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "DoomZ Destruction",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Varudras, the Final Bringer of the End Times",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Gigantic \"Champion\" Sargas",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Springans Merrymaker",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Number 60: Dugares the Timeless",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Number F0: Utopic Future Zexal",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Jupiter the Power Patron of Destruction",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "DoomZ XII End - Drastrius",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ XIII Over - Graflareio",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "DoomZ Break - Diactorus",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-ignister-maliss-719289",
+    "name": "@Ignister Maliss",
+    "archetype": "Maliss",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Maliss <P> Dormouse",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Maliss <P> White Rabbit",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Maliss <P> Chessy Cat",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Maliss <P> March Hare",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Backup @Ignister",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Wizard @Ignister",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Droll & Lock Bird",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dimension Shifter",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Magnamhut",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Druiswurm",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Maliss in the Mirror",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Maliss in Underground",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Gold Sarcophagus",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Allure of Darkness",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Maliss <C> MTP-07",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Infinite Impermanence",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dominus Impulse",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dominus Spark",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Allied Code Talker @Ignister",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Accesscode Talker",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Decode Talker Heatsoul",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Transcode Talker",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Maliss <Q> Hearts Crypter",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Maliss <Q> Red Ransom",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "S:P Little Knight",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Security Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Haggard Lizardose",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Cyberse Wicckid",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Link Spider",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Link Disciple",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Linguriboh",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Salamangreat Almiraj",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-radiant-typhoon-719269",
+    "name": "Radiant Typhoon",
+    "archetype": "Radiant Typhoon",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Radiant Typhoon Fonix, the Great Flame",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Swen",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Krosea",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Eldam",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Meghala",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Varuroon, the Vibrant Vortex",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Shiina, Twin Tempests of Celestial Thunder",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Noble Knight's Shield-Bearer",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Radiant Typhoon Chant",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Vision",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Ascendance",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Manifestation",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mystical Space Typhoon",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Droplet",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pot of Extravagance",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Radiant Typhoon Mandate",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Radiant Typhoon Varuroon, the Marine Eidolon",
+        "quantity": 3,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Wynn the Wind Charmer, Verdant",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Greatfly",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Hraesvelgr, the Desperate Doom Eagle",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Totem Bird",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Phantom Fortress Enterblathnir",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Starslayer TY-PHON - Sky Crisis",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-branded-mitsurugi-719259",
+    "name": "Branded Mitsurugi",
+    "archetype": "Branded",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Ame no Habakiri no Mitsurugi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ame no Murakumo no Mitsurugi",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Futsu no Mitama no Mitsurugi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Saji",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Aramasa",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi no Mikoto, Kusanagi",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of the White Dragon",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of Albaz",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Blazing Cartesia, the Virtuous",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Incredible Ecclesia, the Virtuous",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Tri-Brigade Springans Kitt",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Springans Kitt",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ash Blossom & Joyous Spring",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Magnamhut",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Branded Fusion",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mitsurugi Prayers",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Ritual",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Mirror",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Pre-Preparation of Rites",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Tally-ho! Springans",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Talent",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mitsurugi Great Purification",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mirrorjade the Iceblade Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Lubellion the Searing Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Granguignol the Dusk Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Titaniklad the Ash Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Rindbrumm the Striking Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "S:P Little Knight",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Saryuja Skull Dread",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Springans Merrymaker",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Gigantic \"Champion\" Sargas",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Gung-Ho! Springans!",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-power-patron-artmage-719255",
+    "name": "Power Patron Artmage",
+    "archetype": "Power Patron",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Vidolium the Unstable Power Patron of Unity",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Nervedo the Shadebeast Power Patron",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Jupredo the Shademachine Power Patron",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Power Patron",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Graflare",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Finmel",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Litera",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Medius the Pure",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Shade the Obscure",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Varnish -Alteration-",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Vandalism -Assault-",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Academic Arcane Arts Acropolis",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Prohibited Power Patron Portal - Terminus",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Forbidden Crown",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Book of Eclipse",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Super Polymerization",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dark Ruler No More",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Talent",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Pact -Awakening-",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Impasto -Recapture-",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mudragon of the Swamp",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Sea Monster of Theseus",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Garura, Wings of Resonant Life",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Predaplant Dragostapelia",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Nerva the Power Patron of Creation",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Artmage Non-Finito",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Artmage Diactorus",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Chaos Angel",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Varudras, the Final Bringer of the End Times",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "S:P Little Knight",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Beyond the Pendulum",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Exceed the Pendulum",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Charmer Quartet in Bloom",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  },
+  {
+    "id": "static-branded-dracotail-719244",
+    "name": "Branded Dracotail",
+    "archetype": "Branded",
+    "tier": "Tier 2",
+    "cards": [
+      {
+        "cardName": "Dracotail Faimena",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Lukias",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Urgula",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Pan",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Phryxul",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Mululu",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Aluber the Jester of Despia",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Blazing Cartesia, the Virtuous",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of Albaz",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Guiding Quem, the Virtuous",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Incredible Ecclesia, the Virtuous",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Fallen of the White Dragon",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Bystial Magnamhut",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mulcharmy Fuwalos",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ketu Dracotail",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Rahu Dracotail",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Branded Fusion",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Branded in High Spirits",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "The Fallen &amp; The Virtuous",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Super Polymerization",
+        "quantity": 3,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Forbidden Droplet",
+        "quantity": 2,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Triple Tactics Talent",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Called by the Grave",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Flame",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Sting",
+        "quantity": 1,
+        "section": "main",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Arthalion",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Dracotail Gulamel",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Granguignol the Dusk Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Albion the Branded Dragon",
+        "quantity": 2,
+        "section": "extra",
+        "isKeyCard": true
+      },
+      {
+        "cardName": "Mirrorjade the Iceblade Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Rindbrumm the Striking Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "The Dragon that Devours the Dogma",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Titaniklad the Ash Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Alba-Lenatus the Abyss Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Mudragon of the Swamp",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Khaos Starsource Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Secreterion Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      },
+      {
+        "cardName": "Ecclesia and the Dark Dragon",
+        "quantity": 1,
+        "section": "extra",
+        "isKeyCard": false
+      }
+    ]
+  }
+]
