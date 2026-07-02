@@ -1,7 +1,17 @@
 import { resolveCardId } from "../../ygoprodeck/resolve";
 import type { DeckSection } from "../../recommendation/types";
+import {
+  DECK_SECTIONS,
+  GENERIC_CARD_WEIGHT,
+  KEY_CARD_WEIGHT,
+  META_DECKS_CATEGORY_URL,
+  deckPageUrl,
+  extractDeckName,
+  extractDeckSlugs,
+  isKeyCardFor,
+  parseDeckSection,
+} from "../../../shared/metaDecks/parseHtml";
 
-const CATEGORY_URL = "https://ygoprodeck.com/category/format/tournament%20meta%20decks";
 const USER_AGENT = "ygoh-deck-recommender/1.0 (local hobby project; personal use)";
 const REQUEST_DELAY_MS = 600;
 const MAX_DECKS = 15;
@@ -36,57 +46,30 @@ async function fetchHtml(url: string): Promise<string> {
   return res.text();
 }
 
-function extractDeckSlugs(categoryHtml: string): string[] {
-  const matches = [...categoryHtml.matchAll(/href="\/deck\/([a-z0-9-]+)"/g)].map((m) => m[1]);
-  return [...new Set(matches)];
-}
-
-function parseSection(html: string, sectionId: string): { cardId: number; quantity: number }[] {
-  const marker = `id="${sectionId}"`;
-  const start = html.indexOf(marker);
-  if (start === -1) return [];
-  const nextSection = html.indexOf('class="deck-output"', start + marker.length);
-  const chunk = html.slice(start, nextSection === -1 ? undefined : nextSection);
-  const ids = [...chunk.matchAll(/href="\/card\/\?search=(\d+)"/g)].map((m) => Number(m[1]));
-  const counts = new Map<number, number>();
-  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return [...counts.entries()].map(([cardId, quantity]) => ({ cardId, quantity }));
-}
-
 async function scrapeDeckPage(slug: string): Promise<ScrapedDeck | null> {
-  const url = `https://ygoprodeck.com/deck/${slug}`;
+  const url = deckPageUrl(slug);
   const html = await fetchHtml(url);
 
-  const nameMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
-  const name = nameMatch?.[1]?.trim();
+  const name = extractDeckName(html);
   if (!name) return null;
-
-  const sections: { section: DeckSection; sectionId: string }[] = [
-    { section: "main", sectionId: "main_deck" },
-    { section: "extra", sectionId: "extra_deck" },
-    { section: "side", sectionId: "side_deck" },
-  ];
 
   const cards: ScrapedCard[] = [];
   let parsedQuantity = 0;
   let resolvedQuantity = 0;
-  for (const { section, sectionId } of sections) {
-    const entries = parseSection(html, sectionId);
+  for (const { section, sectionId } of DECK_SECTIONS) {
+    const entries = parseDeckSection(html, sectionId);
     for (const { cardId, quantity } of entries) {
       parsedQuantity += quantity;
       const resolved = await resolveCardId(cardId);
       if (!resolved) continue;
       resolvedQuantity += quantity;
-      const isKeyCard =
-        !!resolved.archetype &&
-        (resolved.archetype.toLowerCase().includes(name.toLowerCase()) ||
-          name.toLowerCase().includes(resolved.archetype.toLowerCase()));
+      const isKeyCard = isKeyCardFor(name, resolved.archetype);
       cards.push({
         cardId: resolved.id,
         quantity,
         section,
         isKeyCard,
-        keyWeight: isKeyCard ? 1.0 : 0.3,
+        keyWeight: isKeyCard ? KEY_CARD_WEIGHT : GENERIC_CARD_WEIGHT,
       });
     }
   }
@@ -96,7 +79,7 @@ async function scrapeDeckPage(slug: string): Promise<ScrapedDeck | null> {
 }
 
 export async function scrapeMetaDecks(): Promise<ScrapedDeck[]> {
-  const categoryHtml = await fetchHtml(CATEGORY_URL);
+  const categoryHtml = await fetchHtml(META_DECKS_CATEGORY_URL);
   const slugs = extractDeckSlugs(categoryHtml).slice(0, MAX_DECKS);
 
   const decks: ScrapedDeck[] = [];
