@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Toaster from "./components/Toaster";
 import ScanPage from "./pages/ScanPage";
 import CardsPage from "./pages/CardsPage";
 import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import ImportPage from "./pages/ImportPage";
+import { hideBanner, initAds, showBanner } from "./services/ads";
 
 type Tab = "scan" | "cards" | "decks" | "meta" | "import";
 
@@ -22,6 +23,16 @@ export default function App() {
   // behind the webview) shows through.
   const [immersive, setImmersive] = useState(false);
 
+  useEffect(() => {
+    void initAds();
+  }, []);
+
+  // Hide the banner over the fullscreen camera; show it everywhere else.
+  useEffect(() => {
+    if (immersive) void hideBanner();
+    else void showBanner();
+  }, [immersive]);
+
   return (
     <div className={`min-h-dvh flex flex-col text-neutral-100 ${immersive ? "" : "bg-neutral-950"}`}>
       {!immersive && (
@@ -30,7 +41,9 @@ export default function App() {
         </header>
       )}
 
-      <main className="flex-1 pb-24">
+      {/* Extra bottom padding = nav height + native ad-banner height so nothing
+          is hidden behind the banner overlay. */}
+      <main className="flex-1" style={{ paddingBottom: "calc(6rem + var(--ad-banner-h, 0px))" }}>
         {tab === "scan" && <ScanPage onImmersive={setImmersive} />}
         {tab === "cards" && <CardsPage />}
         {tab === "decks" && <DecksPage />}
@@ -39,7 +52,10 @@ export default function App() {
       </main>
 
       {!immersive && (
-        <nav className="fixed bottom-0 inset-x-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+        <nav
+          className="fixed inset-x-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+          style={{ bottom: "var(--ad-banner-h, 0px)" }}
+        >
           <div className="flex">
             {TABS.map((t) => (
               <button
