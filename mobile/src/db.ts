@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { DeckCardRequirement } from "@shared/recommendation/types";
+import type { DeckCard } from "@shared/deck/types";
 
 // Slimmed card record — the full YGOPRODeck payload is ~50MB; we keep only
 // what browsing, scanning and recommendations need (~5MB in IndexedDB).
@@ -42,11 +43,25 @@ export interface MSyncMeta {
   value: string;
 }
 
+// A user-built deck (document-style, cards embedded).
+export interface MDeck {
+  id: string;
+  name: string;
+  updatedAt: string;
+  cards: DeckCard[];
+}
+
+export interface MWishlistEntry {
+  cardId: number;
+}
+
 export const db = new Dexie("ygo-deck-builder") as Dexie & {
   cards: EntityTable<MCard, "id">;
   collection: EntityTable<MCollectionEntry, "cardId">;
   metaDecks: EntityTable<MMetaDeck, "id">;
   syncMeta: EntityTable<MSyncMeta, "key">;
+  decks: EntityTable<MDeck, "id">;
+  wishlist: EntityTable<MWishlistEntry, "cardId">;
 };
 
 db.version(1).stores({
@@ -54,6 +69,13 @@ db.version(1).stores({
   collection: "cardId",
   metaDecks: "id",
   syncMeta: "key",
+});
+
+// v2 adds user decks and a wishlist. Existing stores are unchanged, so
+// existing collections/cards migrate automatically.
+db.version(2).stores({
+  decks: "id, updatedAt",
+  wishlist: "cardId",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

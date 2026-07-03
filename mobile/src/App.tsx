@@ -2,15 +2,17 @@ import { useState } from "react";
 import Toaster from "./components/Toaster";
 import ScanPage from "./pages/ScanPage";
 import CardsPage from "./pages/CardsPage";
+import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import ImportPage from "./pages/ImportPage";
 
-type Tab = "scan" | "cards" | "decks" | "import";
+type Tab = "scan" | "cards" | "decks" | "meta" | "import";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "scan", label: "Scan", icon: "📷" },
   { id: "cards", label: "Cards", icon: "🃏" },
-  { id: "decks", label: "Decks", icon: "🏆" },
+  { id: "decks", label: "Decks", icon: "📚" },
+  { id: "meta", label: "Meta", icon: "🏆" },
   { id: "import", label: "Import", icon: "📥" },
 ];
 
@@ -31,7 +33,8 @@ export default function App() {
       <main className="flex-1 pb-24">
         {tab === "scan" && <ScanPage onImmersive={setImmersive} />}
         {tab === "cards" && <CardsPage />}
-        {tab === "decks" && <RecommendationsPage />}
+        {tab === "decks" && <DecksPage />}
+        {tab === "meta" && <RecommendationsPage />}
         {tab === "import" && <ImportPage />}
       </main>
 
