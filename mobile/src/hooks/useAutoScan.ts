@@ -16,7 +16,11 @@ export interface ScannedEntry {
 }
 
 // Frame cadence — OCR is heavy, so leave room between passes.
-const POLL_MS = 850;
+/** Adjustable frame delay (ms) between preview frames – increase to avoid double‑scans. */
+const FRAME_DELAY_MS = 2000;
+
+/** Compatibility constant used by the polling loop. */
+const POLL_MS = FRAME_DELAY_MS;
 // Auto-add when a single frame is this confident, or when a slightly lower
 // match repeats across two consecutive frames (reduces false positives).
 const STRONG_SCORE = 0.9;
