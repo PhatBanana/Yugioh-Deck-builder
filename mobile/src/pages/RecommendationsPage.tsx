@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckRecommendation, MissingCard } from "@shared/recommendation/types";
+import type { PurchaseSuggestion } from "@shared/recommendation/purchases";
 import { db } from "../db";
-import { getRecommendations } from "../services/recommendations";
+import { getPurchaseSuggestions, getRecommendations } from "../services/recommendations";
+import WishlistButton from "../components/WishlistButton";
 import { toast } from "../components/Toaster";
+
+const BUDGETS: { label: string; value: number | null }[] = [
+  { label: "Any", value: null },
+  { label: "≤ $25", value: 25 },
+  { label: "≤ $50", value: 50 },
+  { label: "≤ $100", value: 100 },
+];
 
 function copyShoppingList(rec: DeckRecommendation) {
   const text = rec.missingCards.map((c) => `${c.missingQuantity} ${c.cardName}`).join("\n");
@@ -24,11 +33,35 @@ function MissingRow({ c }: { c: MissingCard }) {
         )}
         <span className="truncate">{c.cardName}</span>
       </span>
-      <span className="shrink-0 text-neutral-500 text-xs tabular-nums">
-        {c.missingCostUsd != null ? `$${c.missingCostUsd.toFixed(2)} · ` : ""}
-        {c.ownedQuantity}/{c.neededQuantity}
+      <span className="shrink-0 flex items-center gap-2">
+        <span className="text-neutral-500 text-xs tabular-nums">
+          {c.missingCostUsd != null ? `$${c.missingCostUsd.toFixed(2)} · ` : ""}
+          {c.ownedQuantity}/{c.neededQuantity}
+        </span>
+        <WishlistButton cardId={c.cardId} />
       </span>
     </li>
+  );
+}
+
+function PurchaseRow({ p }: { p: PurchaseSuggestion }) {
+  const card = useLiveQuery(() => db.cards.get(p.cardId), [p.cardId]);
+  return (
+    <div className="flex items-center gap-2.5 py-1.5">
+      {card?.img ? (
+        <img src={card.img} alt="" className="w-8 rounded" loading="lazy" />
+      ) : (
+        <div className="w-8 h-11 rounded bg-neutral-800" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="text-sm leading-snug truncate">{p.cardName}</div>
+        <div className="text-xs text-neutral-500">
+          helps {p.decksHelped} deck{p.decksHelped === 1 ? "" : "s"}
+          {p.priceUsd != null ? ` · $${p.priceUsd.toFixed(2)}` : ""}
+        </div>
+      </div>
+      <WishlistButton cardId={p.cardId} className="text-xl" />
+    </div>
   );
 }
 
@@ -98,7 +131,11 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
 
 export default function RecommendationsPage() {
   const [recs, setRecs] = useState<DeckRecommendation[] | null>(null);
+  const [purchases, setPurchases] = useState<PurchaseSuggestion[]>([]);
   const [includeSide, setIncludeSide] = useState(false);
+  const [budget, setBudget] = useState<number | null>(null);
+  const [buyNextOpen, setBuyNextOpen] = useState(false);
+
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
   const deckSource = useLiveQuery(
@@ -107,13 +144,13 @@ export default function RecommendationsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    getRecommendations({ includeSide })
-      .then((r) => {
-        if (!cancelled) setRecs(r);
-      })
-      .catch(() => {
-        if (!cancelled) setRecs([]);
-      });
+    // Fetch a wider set so the budget filter still has decks to show.
+    getRecommendations({ includeSide, limit: 30 })
+      .then((r) => !cancelled && setRecs(r))
+      .catch(() => !cancelled && setRecs([]));
+    getPurchaseSuggestions(8)
+      .then((p) => !cancelled && setPurchases(p))
+      .catch(() => !cancelled && setPurchases([]));
     return () => {
       cancelled = true;
     };
@@ -126,6 +163,10 @@ export default function RecommendationsPage() {
       </div>
     );
   }
+
+  const displayed = (recs ?? [])
+    .filter((r) => budget == null || r.missingCostUsd <= budget)
+    .slice(0, budget == null ? 5 : 12);
 
   return (
     <div className="p-4 flex flex-col gap-3">
@@ -144,13 +185,57 @@ export default function RecommendationsPage() {
         </label>
       </div>
 
-      {recs === null && <div className="text-neutral-500 text-sm">Crunching…</div>}
-      {recs?.length === 0 && (
-        <div className="text-neutral-500 text-sm">
-          No meta decks cached yet — run a sync from the Cards tab.
+      {/* Budget filter */}
+      <div className="flex gap-1.5">
+        {BUDGETS.map((b) => (
+          <button
+            key={b.label}
+            type="button"
+            onClick={() => setBudget(b.value)}
+            className={`flex-1 py-1.5 rounded-lg text-xs ${
+              budget === b.value
+                ? "bg-neutral-700 text-white"
+                : "bg-neutral-900 border border-neutral-800 text-neutral-400"
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {/* What to buy next */}
+      {purchases.length > 0 && (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+          <button
+            type="button"
+            onClick={() => setBuyNextOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-sm font-medium"
+          >
+            <span>💡 Best cards to buy next</span>
+            <span className="text-neutral-500 text-xs">{buyNextOpen ? "Hide" : "Show"}</span>
+          </button>
+          {buyNextOpen && (
+            <div className="mt-2 pt-2 border-t border-neutral-800 divide-y divide-neutral-800/60">
+              {purchases.map((p) => (
+                <PurchaseRow key={p.cardId} p={p} />
+              ))}
+              <p className="text-[11px] text-neutral-600 pt-2">
+                Ranked by how much meta-deck progress each unlocks. ♥ adds to your wishlist.
+              </p>
+            </div>
+          )}
         </div>
       )}
-      {recs?.map((rec, i) => (
+
+      {recs === null && <div className="text-neutral-500 text-sm">Crunching…</div>}
+      {recs !== null && displayed.length === 0 && (
+        <div className="text-neutral-500 text-sm">
+          {budget == null
+            ? "No meta decks cached yet — run a sync from the Cards tab."
+            : `No decks completable for ${BUDGETS.find((b) => b.value === budget)?.label}. Try a higher budget.`}
+        </div>
+      )}
+      {displayed.map((rec, i) => (
         <DeckCard key={rec.deckId} rec={rec} rank={i + 1} />
       ))}
     </div>

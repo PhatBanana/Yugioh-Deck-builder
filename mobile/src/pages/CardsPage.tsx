@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type MCard } from "../db";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
+import WishlistButton from "../components/WishlistButton";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
@@ -9,6 +10,14 @@ import { invalidateCandidateCache } from "../services/scanner";
 import { getCollectionStats } from "../services/collection";
 
 const PAGE = 50;
+
+type View = "all" | "owned" | "wishlist";
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "owned", label: "Owned" },
+  { id: "wishlist", label: "Wishlist" },
+];
 
 function CardRow({ card, owned }: { card: MCard; owned: number }) {
   return (
@@ -30,6 +39,7 @@ function CardRow({ card, owned }: { card: MCard; owned: number }) {
           {card.price != null && <span className="shrink-0">${card.price.toFixed(2)}</span>}
         </div>
       </div>
+      <WishlistButton cardId={card.id} className="text-xl" />
       <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
     </div>
   );
@@ -37,7 +47,7 @@ function CardRow({ card, owned }: { card: MCard; owned: number }) {
 
 export default function CardsPage() {
   const [query, setQuery] = useState("");
-  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [view, setView] = useState<View>("all");
   const [limit, setLimit] = useState(PAGE);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -52,9 +62,14 @@ export default function CardsPage() {
   const results = useLiveQuery(async () => {
     const q = query.trim().toLowerCase();
     let rows: MCard[];
-    if (ownedOnly) {
+    if (view === "owned") {
       const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
       const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
+      rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
+      rows.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (view === "wishlist") {
+      const ids = (await db.wishlist.toArray()).map((w) => w.cardId);
+      const cards = await db.cards.bulkGet(ids);
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
       rows.sort((a, b) => a.name.localeCompare(b.name));
     } else if (q) {
@@ -67,7 +82,7 @@ export default function CardsPage() {
       rows = await db.cards.orderBy("nameLower").limit(limit + 1).toArray();
     }
     return rows;
-  }, [query, ownedOnly, limit]);
+  }, [query, view, limit]);
 
   async function runFullSync() {
     setSyncing("Starting…");
@@ -107,33 +122,34 @@ export default function CardsPage() {
     );
   }
 
-  const hasMore = !ownedOnly && (results?.length ?? 0) > limit;
+  const hasMore = view === "all" && (results?.length ?? 0) > limit;
   const visible = hasMore ? results!.slice(0, limit) : (results ?? []);
 
   return (
     <div className="p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setLimit(PAGE);
-          }}
-          placeholder={`Search ${cardCount?.toLocaleString() ?? ""} cards…`}
-          className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm"
-        />
-        <button
-          type="button"
-          onClick={() => setOwnedOnly((o) => !o)}
-          className={`shrink-0 px-3 py-2.5 rounded-xl text-sm border ${
-            ownedOnly
-              ? "bg-emerald-900/60 border-emerald-700 text-emerald-200"
-              : "bg-neutral-900 border-neutral-800 text-neutral-400"
-          }`}
-        >
-          Owned
-        </button>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setLimit(PAGE);
+        }}
+        placeholder={`Search ${cardCount?.toLocaleString() ?? ""} cards…`}
+        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm"
+      />
+      <div className="flex rounded-xl bg-neutral-900 border border-neutral-800 p-0.5 text-sm">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => setView(v.id)}
+            className={`flex-1 py-1.5 rounded-lg ${
+              view === v.id ? "bg-neutral-700 text-white" : "text-neutral-400"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
@@ -153,7 +169,13 @@ export default function CardsPage() {
           <CardRow key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
         ))}
         {visible.length === 0 && (
-          <div className="text-center text-neutral-500 text-sm py-10">No cards match.</div>
+          <div className="text-center text-neutral-500 text-sm py-10">
+            {view === "wishlist"
+              ? "Your wishlist is empty. Tap ♡ on cards, or on the Meta tab's “buy next” list."
+              : view === "owned"
+                ? "No owned cards yet — scan or search to add some."
+                : "No cards match."}
+          </div>
         )}
       </div>
 

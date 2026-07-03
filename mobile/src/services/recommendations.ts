@@ -1,17 +1,14 @@
 import { recommendTopDecks } from "@shared/recommendation/recommend";
+import { rankPurchases, type PurchaseSuggestion } from "@shared/recommendation/purchases";
 import type { DeckRecommendation, MetaDeck } from "@shared/recommendation/types";
 import { db } from "../db";
 import { getOwnedMap } from "./collection";
 import { ensureMetaDecksSeeded } from "./metaDecks";
 
-export async function getRecommendations(options?: {
-  limit?: number;
-  includeSide?: boolean;
-}): Promise<DeckRecommendation[]> {
+// Loads cached meta decks and joins current card prices into each requirement.
+async function loadPricedDecks(): Promise<MetaDeck[]> {
   await ensureMetaDecksSeeded();
-  const [owned, rows] = await Promise.all([getOwnedMap(), db.metaDecks.toArray()]);
-
-  // Join current card prices into the deck requirements.
+  const rows = await db.metaDecks.toArray();
   const priceCache = new Map<number, number | null>();
   const decks: MetaDeck[] = [];
   for (const row of rows) {
@@ -24,6 +21,18 @@ export async function getRecommendations(options?: {
     }
     decks.push({ id: row.id, name: row.name, archetype: row.archetype, cards });
   }
+  return decks;
+}
 
+export async function getRecommendations(options?: {
+  limit?: number;
+  includeSide?: boolean;
+}): Promise<DeckRecommendation[]> {
+  const [owned, decks] = await Promise.all([getOwnedMap(), loadPricedDecks()]);
   return recommendTopDecks(decks, owned, options);
+}
+
+export async function getPurchaseSuggestions(limit = 8): Promise<PurchaseSuggestion[]> {
+  const [owned, decks] = await Promise.all([getOwnedMap(), loadPricedDecks()]);
+  return rankPurchases(decks, owned, { limit });
 }
