@@ -50,3 +50,6 @@ next-env.d.ts
 # bundled portable Node.js runtime (download via nodejs.org, see README-PORTABLE.txt)
 /runtime/
 .claude/settings.local.json
+
+# stray build logs
+/build-logs/
