@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Yu-Gi-Oh! Deck Builder
 
-## Getting Started
+Track the Yu-Gi-Oh! cards you own and find out which top tournament meta decks
+you're closest to building — with the missing cards, prices, and a shopping
+list for each. Card data comes from the [YGOPRODeck](https://ygoprodeck.com)
+API (cached locally); meta decks are scraped from YGOPRODeck's tournament meta
+decks page with a bundled snapshot as fallback.
 
-First, run the development server:
+Two apps share one core (`shared/` — recommendation engine, list/ydk import
+parsing, deck-page parsing, OCR name matching):
+
+## 📱 Android app (`mobile/`)
+
+Capacitor + React app with **camera card scanning**: point the camera at a
+card, on-device ML Kit OCR reads the name, fuzzy matching finds the card, one
+tap adds it to your collection. Also: card browser, bulk import, deck
+recommendations with cost-to-complete.
+
+**Install:** every push to `main` builds an APK via GitHub Actions →
+**Releases → "APK latest" → `app-debug.apk`**. Open it on your phone to
+install (allow "unknown sources" the first time). First launch downloads the
+card database (~50 MB, use Wi-Fi).
+
+**Develop:**
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd mobile
+npm install
+npm run dev          # browser preview (camera scanning stubs to manual search)
+npm run build && npx cap sync android   # refresh native project
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🖥️ Desktop app (repo root)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js + SQLite web app you run locally — same features plus a portable
+distribution: see [README-PORTABLE.txt](README-PORTABLE.txt). Quick start:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
 
-## Learn More
+or double-click `launch.bat` (uses the pre-built standalone server, no
+install needed once `runtime/node.exe` is present).
 
-To learn more about Next.js, take a look at the following resources:
+## Tests
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx vitest run       # shared core: scoring, parsers, OCR name matcher
+```

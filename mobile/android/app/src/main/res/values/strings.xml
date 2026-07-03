@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">YGO Deck Builder</string>
+    <string name="title_activity_main">YGO Deck Builder</string>
+    <string name="package_name">com.phatbanana.ygodeckbuilder</string>
+    <string name="custom_url_scheme">com.phatbanana.ygodeckbuilder</string>
+</resources>
