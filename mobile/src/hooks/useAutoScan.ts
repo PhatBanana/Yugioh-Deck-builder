@@ -3,6 +3,7 @@ import { db } from "../db";
 import { addOwned } from "../services/collection";
 import {
   captureFrameAndMatch,
+  setScreenAwake,
   setTorch as setTorchNative,
   startPreview,
   stopPreview,
@@ -116,6 +117,9 @@ export function useAutoScan(): AutoScanState {
   const start = useCallback(async () => {
     if (runningRef.current) return;
     await startPreview();
+    // Phone is typically in a mount for a scan session — keep the screen from
+    // dimming/locking so it doesn't cut the session short.
+    await setScreenAwake(true);
     runningRef.current = true;
     setScanning(true);
     setStatus("Point the camera at a card");
@@ -129,6 +133,7 @@ export function useAutoScan(): AutoScanState {
       await setTorchNative(false);
       setTorch(false);
     }
+    await setScreenAwake(false);
     await stopPreview();
     setScanning(false);
   }, [torch]);
@@ -170,12 +175,14 @@ export function useAutoScan(): AutoScanState {
     setStatus("Removed last card");
   }, []);
 
-  // Ensure the camera is released if the page unmounts mid-scan.
+  // Ensure the camera is released and the screen can sleep again if the page
+  // unmounts mid-scan.
   useEffect(() => {
     return () => {
       runningRef.current = false;
       if (timerRef.current) clearTimeout(timerRef.current);
       void stopPreview();
+      void setScreenAwake(false);
     };
   }, []);
 

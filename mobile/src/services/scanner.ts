@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { CameraPreview } from "@capacitor-community/camera-preview";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Ocr } from "@jcesarmobile/capacitor-ocr";
 import {
   extractPasscodes,
@@ -87,6 +88,18 @@ export async function setTorch(on: boolean): Promise<void> {
     await CameraPreview.setFlashMode({ flashMode: on ? "torch" : "off" });
   } catch {
     // Device may not have a torch; ignore.
+  }
+}
+
+// Keeps the screen on for the duration of a scan session (phone in a mount,
+// working through a stack of cards hands-free). Best-effort — falls back to
+// normal sleep behavior on unsupported platforms/devices.
+export async function setScreenAwake(on: boolean): Promise<void> {
+  try {
+    if (on) await KeepAwake.keepAwake();
+    else await KeepAwake.allowSleep();
+  } catch {
+    // Not supported on this platform (e.g. web) — ignore.
   }
 }
 
