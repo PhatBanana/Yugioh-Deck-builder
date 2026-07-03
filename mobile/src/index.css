@@ -8,8 +8,10 @@ body {
 }
 
 /* While live scanning, the camera preview renders behind the webview
-   (toBack: true) — make everything above it transparent so it shows through. */
-body.camera-scanning,
-body.camera-scanning #root {
+   (toBack: true). Every layer above it — html, body and the React root — must
+   be transparent or it hides the feed. (html is the one that's easy to miss.) */
+html.camera-scanning,
+html.camera-scanning body,
+html.camera-scanning #root {
   background: transparent !important;
 }

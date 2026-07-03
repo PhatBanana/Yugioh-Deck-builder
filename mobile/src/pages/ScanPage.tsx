@@ -146,9 +146,12 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
 
   useEffect(() => {
     onImmersive(scan.scanning);
-    if (scan.scanning) document.body.classList.add("camera-scanning");
-    else document.body.classList.remove("camera-scanning");
-    return () => document.body.classList.remove("camera-scanning");
+    // Toggle on <html> so the CSS can make html/body/#root all transparent,
+    // letting the behind-the-webview camera preview show through.
+    const root = document.documentElement;
+    if (scan.scanning) root.classList.add("camera-scanning");
+    else root.classList.remove("camera-scanning");
+    return () => root.classList.remove("camera-scanning");
   }, [scan.scanning, onImmersive]);
 
   async function manualSearch(q: string) {
