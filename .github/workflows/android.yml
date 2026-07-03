@@ -63,12 +63,24 @@ jobs:
           name: ygo-deck-builder-debug-apk
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
 
+      # Force the rolling tag onto this commit. softprops updates an existing
+      # release in place but does NOT move the underlying tag ref, which would
+      # otherwise leave apk-latest pinned to the first build's commit (a stale
+      # release, and no reliable "did it build?" signal). Moving it here keeps
+      # the release pointed at the newest build and makes `tag == HEAD` a valid
+      # success check.
+      - name: Point apk-latest tag at this commit
+        run: |
+          git tag -f apk-latest "${GITHUB_SHA}"
+          git push -f origin "refs/tags/apk-latest"
+
       # Rolling "latest" release so the APK is easy to download on a phone:
       # repo page -> Releases -> APK latest -> app-debug.apk
       - name: Update latest release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
+          target_commitish: ${{ github.sha }}
           name: APK latest
           body: >
             Latest Android debug build from main

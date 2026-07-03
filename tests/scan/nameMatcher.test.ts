@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractPasscodes,
   matchCardName,
   matchOcrLines,
   normalizeName,
@@ -50,6 +51,27 @@ describe("matchCardName", () => {
   it("returns nothing for garbage or too-short input", () => {
     expect(matchCardName("zzqqxxwwvv", CATALOG)).toHaveLength(0);
     expect(matchCardName("ab", CATALOG)).toHaveLength(0);
+  });
+});
+
+describe("extractPasscodes", () => {
+  it("pulls isolated 8-digit passcodes from OCR lines", () => {
+    expect(extractPasscodes(["Dark Magician", "ATK/2500 DEF/2100", "46986414"])).toEqual([
+      46986414,
+    ]);
+  });
+
+  it("drops leading zeros so the value matches the numeric card id", () => {
+    expect(extractPasscodes(["04031928"])).toEqual([4031928]);
+  });
+
+  it("ignores numbers that aren't exactly 8 digits", () => {
+    // ATK/DEF, set-code fragments, longer serials
+    expect(extractPasscodes(["2500", "123", "1234567890", "LOB-001"])).toEqual([]);
+  });
+
+  it("dedupes and reads passcodes embedded in a longer line", () => {
+    expect(extractPasscodes(["YGO 89631139 EN", "89631139"])).toEqual([89631139]);
   });
 });
 

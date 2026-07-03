@@ -53,30 +53,33 @@ export function useAutoScan(): AutoScanState {
   const lockedIdRef = useRef<number | null>(null); // added; wait until it leaves frame
   const orderRef = useRef<number[]>([]); // commit order, for undo
 
-  const commit = useCallback(async (id: number, name: string) => {
-    const nextCount = await addOwned(id, 1);
-    const card = await db.cards.get(id);
-    orderRef.current.push(id);
-    setSession((prev) => {
-      const existing = prev.find((e) => e.id === id);
-      const entry: ScannedEntry = {
-        id,
-        name,
-        img: card?.img ?? null,
-        count: (existing?.count ?? 0) + 1,
-      };
-      return [entry, ...prev.filter((e) => e.id !== id)];
-    });
-    setFlash({ name, count: nextCount });
-    setStatus(`Added ${name}`);
-    setTimeout(() => setFlash(null), 900);
-  }, []);
+  const commit = useCallback(
+    async (id: number, name: string, byPasscode = false) => {
+      const nextCount = await addOwned(id, 1);
+      const card = await db.cards.get(id);
+      orderRef.current.push(id);
+      setSession((prev) => {
+        const existing = prev.find((e) => e.id === id);
+        const entry: ScannedEntry = {
+          id,
+          name,
+          img: card?.img ?? null,
+          count: (existing?.count ?? 0) + 1,
+        };
+        return [entry, ...prev.filter((e) => e.id !== id)];
+      });
+      setFlash({ name, count: nextCount });
+      setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
+      setTimeout(() => setFlash(null), 900);
+    },
+    []
+  );
 
   const tick = useCallback(async () => {
     if (!runningRef.current || busyRef.current) return;
     busyRef.current = true;
     try {
-      const { matches } = await captureFrameAndMatch();
+      const { matches, matchedByPasscode } = await captureFrameAndMatch();
       const top = matches[0];
 
       if (!top || top.score < AUTO_SCORE) {
@@ -89,11 +92,12 @@ export function useAutoScan(): AutoScanState {
         // Same card still in view — don't re-add until it leaves.
         setStatus(`${top.name} — move it away to scan another`);
       } else {
+        // A passcode hit is an exact id match — commit it immediately.
         const stable = pendingIdRef.current === top.id;
-        if (top.score >= STRONG_SCORE || stable) {
+        if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name);
+          await commit(top.id, top.name, matchedByPasscode);
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -139,11 +143,11 @@ export function useAutoScan(): AutoScanState {
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches } = await captureFrameAndMatch();
+      const { matches, matchedByPasscode } = await captureFrameAndMatch();
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name);
+        await commit(top.id, top.name, matchedByPasscode);
       } else {
         setStatus("No card recognised — try again");
       }

@@ -2,12 +2,20 @@ import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { CameraPreview } from "@capacitor-community/camera-preview";
 import { Ocr } from "@jcesarmobile/capacitor-ocr";
-import { matchOcrLines, type NameCandidate, type NameMatch } from "@shared/scan/nameMatcher";
+import {
+  extractPasscodes,
+  matchOcrLines,
+  type NameCandidate,
+  type NameMatch,
+} from "@shared/scan/nameMatcher";
 import { db } from "../db";
 
 export interface ScanOutcome {
   matches: NameMatch[];
   rawLines: string[];
+  // True when the top match came from the printed 8-digit passcode (exact id
+  // lookup) rather than fuzzy name matching.
+  matchedByPasscode?: boolean;
 }
 
 let candidateCache: NameCandidate[] | null = null;
@@ -84,11 +92,50 @@ export async function setTorch(on: boolean): Promise<void> {
 
 // Grabs one frame from the live preview and matches it. Returns empty matches
 // (rather than throwing) if the preview isn't running so the scan loop can
-// keep polling without crashing.
+// keep polling without crashing. High JPEG quality helps read the small
+// passcode text.
 export async function captureFrameAndMatch(): Promise<ScanOutcome> {
   if (!previewActive) return { matches: [], rawLines: [] };
-  const { value } = await CameraPreview.captureSample({ quality: 70 });
-  return ocrAndMatch(`data:image/jpeg;base64,${value}`);
+  const { value } = await CameraPreview.captureSample({ quality: 92 });
+  const cropped = await cropToCardRegion(`data:image/jpeg;base64,${value}`);
+  return ocrAndMatch(cropped);
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+// Trims the outer margins of the frame down to roughly where the card sits
+// inside the on-screen framing guide. Cutting the background (table, hands,
+// neighbouring cards) removes stray text and shrinks the image the OCR engine
+// has to scan — faster and more accurate — while keeping the whole card, so
+// both the name (top) and passcode (bottom-left) survive. Conservative on
+// purpose: a gentle crop never clips card content if framing is a bit off.
+async function cropToCardRegion(dataUrl: string): Promise<string> {
+  try {
+    const img = await loadImage(dataUrl);
+    const keepW = 0.86;
+    const keepH = 0.9;
+    const sw = Math.round(img.width * keepW);
+    const sh = Math.round(img.height * keepH);
+    const sx = Math.round((img.width - sw) / 2);
+    const sy = Math.round((img.height - sh) / 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = sw;
+    canvas.height = sh;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    return canvas.toDataURL("image/jpeg", 0.95);
+  } catch {
+    // If anything about the canvas path fails, OCR the original frame.
+    return dataUrl;
+  }
 }
 
 async function ocrAndMatch(image: string): Promise<ScanOutcome> {
@@ -97,6 +144,19 @@ async function ocrAndMatch(image: string): Promise<ScanOutcome> {
     .flatMap((r) => r.text.split("\n"))
     .map((l) => l.trim())
     .filter((l) => l.length >= 3);
+
+  // Prefer the printed passcode: an exact card-id lookup beats fuzzy name
+  // matching whenever the number is legible.
+  for (const id of extractPasscodes(rawLines)) {
+    const card = await db.cards.get(id);
+    if (card) {
+      return {
+        matches: [{ id: card.id, name: card.name, score: 1 }],
+        rawLines,
+        matchedByPasscode: true,
+      };
+    }
+  }
 
   const candidates = await getNameCandidates();
   const matches = matchOcrLines(rawLines, candidates, { limit: 6, minScore: 0.55 });

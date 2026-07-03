@@ -20,6 +20,22 @@ export function normalizeName(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+// Every modern Yu-Gi-Oh! card prints its 8-digit passcode in the bottom-left
+// corner, and that number IS the YGOPRODeck card id. Reading it gives an exact
+// identification with no name ambiguity. Pull isolated 8-digit runs out of the
+// OCR text (ATK/DEF are <=4 digits and set codes aren't 8 plain digits, so
+// false positives are rare — and the caller still verifies each against the
+// catalog). Leading zeros are dropped so the value matches the numeric id.
+export function extractPasscodes(lines: string[]): number[] {
+  const ids = new Set<number>();
+  for (const line of lines) {
+    for (const m of line.matchAll(/(?<!\d)(\d{8})(?!\d)/g)) {
+      ids.add(Number(m[1]));
+    }
+  }
+  return [...ids];
+}
+
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   if (a.length === 0) return b.length;
