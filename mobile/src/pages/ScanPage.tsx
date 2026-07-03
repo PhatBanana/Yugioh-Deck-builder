@@ -6,6 +6,8 @@ import { db } from "../db";
 import { addOwned } from "../services/collection";
 import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
+import { useScanSettings } from "../hooks/useScanSettings";
+import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import { toast } from "../components/Toaster";
 
 function ManualMatchRow({ match }: { match: NameMatch }) {
@@ -43,7 +45,13 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
   );
 }
 
-function ScanningOverlay({ scan }: { scan: AutoScanState }) {
+function ScanningOverlay({
+  scan,
+  onOpenSettings,
+}: {
+  scan: AutoScanState;
+  onOpenSettings: () => void;
+}) {
   const sessionTotal = scan.session.reduce((n, e) => n + e.count, 0);
   return (
     <div className="fixed inset-0 z-[60] flex flex-col">
@@ -60,16 +68,26 @@ function ScanningOverlay({ scan }: { scan: AutoScanState }) {
         <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
           {sessionTotal} added
         </span>
-        <button
-          type="button"
-          onClick={() => void scan.toggleTorch()}
-          className={`w-10 h-10 rounded-full backdrop-blur text-lg ${
-            scan.torch ? "bg-amber-400 text-black" : "bg-black/50 text-white"
-          }`}
-          aria-label="Toggle torch"
-        >
-          🔦
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-lg"
+            aria-label="Scan settings"
+          >
+            ⚙
+          </button>
+          <button
+            type="button"
+            onClick={() => void scan.toggleTorch()}
+            className={`w-10 h-10 rounded-full backdrop-blur text-lg ${
+              scan.torch ? "bg-amber-400 text-black" : "bg-black/50 text-white"
+            }`}
+            aria-label="Toggle torch"
+          >
+            🔦
+          </button>
+        </div>
       </div>
 
       {/* Framing guide */}
@@ -139,10 +157,16 @@ function ScanningOverlay({ scan }: { scan: AutoScanState }) {
 }
 
 export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) => void }) {
-  const scan = useAutoScan();
+  const { settings, update } = useScanSettings();
+  const scan = useAutoScan(settings);
   const cardCount = useLiveQuery(() => db.cards.count());
   const [manualQuery, setManualQuery] = useState("");
   const [manualMatches, setManualMatches] = useState<NameMatch[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const settingsSheet = settingsOpen ? (
+    <ScanSettingsSheet settings={settings} update={update} onClose={() => setSettingsOpen(false)} />
+  ) : null;
 
   useEffect(() => {
     onImmersive(scan.scanning);
@@ -180,10 +204,25 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
     );
   }
 
-  if (scan.scanning) return <ScanningOverlay scan={scan} />;
+  if (scan.scanning)
+    return (
+      <>
+        <ScanningOverlay scan={scan} onOpenSettings={() => setSettingsOpen(true)} />
+        {settingsSheet}
+      </>
+    );
 
   return (
     <div className="p-4 flex flex-col gap-4">
+      <div className="flex justify-end -mb-2">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="text-sm text-neutral-400 active:text-white px-2 py-1"
+        >
+          ⚙ Settings
+        </button>
+      </div>
       <button
         type="button"
         disabled={!isScanSupported()}
@@ -214,6 +253,7 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
           </div>
         )}
       </div>
+      {settingsSheet}
     </div>
   );
 }

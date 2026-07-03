@@ -8,6 +8,7 @@ import {
   startPreview,
   stopPreview,
 } from "../services/scanner";
+import { DEFAULT_SCAN_SETTINGS, type ScanSettings } from "./useScanSettings";
 
 export interface ScannedEntry {
   id: number;
@@ -16,16 +17,34 @@ export interface ScannedEntry {
   count: number; // copies added this session
 }
 
-// Frame cadence — OCR is heavy, so leave room between passes.
-/** Adjustable frame delay (ms) between preview frames – increase to avoid double‑scans. */
-const FRAME_DELAY_MS = 2000;
-
-/** Compatibility constant used by the polling loop. */
-const POLL_MS = FRAME_DELAY_MS;
 // Auto-add when a single frame is this confident, or when a slightly lower
 // match repeats across two consecutive frames (reduces false positives).
 const STRONG_SCORE = 0.9;
 const AUTO_SCORE = 0.72;
+
+// Short confirmation beep via Web Audio (no plugin) so a mounted phone can be
+// used hands-free without watching the screen.
+let audioCtx: AudioContext | null = null;
+function playBeep() {
+  try {
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    audioCtx ??= new Ctor();
+    void audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.value = 0.05;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.08);
+  } catch {
+    // Audio not available — silent fallback.
+  }
+}
 
 export interface AutoScanState {
   scanning: boolean;
@@ -40,7 +59,7 @@ export interface AutoScanState {
   undoLast: () => Promise<void>;
 }
 
-export function useAutoScan(): AutoScanState {
+export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): AutoScanState {
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState("Point the camera at a card");
   const [session, setSession] = useState<ScannedEntry[]>([]);
@@ -53,6 +72,18 @@ export function useAutoScan(): AutoScanState {
   const pendingIdRef = useRef<number | null>(null); // top match from previous frame
   const lockedIdRef = useRef<number | null>(null); // added; wait until it leaves frame
   const orderRef = useRef<number[]>([]); // commit order, for undo
+
+  // Keep the latest settings in a ref so the async scan loop reads current
+  // values (delay/beep) without needing to be re-created on every change.
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  // Apply keep-awake changes made mid-session immediately.
+  useEffect(() => {
+    if (scanning) void setScreenAwake(settings.keepAwake);
+  }, [settings.keepAwake, scanning]);
 
   const commit = useCallback(
     async (id: number, name: string, byPasscode = false) => {
@@ -69,6 +100,7 @@ export function useAutoScan(): AutoScanState {
         };
         return [entry, ...prev.filter((e) => e.id !== id)];
       });
+      if (settingsRef.current.beepOnAdd) playBeep();
       setFlash({ name, count: nextCount });
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
@@ -109,7 +141,7 @@ export function useAutoScan(): AutoScanState {
     } finally {
       busyRef.current = false;
       if (runningRef.current) {
-        timerRef.current = setTimeout(tick, POLL_MS);
+        timerRef.current = setTimeout(tick, settingsRef.current.scanDelayMs);
       }
     }
   }, [commit]);
@@ -118,12 +150,12 @@ export function useAutoScan(): AutoScanState {
     if (runningRef.current) return;
     await startPreview();
     // Phone is typically in a mount for a scan session — keep the screen from
-    // dimming/locking so it doesn't cut the session short.
-    await setScreenAwake(true);
+    // dimming/locking so it doesn't cut the session short (unless disabled).
+    if (settingsRef.current.keepAwake) await setScreenAwake(true);
     runningRef.current = true;
     setScanning(true);
     setStatus("Point the camera at a card");
-    timerRef.current = setTimeout(tick, POLL_MS);
+    timerRef.current = setTimeout(tick, settingsRef.current.scanDelayMs);
   }, [tick]);
 
   const stop = useCallback(async () => {
