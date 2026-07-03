@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { applyImport, resolveImport, type ImportResult } from "../services/collection";
+import DeckImport from "../components/DeckImport";
 import { toast } from "../components/Toaster";
 
 export default function ImportPage() {
+  const [source, setSource] = useState<"deck" | "paste">("deck");
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"add" | "set">("add");
   const [preview, setPreview] = useState<ImportResult | null>(null);
@@ -37,6 +39,25 @@ export default function ImportPage() {
 
   return (
     <div className="p-4 flex flex-col gap-3">
+      <div className="flex rounded-xl bg-neutral-900 border border-neutral-800 p-1 text-sm">
+        {(["deck", "paste"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setSource(s)}
+            className={`flex-1 py-2 rounded-lg ${
+              source === s ? "bg-neutral-700 text-white" : "text-neutral-400"
+            }`}
+          >
+            {s === "deck" ? "Find a deck" : "Paste list"}
+          </button>
+        ))}
+      </div>
+
+      {source === "deck" && <DeckImport />}
+
+      {source === "paste" && (
+        <>
       <p className="text-xs text-neutral-500">
         Paste a list — <code>3x Card Name</code>, <code>3 Card Name</code>, one name per line, a
         .ydk file's contents, or a JSON backup from the desktop app.
@@ -108,6 +129,8 @@ export default function ImportPage() {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -1,24 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { NameMatch } from "@shared/scan/nameMatcher";
 import { matchCardName } from "@shared/scan/nameMatcher";
 import { db } from "../db";
 import { addOwned } from "../services/collection";
-import { getNameCandidates, isScanSupported, scanCard } from "../services/scanner";
+import { getNameCandidates, isScanSupported } from "../services/scanner";
+import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
 import { toast } from "../components/Toaster";
 
-function MatchRow({ match }: { match: NameMatch }) {
+function ManualMatchRow({ match }: { match: NameMatch }) {
   const card = useLiveQuery(() => db.cards.get(match.id), [match.id]);
   const owned = useLiveQuery(
     async () => (await db.collection.get(match.id))?.quantity ?? 0,
     [match.id]
   );
-
   async function add() {
     const next = await addOwned(match.id, 1);
     toast(`${match.name} — now own ${next}`, "success");
   }
-
   return (
     <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2.5">
       {card?.img ? (
@@ -29,8 +28,7 @@ function MatchRow({ match }: { match: NameMatch }) {
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium leading-snug">{match.name}</div>
         <div className="text-xs text-neutral-500 mt-0.5">
-          {Math.round(match.score * 100)}% match
-          {owned ? ` · own ${owned}` : ""}
+          {owned ? `own ${owned}` : "not owned"}
           {card?.price != null ? ` · $${card.price.toFixed(2)}` : ""}
         </div>
       </div>
@@ -45,29 +43,113 @@ function MatchRow({ match }: { match: NameMatch }) {
   );
 }
 
-export default function ScanPage() {
-  const [matches, setMatches] = useState<NameMatch[] | null>(null);
-  const [busy, setBusy] = useState(false);
+function ScanningOverlay({ scan }: { scan: AutoScanState }) {
+  const sessionTotal = scan.session.reduce((n, e) => n + e.count, 0);
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between p-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <button
+          type="button"
+          onClick={() => void scan.stop()}
+          className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-xl leading-none"
+          aria-label="Stop scanning"
+        >
+          ✕
+        </button>
+        <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
+          {sessionTotal} added
+        </span>
+        <button
+          type="button"
+          onClick={() => void scan.toggleTorch()}
+          className={`w-10 h-10 rounded-full backdrop-blur text-lg ${
+            scan.torch ? "bg-amber-400 text-black" : "bg-black/50 text-white"
+          }`}
+          aria-label="Toggle torch"
+        >
+          🔦
+        </button>
+      </div>
+
+      {/* Framing guide */}
+      <div className="flex-1 flex items-center justify-center pointer-events-none px-8">
+        <div className="w-full max-w-xs aspect-[59/86] rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+      </div>
+
+      {/* Status + flash */}
+      <div className="text-center pb-2 min-h-6">
+        {scan.flash ? (
+          <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-medium">
+            ✓ {scan.flash.name} ×{scan.flash.count}
+          </span>
+        ) : (
+          <span className="inline-block px-4 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white/90">
+            {scan.status}
+          </span>
+        )}
+      </div>
+
+      {/* Session strip */}
+      {scan.session.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto px-4 pb-2">
+          {scan.session.map((e) => (
+            <div key={e.id} className="relative shrink-0">
+              {e.img ? (
+                <img src={e.img} alt={e.name} className="w-12 rounded" />
+              ) : (
+                <div className="w-12 h-[70px] rounded bg-neutral-700" />
+              )}
+              {e.count > 1 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-emerald-500 text-black text-xs font-bold flex items-center justify-center">
+                  {e.count}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-3 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        <button
+          type="button"
+          onClick={() => void scan.undoLast()}
+          disabled={scan.session.length === 0}
+          className="px-4 py-3 rounded-xl bg-black/50 backdrop-blur text-white text-sm disabled:opacity-30"
+        >
+          ↩ Undo
+        </button>
+        <button
+          type="button"
+          onClick={() => void scan.captureNow()}
+          className="w-16 h-16 rounded-full bg-white active:bg-neutral-300 border-4 border-white/40"
+          aria-label="Capture now"
+        />
+        <button
+          type="button"
+          onClick={() => void scan.stop()}
+          className="px-4 py-3 rounded-xl bg-emerald-700 active:bg-emerald-600 text-white text-sm font-medium"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) => void }) {
+  const scan = useAutoScan();
+  const cardCount = useLiveQuery(() => db.cards.count());
   const [manualQuery, setManualQuery] = useState("");
   const [manualMatches, setManualMatches] = useState<NameMatch[]>([]);
-  const cardCount = useLiveQuery(() => db.cards.count());
 
-  async function scan() {
-    setBusy(true);
-    try {
-      const outcome = await scanCard();
-      setMatches(outcome.matches);
-      if (outcome.matches.length === 0) {
-        toast("Couldn't match that photo — try filling the frame with the card name.", "error");
-      }
-    } catch (err) {
-      // User cancelling the camera also lands here; stay quiet for that.
-      const message = err instanceof Error ? err.message : String(err);
-      if (!/cancel/i.test(message)) toast(`Scan failed: ${message}`, "error");
-    } finally {
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    onImmersive(scan.scanning);
+    if (scan.scanning) document.body.classList.add("camera-scanning");
+    else document.body.classList.remove("camera-scanning");
+    return () => document.body.classList.remove("camera-scanning");
+  }, [scan.scanning, onImmersive]);
 
   async function manualSearch(q: string) {
     setManualQuery(q);
@@ -76,7 +158,15 @@ export default function ScanPage() {
       return;
     }
     const candidates = await getNameCandidates();
-    setManualMatches(matchCardName(q, candidates, { limit: 5, minScore: 0.4 }));
+    setManualMatches(matchCardName(q, candidates, { limit: 6, minScore: 0.4 }));
+  }
+
+  async function startScan() {
+    try {
+      await scan.start();
+    } catch (err) {
+      toast(`Couldn't start camera: ${err instanceof Error ? err.message : err}`, "error");
+    }
   }
 
   if (!cardCount) {
@@ -87,46 +177,36 @@ export default function ScanPage() {
     );
   }
 
+  if (scan.scanning) return <ScanningOverlay scan={scan} />;
+
   return (
     <div className="p-4 flex flex-col gap-4">
       <button
         type="button"
-        disabled={busy || !isScanSupported()}
-        onClick={scan}
+        disabled={!isScanSupported()}
+        onClick={startScan}
         className="w-full py-5 rounded-2xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 text-lg font-semibold"
       >
-        {busy ? "Reading card…" : "📷 Scan a card"}
+        📷 Scan cards
       </button>
-      {!isScanSupported() && (
-        <p className="text-xs text-neutral-500 text-center">
-          Camera scanning works in the Android app. Use the search below in the browser.
-        </p>
-      )}
       <p className="text-xs text-neutral-500 text-center -mt-2">
-        Fill the frame with the card. Each +1 adds a copy to your collection.
+        {isScanSupported()
+          ? "Hold each card up — it captures automatically when the name is readable. Show the next card to keep going."
+          : "Live camera scanning works in the Android app. Use the search below in the browser."}
       </p>
 
-      {matches && matches.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-neutral-400">Best matches</h2>
-          {matches.map((m) => (
-            <MatchRow key={m.id} match={m} />
-          ))}
-        </div>
-      )}
-
-      <div className="mt-2">
+      <div className="mt-1">
         <input
           type="search"
           value={manualQuery}
           onChange={(e) => manualSearch(e.target.value)}
-          placeholder="Or type a card name…"
+          placeholder="Or add a card by name…"
           className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm"
         />
         {manualMatches.length > 0 && (
           <div className="flex flex-col gap-2 mt-2">
             {manualMatches.map((m) => (
-              <MatchRow key={m.id} match={m} />
+              <ManualMatchRow key={m.id} match={m} />
             ))}
           </div>
         )}

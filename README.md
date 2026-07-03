@@ -11,10 +11,16 @@ parsing, deck-page parsing, OCR name matching):
 
 ## 📱 Android app (`mobile/`)
 
-Capacitor + React app with **camera card scanning**: point the camera at a
-card, on-device ML Kit OCR reads the name, fuzzy matching finds the card, one
-tap adds it to your collection. Also: card browser, bulk import, deck
-recommendations with cost-to-complete.
+Capacitor + React app with **continuous camera card scanning**: open the live
+camera and hold up cards one after another — each is captured automatically
+when its name is readable (on-device ML Kit OCR + fuzzy matching), added to
+your collection, and shown in a running strip with an undo. A manual shutter
+and torch toggle are there too.
+
+Also: **import a whole deck or archetype by search** (e.g. type "Dark
+Magician" to pull in every card in that archetype, or import a cached meta
+deck's list), a card browser, paste/.ydk import, and deck recommendations with
+cost-to-complete.
 
 **Install:** every push to `main` builds an APK via GitHub Actions →
 **Releases → "APK latest" → `app-debug.apk`**. Open it on your phone to

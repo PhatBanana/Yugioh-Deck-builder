@@ -26,6 +26,19 @@ export async function addOwned(cardId: number, delta = 1): Promise<number> {
   return next;
 }
 
+// Sets exact quantities for many cards in one transaction (deck/archetype
+// bulk import). quantity 0 removes the card from the collection.
+export async function setOwnedMany(
+  entries: { cardId: number; quantity: number }[]
+): Promise<void> {
+  await db.transaction("rw", db.collection, async () => {
+    for (const { cardId, quantity } of entries) {
+      if (quantity <= 0) await db.collection.delete(cardId);
+      else await db.collection.put({ cardId, quantity: Math.min(99, quantity) });
+    }
+  });
+}
+
 export interface CollectionStats {
   uniqueCards: number;
   totalCopies: number;
