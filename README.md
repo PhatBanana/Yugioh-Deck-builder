@@ -17,15 +17,42 @@ when its name is readable (on-device ML Kit OCR + fuzzy matching), added to
 your collection, and shown in a running strip with an undo. A manual shutter
 and torch toggle are there too.
 
-Also: **import a whole deck or archetype by search** (e.g. type "Dark
-Magician" to pull in every card in that archetype, or import a cached meta
-deck's list), a card browser, paste/.ydk import, and deck recommendations with
-cost-to-complete.
+Also:
+
+- **Deck builder** — build/save your own decks (main/extra/side), with live
+  legality checks (deck sizes, copy/banlist limits) and owned-vs-needed
+  highlighting. Import a `.ydk` from Master Duel / EDOPro / YGOPRODeck; export
+  any deck back to `.ydk`.
+- **Meta recommendations** — the top meta decks you're closest to building,
+  with cost-to-complete, a **budget filter**, and **"best cards to buy next"**
+  (the cards that unlock the most progress across decks).
+- **Wishlist** — ♥ any card and review it in the Cards tab.
+- **Import by search** — type "Dark Magician" to pull in a whole archetype, or
+  import a cached meta deck's list; plus paste / `.ydk` collection import.
+- **Card browser** with scanning-fed collection tracking.
 
 **Install:** every push to `main` builds an APK via GitHub Actions →
 **Releases → "APK latest" → `app-debug.apk`**. Open it on your phone to
 install (allow "unknown sources" the first time). First launch downloads the
 card database (~50 MB, use Wi-Fi).
+
+### Giving it to a friend
+
+The repo is private, so a friend has two ways to get the app:
+
+1. **Send them the APK file.** Download `app-debug.apk` from the latest release
+   and share it (Drive, email, messaging). Simplest — they don't need a GitHub
+   account.
+2. **Add them as a repo collaborator** (GitHub → Settings → Collaborators) so
+   they can open the Releases page and download it themselves, and get every
+   future build.
+
+On their phone: open the APK, allow installing from your browser/files app when
+prompted, then launch and let it sync the card database once (Wi-Fi). Updates
+install straight over the top — all builds share one signing key — so they only
+grab the newer APK; no uninstall. Collections/decks live on-device (per phone);
+the Cards tab has an **Export backup** on the desktop app if they want to move
+data over via the Import tab.
 
 **Develop:**
 

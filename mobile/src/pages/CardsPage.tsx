@@ -107,14 +107,20 @@ export default function CardsPage() {
   if (cardCount === 0) {
     return (
       <div className="p-6 flex flex-col items-center gap-4 text-center">
-        <p className="text-neutral-300 mt-8">
-          First run: download the Yu-Gi-Oh! card database (~50 MB, Wi-Fi recommended).
+        <h2 className="text-lg font-semibold mt-6">Welcome 👋</h2>
+        <p className="text-neutral-300 text-sm max-w-xs">
+          Scan the cards you own with your camera, then see which top meta decks
+          you can build and what you're missing.
+        </p>
+        <p className="text-neutral-500 text-xs max-w-xs">
+          To start, download the Yu-Gi-Oh! card database — about 50 MB, so use
+          Wi-Fi. This is a one-time step.
         </p>
         <button
           type="button"
           disabled={!!syncing}
           onClick={runFullSync}
-          className="px-6 py-3.5 rounded-xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 font-semibold"
+          className="px-6 py-3.5 rounded-xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 font-semibold mt-2"
         >
           {syncing ?? "Download card database"}
         </button>
