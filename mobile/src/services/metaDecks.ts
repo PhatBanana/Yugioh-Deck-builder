@@ -9,7 +9,7 @@ import {
   isKeyCardFor,
   parseDeckSection,
 } from "@shared/metaDecks/parseHtml";
-import { detectStrategy } from "@shared/metaDecks/strategy";
+import { classifyStrategy, type StrategyCardInfo } from "@shared/metaDecks/strategy";
 import type { DeckSection } from "@shared/recommendation/types";
 import staticSnapshot from "@data/static-meta-decks.json";
 import { db, setSyncMeta, type MMetaDeck } from "../db";
@@ -21,13 +21,21 @@ function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+interface ResolvedCard {
+  id: number;
+  name: string;
+  archetype: string | null;
+  type: string;
+  atk: number | null;
+}
+
 // Deck pages sometimes reference an alternate-artwork id; resolve via the
 // live API by name as a fallback, mirroring the desktop scraper.
-async function resolveCard(
-  cardId: number
-): Promise<{ id: number; name: string; archetype: string | null } | null> {
+async function resolveCard(cardId: number): Promise<ResolvedCard | null> {
   const local = await db.cards.get(cardId);
-  if (local) return { id: local.id, name: local.name, archetype: local.archetype };
+  if (local) {
+    return { id: local.id, name: local.name, archetype: local.archetype, type: local.type, atk: local.atk };
+  }
   try {
     const json = await httpGetJson<{ data?: { name?: string }[] }>(
       `https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${cardId}`
@@ -35,7 +43,9 @@ async function resolveCard(
     const name = json.data?.[0]?.name;
     if (!name) return null;
     const byName = await db.cards.where("nameLower").equals(name.toLowerCase()).first();
-    return byName ? { id: byName.id, name: byName.name, archetype: byName.archetype } : null;
+    return byName
+      ? { id: byName.id, name: byName.name, archetype: byName.archetype, type: byName.type, atk: byName.atk }
+      : null;
   } catch {
     return null;
   }
@@ -47,6 +57,7 @@ async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MM
   if (!name) return null;
 
   const cards: MMetaDeck["cards"] = [];
+  const composition: StrategyCardInfo[] = [];
   let parsedQty = 0;
   let resolvedQty = 0;
   for (const { section, sectionId } of DECK_SECTIONS) {
@@ -64,6 +75,7 @@ async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MM
         isKeyCard,
         keyWeight: isKeyCard ? KEY_CARD_WEIGHT : GENERIC_CARD_WEIGHT,
       });
+      composition.push({ name: resolved.name, type: resolved.type, atk: resolved.atk, quantity, section });
     }
   }
 
@@ -75,7 +87,7 @@ async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MM
     archetype: name,
     tier: null,
     era,
-    strategy: detectStrategy(name),
+    strategy: classifyStrategy(name, composition, era),
     source: "scrape",
     sourceUrl: deckPageUrl(slug),
     lastUpdated: now,
@@ -128,6 +140,7 @@ async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
   const decks: MMetaDeck[] = [];
   for (const deck of staticSnapshot as SnapshotDeck[]) {
     const cards: MMetaDeck["cards"] = [];
+    const composition: StrategyCardInfo[] = [];
     for (const c of deck.cards) {
       const card = await db.cards.where("nameLower").equals(c.cardName.toLowerCase()).first();
       if (!card) continue;
@@ -139,15 +152,16 @@ async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
         isKeyCard: c.isKeyCard,
         keyWeight: c.isKeyCard ? KEY_CARD_WEIGHT : GENERIC_CARD_WEIGHT,
       });
+      composition.push({ name: card.name, type: card.type, atk: card.atk, quantity: c.quantity, section: c.section });
     }
     decks.push({
       id: deck.id,
       name: deck.name,
       archetype: deck.archetype,
       tier: deck.tier,
-      // The bundled snapshot is current-format; strategy inferred from name.
+      // The bundled snapshot is current-format; strategy from composition.
       era: "Modern",
-      strategy: detectStrategy(deck.name),
+      strategy: classifyStrategy(deck.name, composition, "Modern"),
       source: "static_snapshot",
       sourceUrl: null,
       lastUpdated: now,
