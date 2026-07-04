@@ -32,6 +32,8 @@ export interface MMetaDeck {
   name: string;
   archetype: string | null;
   tier: string | null;
+  era: string | null; // "Modern" | "Edison" | "Goat" | ...
+  strategy: string | null; // "Control" | "Burn" | ... (null when unknown)
   source: "scrape" | "static_snapshot";
   sourceUrl: string | null;
   lastUpdated: string;

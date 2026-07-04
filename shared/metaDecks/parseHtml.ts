@@ -6,6 +6,29 @@ import type { DeckSection } from "../recommendation/types";
 export const META_DECKS_CATEGORY_URL =
   "https://ygoprodeck.com/category/format/tournament%20meta%20decks";
 
+// Format categories to scrape, each tagged with the era it represents. Verified
+// live URLs. `maxDecks` keeps each format's scrape bounded. Add more formats
+// here (e.g. Speed Duel) — the pipeline picks them up automatically.
+export interface MetaFormat {
+  era: string;
+  url: string;
+  maxDecks: number;
+}
+
+export const META_FORMATS: MetaFormat[] = [
+  { era: "Modern", url: META_DECKS_CATEGORY_URL, maxDecks: 12 },
+  {
+    era: "Edison",
+    url: "https://ygoprodeck.com/category/format/edison%20format%20decks",
+    maxDecks: 8,
+  },
+  {
+    era: "Goat",
+    url: "https://ygoprodeck.com/category/format/goat%20format%20decks",
+    maxDecks: 8,
+  },
+];
+
 export function deckPageUrl(slug: string): string {
   return `https://ygoprodeck.com/deck/${slug}`;
 }

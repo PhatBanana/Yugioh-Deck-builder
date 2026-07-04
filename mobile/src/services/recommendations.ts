@@ -19,7 +19,14 @@ async function loadPricedDecks(): Promise<MetaDeck[]> {
       }
       cards.push({ ...c, priceUsd: priceCache.get(c.cardId) ?? null });
     }
-    decks.push({ id: row.id, name: row.name, archetype: row.archetype, cards });
+    decks.push({
+      id: row.id,
+      name: row.name,
+      archetype: row.archetype,
+      era: row.era ?? null,
+      strategy: row.strategy ?? null,
+      cards,
+    });
   }
   return decks;
 }

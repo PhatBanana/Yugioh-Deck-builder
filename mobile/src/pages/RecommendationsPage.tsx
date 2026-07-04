@@ -75,6 +75,20 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
         <div className="min-w-0">
           <div className="text-[11px] text-neutral-500">#{rank}</div>
           <h3 className="font-semibold leading-snug">{rec.deckName}</h3>
+          {(rec.era || rec.strategy) && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {rec.era && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                  {rec.era}
+                </span>
+              )}
+              {rec.strategy && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-900/60 text-indigo-200">
+                  {rec.strategy}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="text-right shrink-0">
           <div className="text-xl font-semibold tabular-nums">{pct}%</div>
@@ -135,6 +149,9 @@ export default function RecommendationsPage() {
   const [includeSide, setIncludeSide] = useState(false);
   const [budget, setBudget] = useState<number | null>(null);
   const [buyNextOpen, setBuyNextOpen] = useState(false);
+  const [era, setEra] = useState<string | null>(null);
+  const [strategy, setStrategy] = useState<string | null>(null);
+  const [sort, setSort] = useState<"completion" | "cost" | "name">("completion");
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
@@ -144,8 +161,8 @@ export default function RecommendationsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // Fetch a wider set so the budget filter still has decks to show.
-    getRecommendations({ includeSide, limit: 30 })
+    // Fetch all cached decks so era/strategy/budget filters have a full pool.
+    getRecommendations({ includeSide, limit: 200 })
       .then((r) => !cancelled && setRecs(r))
       .catch(() => !cancelled && setRecs([]));
     getPurchaseSuggestions(8)
@@ -164,15 +181,34 @@ export default function RecommendationsPage() {
     );
   }
 
-  const displayed = (recs ?? [])
+  const allRecs = recs ?? [];
+  // Distinct eras / strategies present, for the filter dropdowns.
+  const eras = [...new Set(allRecs.map((r) => r.era).filter((e): e is string => !!e))].sort();
+  const strategies = [
+    ...new Set(allRecs.map((r) => r.strategy).filter((s): s is string => !!s)),
+  ].sort();
+
+  const filtersActive = budget != null || era != null || strategy != null || sort !== "completion";
+
+  const displayed = allRecs
     .filter((r) => budget == null || r.missingCostUsd <= budget)
-    .slice(0, budget == null ? 5 : 12);
+    .filter((r) => era == null || r.era === era)
+    .filter((r) => strategy == null || r.strategy === strategy)
+    .sort((a, b) => {
+      if (sort === "cost") return a.missingCostUsd - b.missingCostUsd;
+      if (sort === "name") return a.deckName.localeCompare(b.deckName);
+      return 0; // 'completion' — already sorted by the recommender
+    })
+    .slice(0, filtersActive ? 25 : 5);
+
+  const selectClass =
+    "flex-1 min-w-0 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-2 py-1.5";
 
   return (
     <div className="p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-xs text-neutral-500">
-          Top meta decks you're closest to building
+          Meta decks ranked by how close you are
           {deckSource === "static_snapshot" ? " (bundled snapshot)" : ""}
         </p>
         <label className="flex items-center gap-1.5 text-xs text-neutral-400 shrink-0">
@@ -183,6 +219,43 @@ export default function RecommendationsPage() {
           />
           Side deck
         </label>
+      </div>
+
+      {/* Era / strategy / sort */}
+      <div className="flex gap-1.5">
+        <select
+          className={selectClass}
+          value={era ?? ""}
+          onChange={(e) => setEra(e.target.value || null)}
+        >
+          <option value="">All eras</option>
+          {eras.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+        <select
+          className={selectClass}
+          value={strategy ?? ""}
+          onChange={(e) => setStrategy(e.target.value || null)}
+        >
+          <option value="">All styles</option>
+          {strategies.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          className={selectClass}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+        >
+          <option value="completion">Closest</option>
+          <option value="cost">Cheapest</option>
+          <option value="name">A–Z</option>
+        </select>
       </div>
 
       {/* Budget filter */}
@@ -230,9 +303,9 @@ export default function RecommendationsPage() {
       {recs === null && <div className="text-neutral-500 text-sm">Crunching…</div>}
       {recs !== null && displayed.length === 0 && (
         <div className="text-neutral-500 text-sm">
-          {budget == null
+          {allRecs.length === 0
             ? "No meta decks cached yet — run a sync from the Cards tab."
-            : `No decks completable for ${BUDGETS.find((b) => b.value === budget)?.label}. Try a higher budget.`}
+            : "No decks match these filters. Try widening era, style, or budget."}
         </div>
       )}
       {displayed.map((rec, i) => (

@@ -18,6 +18,8 @@ export interface MetaDeck {
   id: string;
   name: string;
   archetype: string | null;
+  era?: string | null; // e.g. "Modern", "Edison", "Goat"
+  strategy?: string | null; // e.g. "Control", "Burn" (null when unknown)
   cards: DeckCardRequirement[];
 }
 
@@ -38,6 +40,8 @@ export interface DeckRecommendation {
   deckId: string;
   deckName: string;
   archetype: string | null;
+  era: string | null;
+  strategy: string | null;
   completionScore: number;
   rawCompletionPct: number;
   totalCardsNeeded: number;

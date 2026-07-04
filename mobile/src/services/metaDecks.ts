@@ -2,19 +2,19 @@ import {
   DECK_SECTIONS,
   GENERIC_CARD_WEIGHT,
   KEY_CARD_WEIGHT,
-  META_DECKS_CATEGORY_URL,
+  META_FORMATS,
   deckPageUrl,
   extractDeckName,
   extractDeckSlugs,
   isKeyCardFor,
   parseDeckSection,
 } from "@shared/metaDecks/parseHtml";
+import { detectStrategy } from "@shared/metaDecks/strategy";
 import type { DeckSection } from "@shared/recommendation/types";
 import staticSnapshot from "@data/static-meta-decks.json";
 import { db, setSyncMeta, type MMetaDeck } from "../db";
 import { httpGetJson, httpGetText } from "./http";
 
-const MAX_DECKS = 15;
 const REQUEST_DELAY_MS = 600;
 
 function delay(ms: number) {
@@ -41,57 +41,74 @@ async function resolveCard(
   }
 }
 
-async function scrapeDecks(onProgress?: (m: string) => void): Promise<MMetaDeck[]> {
-  const categoryHtml = await httpGetText(META_DECKS_CATEGORY_URL);
-  const slugs = extractDeckSlugs(categoryHtml).slice(0, MAX_DECKS);
-  if (slugs.length === 0) throw new Error("No deck links found on category page");
+async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MMetaDeck | null> {
+  const html = await httpGetText(deckPageUrl(slug));
+  const name = extractDeckName(html);
+  if (!name) return null;
 
+  const cards: MMetaDeck["cards"] = [];
+  let parsedQty = 0;
+  let resolvedQty = 0;
+  for (const { section, sectionId } of DECK_SECTIONS) {
+    for (const { cardId, quantity } of parseDeckSection(html, sectionId)) {
+      parsedQty += quantity;
+      const resolved = await resolveCard(cardId);
+      if (!resolved) continue;
+      resolvedQty += quantity;
+      const isKeyCard = isKeyCardFor(name, resolved.archetype);
+      cards.push({
+        cardId: resolved.id,
+        cardName: resolved.name,
+        quantity,
+        section,
+        isKeyCard,
+        keyWeight: isKeyCard ? KEY_CARD_WEIGHT : GENERIC_CARD_WEIGHT,
+      });
+    }
+  }
+
+  // Drop decks that mostly failed to resolve (page layout change guard).
+  if (parsedQty === 0 || resolvedQty / parsedQty < 0.8) return null;
+  return {
+    id: slug,
+    name,
+    archetype: name,
+    tier: null,
+    era,
+    strategy: detectStrategy(name),
+    source: "scrape",
+    sourceUrl: deckPageUrl(slug),
+    lastUpdated: now,
+    cards,
+  };
+}
+
+// Scrapes each configured format category, tagging decks with the format's era
+// (and a strategy derived from the deck name). A format that fails is skipped;
+// the run only fails (falling back to the snapshot) if too little is gathered.
+async function scrapeDecks(onProgress?: (m: string) => void): Promise<MMetaDeck[]> {
   const now = new Date().toISOString();
   const decks: MMetaDeck[] = [];
-  for (const [i, slug] of slugs.entries()) {
-    onProgress?.(`Fetching deck ${i + 1}/${slugs.length}…`);
+
+  for (const format of META_FORMATS) {
+    let slugs: string[];
     try {
-      const html = await httpGetText(deckPageUrl(slug));
-      const name = extractDeckName(html);
-      if (!name) continue;
-
-      const cards: MMetaDeck["cards"] = [];
-      let parsedQty = 0;
-      let resolvedQty = 0;
-      for (const { section, sectionId } of DECK_SECTIONS) {
-        for (const { cardId, quantity } of parseDeckSection(html, sectionId)) {
-          parsedQty += quantity;
-          const resolved = await resolveCard(cardId);
-          if (!resolved) continue;
-          resolvedQty += quantity;
-          const isKeyCard = isKeyCardFor(name, resolved.archetype);
-          cards.push({
-            cardId: resolved.id,
-            cardName: resolved.name,
-            quantity,
-            section,
-            isKeyCard,
-            keyWeight: isKeyCard ? KEY_CARD_WEIGHT : GENERIC_CARD_WEIGHT,
-          });
-        }
-      }
-
-      // Drop decks that mostly failed to resolve (page layout change guard).
-      if (parsedQty === 0 || resolvedQty / parsedQty < 0.8) continue;
-      decks.push({
-        id: slug,
-        name,
-        archetype: name,
-        tier: null,
-        source: "scrape",
-        sourceUrl: deckPageUrl(slug),
-        lastUpdated: now,
-        cards,
-      });
+      const categoryHtml = await httpGetText(format.url);
+      slugs = extractDeckSlugs(categoryHtml).slice(0, format.maxDecks);
     } catch {
-      // Skip broken deck pages; validation below decides if the run counts.
+      continue; // skip a format whose category page failed
     }
-    await delay(REQUEST_DELAY_MS);
+
+    for (const [i, slug] of slugs.entries()) {
+      onProgress?.(`${format.era}: deck ${i + 1}/${slugs.length}…`);
+      try {
+        const deck = await scrapeOneDeck(slug, format.era, now);
+        if (deck) decks.push(deck);
+      } catch {
+        // Skip broken deck pages.
+      }
+      await delay(REQUEST_DELAY_MS);
+    }
   }
 
   if (decks.length < 3) throw new Error(`Only ${decks.length} decks scraped — not trusting it`);
@@ -128,6 +145,9 @@ async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
       name: deck.name,
       archetype: deck.archetype,
       tier: deck.tier,
+      // The bundled snapshot is current-format; strategy inferred from name.
+      era: "Modern",
+      strategy: detectStrategy(deck.name),
       source: "static_snapshot",
       sourceUrl: null,
       lastUpdated: now,

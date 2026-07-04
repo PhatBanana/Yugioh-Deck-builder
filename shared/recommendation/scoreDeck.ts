@@ -49,6 +49,8 @@ export function scoreDeck(
     deckId: deck.id,
     deckName: deck.name,
     archetype: deck.archetype,
+    era: deck.era ?? null,
+    strategy: deck.strategy ?? null,
     completionScore: weightedNeeded > 0 ? weightedOwned / weightedNeeded : 0,
     rawCompletionPct: rawNeeded > 0 ? rawOwned / rawNeeded : 0,
     totalCardsNeeded: rawNeeded,
