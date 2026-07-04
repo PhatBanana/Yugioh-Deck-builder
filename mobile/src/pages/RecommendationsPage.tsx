@@ -3,7 +3,12 @@ import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckRecommendation, MissingCard } from "@shared/recommendation/types";
 import type { PurchaseSuggestion } from "@shared/recommendation/purchases";
 import { db } from "../db";
-import { getPurchaseSuggestions, getRecommendations } from "../services/recommendations";
+import {
+  getMetaDeckOwnership,
+  getPurchaseSuggestions,
+  getRecommendations,
+} from "../services/recommendations";
+import { saveMetaDeckAsDeck } from "../services/decks";
 import WishlistButton from "../components/WishlistButton";
 import { toast } from "../components/Toaster";
 
@@ -69,6 +74,18 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
   const [expanded, setExpanded] = useState(rank === 1);
   const pct = Math.round(rec.completionScore * 100);
 
+  // Cards you already own for this deck (fetched only while expanded).
+  const owned = useLiveQuery(
+    async () =>
+      expanded ? (await getMetaDeckOwnership(rec.deckId)).filter((c) => c.owned > 0) : null,
+    [expanded, rec.deckId]
+  );
+
+  async function addToDecks() {
+    const deck = await saveMetaDeckAsDeck(rec.deckId);
+    toast(deck ? `Added “${deck.name}” to Decks` : "Couldn't add deck", deck ? "success" : "error");
+  }
+
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-3.5">
       <div className="flex items-start justify-between gap-3">
@@ -111,33 +128,79 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
         </div>
       )}
 
-      <div className="mt-2 flex items-center justify-between">
+      <div className="mt-2 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="text-sm text-neutral-300"
+          className="text-sm text-neutral-300 shrink-0"
         >
-          {expanded ? "Hide" : "Show"} missing ({rec.missingCards.length})
+          {expanded ? "Hide" : "Show"} cards
         </button>
-        {rec.missingCards.length > 0 && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => copyShoppingList(rec)}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-neutral-800 active:bg-neutral-700"
+            onClick={addToDecks}
+            className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-800/70 active:bg-emerald-700 text-emerald-100"
           >
-            Copy list
+            + Add to Decks
           </button>
-        )}
+          {rec.missingCards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => copyShoppingList(rec)}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-neutral-800 active:bg-neutral-700"
+            >
+              Copy list
+            </button>
+          )}
+        </div>
       </div>
 
       {expanded && (
-        <ul className="mt-2 pt-2 border-t border-neutral-800 flex flex-col">
-          {rec.missingCards.length === 0 ? (
-            <li className="text-sm text-emerald-400">You can build this deck!</li>
-          ) : (
-            rec.missingCards.map((c) => <MissingRow key={`${c.cardId}-${c.section}`} c={c} />)
+        <div className="mt-2 pt-2 border-t border-neutral-800 flex flex-col gap-2">
+          {/* Cards you already own */}
+          {owned && owned.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-emerald-400 mb-1">
+                You own ({owned.length})
+              </div>
+              <ul className="flex flex-col">
+                {owned.map((c) => (
+                  <li
+                    key={c.cardId}
+                    className="flex items-center justify-between gap-2 text-sm py-0.5"
+                  >
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-emerald-500 shrink-0">✓</span>
+                      <span className="truncate">{c.name}</span>
+                    </span>
+                    <span className="shrink-0 text-neutral-400 text-xs tabular-nums">
+                      {Math.min(c.owned, c.needed)}/{c.needed}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-        </ul>
+
+          {/* Cards still missing */}
+          <div>
+            {rec.missingCards.length === 0 ? (
+              <div className="text-sm text-emerald-400">You can build this deck!</div>
+            ) : (
+              <>
+                <div className="text-xs font-semibold text-amber-400 mb-1">
+                  Still need ({rec.missingCards.length})
+                </div>
+                <ul className="flex flex-col">
+                  {rec.missingCards.map((c) => (
+                    <MissingRow key={`${c.cardId}-${c.section}`} c={c} />
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

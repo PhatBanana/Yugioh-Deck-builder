@@ -46,6 +46,18 @@ export async function saveDeckFromYdk(name: string, cards: DeckCard[]): Promise<
   return deck;
 }
 
+// Copies a cached meta deck into the user's editable Decks (deck builder).
+export async function saveMetaDeckAsDeck(metaDeckId: string): Promise<MDeck | null> {
+  const meta = await db.metaDecks.get(metaDeckId);
+  if (!meta) return null;
+  const cards: DeckCard[] = meta.cards.map((c) => ({
+    cardId: c.cardId,
+    quantity: c.quantity,
+    section: c.section,
+  }));
+  return saveDeckFromYdk(meta.name, cards);
+}
+
 // Sets the quantity of a card in a section (0 removes it). Copies in other
 // sections are left alone.
 export async function setDeckCard(
