@@ -4,6 +4,7 @@ import { db, type MCard } from "../db";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
 import CardDetailModal from "../components/CardDetailModal";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
@@ -67,6 +68,7 @@ export default function CardsPage() {
   const [limit, setLimit] = useState(PAGE);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [selected, setSelected] = useState<MCard | null>(null);
+  const debouncedQuery = useDebouncedValue(query, 250);
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const ownedMap = useLiveQuery(async () => {
@@ -77,7 +79,7 @@ export default function CardsPage() {
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
 
   const results = useLiveQuery(async () => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     let rows: MCard[];
     if (view === "owned") {
       const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
@@ -99,7 +101,7 @@ export default function CardsPage() {
       rows = await db.cards.orderBy("nameLower").limit(limit + 1).toArray();
     }
     return rows;
-  }, [query, view, limit]);
+  }, [debouncedQuery, view, limit]);
 
   async function runFullSync() {
     setSyncing("Starting…");

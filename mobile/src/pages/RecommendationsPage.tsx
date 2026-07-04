@@ -241,6 +241,7 @@ export default function RecommendationsPage() {
   );
 
   useEffect(() => {
+    if (!cardCount) return; // nothing to recommend until the card DB is synced
     let cancelled = false;
     // Fetch all cached decks so era/strategy/budget filters have a full pool.
     getRecommendations({ includeSide, limit: 200 })

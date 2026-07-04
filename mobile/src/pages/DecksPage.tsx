@@ -15,6 +15,7 @@ import {
   setDeckCard,
   type EnrichedDeck,
 } from "../services/decks";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
@@ -116,12 +117,13 @@ function AddCardSearch({
   enriched: EnrichedDeck | null;
 }) {
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 250);
   const results = useLiveQuery(async () => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     if (q.length < 2) return [] as MCard[];
     const rows = await db.cards.filter((c) => c.nameLower.includes(q)).limit(20).toArray();
     return rows.sort((a, b) => a.name.localeCompare(b.name));
-  }, [query], []);
+  }, [debouncedQuery], []);
 
   async function add(card: MCard) {
     const section = target;

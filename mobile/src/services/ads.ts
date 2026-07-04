@@ -9,9 +9,14 @@ import { AD_UNITS, ADS_ENABLED, USE_TEST_ADS } from "../config/ads";
 
 let initialized = false;
 let bannerCreated = false;
+let lastBannerHeight = 0;
 
 function adsAvailable(): boolean {
   return ADS_ENABLED && Capacitor.isNativePlatform();
+}
+
+function setBannerHeightVar(px: number): void {
+  document.documentElement.style.setProperty("--ad-banner-h", `${px}px`);
 }
 
 export async function initAds(): Promise<void> {
@@ -21,7 +26,8 @@ export async function initAds(): Promise<void> {
     // The native banner is drawn over the webview; publish its real height as a
     // CSS var so the layout can lift the bottom nav above it (see index.css).
     await AdMob.addListener(BannerAdPluginEvents.SizeChanged, (info: { height: number }) => {
-      document.documentElement.style.setProperty("--ad-banner-h", `${info.height}px`);
+      if (info.height > 0) lastBannerHeight = info.height;
+      setBannerHeightVar(info.height);
     });
     initialized = true;
   } catch {
@@ -35,6 +41,8 @@ export async function showBanner(): Promise<void> {
     if (!initialized) await initAds();
     if (bannerCreated) {
       await AdMob.resumeBanner();
+      // Restore reserved space in case resume doesn't re-emit SizeChanged.
+      if (lastBannerHeight > 0) setBannerHeightVar(lastBannerHeight);
       return;
     }
     await AdMob.showBanner({
@@ -55,7 +63,7 @@ export async function hideBanner(): Promise<void> {
   try {
     await AdMob.hideBanner();
     // Collapse the reserved space while hidden (e.g. fullscreen scanning).
-    document.documentElement.style.setProperty("--ad-banner-h", "0px");
+    setBannerHeightVar(0);
   } catch {
     // ignore
   }
