@@ -12,7 +12,6 @@ dependencies {
     implementation project(':capacitor-community-admob')
     implementation project(':capacitor-community-camera-preview')
     implementation project(':capacitor-community-keep-awake')
-    implementation project(':capacitor-camera')
     implementation project(':jcesarmobile-capacitor-ocr')
 
 }

@@ -12,8 +12,3 @@ export async function toggleWishlist(cardId: number): Promise<boolean> {
   await db.wishlist.put({ cardId });
   return true;
 }
-
-export async function getWishlistIds(): Promise<Set<number>> {
-  const rows = await db.wishlist.toArray();
-  return new Set(rows.map((r) => r.cardId));
-}

@@ -136,13 +136,19 @@ interface SnapshotDeck {
 }
 
 async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
+  const snap = staticSnapshot as SnapshotDeck[];
+  // Resolve every referenced card name in one indexed query rather than one
+  // per card (this seeds on first run / scrape fallback).
+  const names = [...new Set(snap.flatMap((d) => d.cards.map((c) => c.cardName.toLowerCase())))];
+  const found = await db.cards.where("nameLower").anyOf(names).toArray();
+  const byName = new Map(found.map((c) => [c.nameLower, c]));
   const now = new Date().toISOString();
-  const decks: MMetaDeck[] = [];
-  for (const deck of staticSnapshot as SnapshotDeck[]) {
+
+  return snap.map((deck) => {
     const cards: MMetaDeck["cards"] = [];
     const composition: StrategyCardInfo[] = [];
     for (const c of deck.cards) {
-      const card = await db.cards.where("nameLower").equals(c.cardName.toLowerCase()).first();
+      const card = byName.get(c.cardName.toLowerCase());
       if (!card) continue;
       cards.push({
         cardId: card.id,
@@ -154,7 +160,7 @@ async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
       });
       composition.push({ name: card.name, type: card.type, atk: card.atk, quantity: c.quantity, section: c.section });
     }
-    decks.push({
+    return {
       id: deck.id,
       name: deck.name,
       archetype: deck.archetype,
@@ -166,9 +172,8 @@ async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
       sourceUrl: null,
       lastUpdated: now,
       cards,
-    });
-  }
-  return decks;
+    };
+  });
 }
 
 export interface MetaDeckSyncResult {

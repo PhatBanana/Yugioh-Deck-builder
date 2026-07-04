@@ -47,13 +47,14 @@ export interface CollectionStats {
 
 export async function getCollectionStats(): Promise<CollectionStats> {
   const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
+  const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
   let totalCopies = 0;
   let value = 0;
-  for (const e of entries) {
+  entries.forEach((e, i) => {
     totalCopies += e.quantity;
-    const card = await db.cards.get(e.cardId);
-    if (card?.price != null) value += card.price * e.quantity;
-  }
+    const price = cards[i]?.price;
+    if (price != null) value += price * e.quantity;
+  });
   return { uniqueCards: entries.length, totalCopies, estimatedValueUsd: value };
 }
 

@@ -1,5 +1,4 @@
 import { Capacitor } from "@capacitor/core";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { CameraPreview } from "@capacitor-community/camera-preview";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Ocr } from "@jcesarmobile/capacitor-ocr";
@@ -36,21 +35,6 @@ export function isScanSupported(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-// ---- One-shot capture (kept as a manual fallback) ----------------------
-
-export async function scanCard(): Promise<ScanOutcome> {
-  const photo = await Camera.getPhoto({
-    resultType: CameraResultType.Uri,
-    source: CameraSource.Camera,
-    quality: 90,
-    correctOrientation: true,
-    saveToGallery: false,
-  });
-  const image = photo.path ?? photo.webPath;
-  if (!image) throw new Error("Camera returned no image");
-  return ocrAndMatch(image);
-}
-
 // ---- Live preview + continuous frame grabbing --------------------------
 
 let previewActive = false;
@@ -77,10 +61,6 @@ export async function stopPreview(): Promise<void> {
   } catch {
     // Preview may already be torn down (e.g. app backgrounded).
   }
-}
-
-export function isPreviewActive(): boolean {
-  return previewActive;
 }
 
 export async function setTorch(on: boolean): Promise<void> {

@@ -6,29 +6,24 @@ import { getOwnedMap } from "./collection";
 import { ensureMetaDecksSeeded } from "./metaDecks";
 
 // Loads cached meta decks and joins current card prices into each requirement.
+// Prices are fetched with a single bulkGet over every distinct card id rather
+// than one query per card, since this runs on every Meta tab load.
 async function loadPricedDecks(): Promise<MetaDeck[]> {
   await ensureMetaDecksSeeded();
   const rows = await db.metaDecks.toArray();
-  const priceCache = new Map<number, number | null>();
-  const decks: MetaDeck[] = [];
-  for (const row of rows) {
-    const cards = [];
-    for (const c of row.cards) {
-      if (!priceCache.has(c.cardId)) {
-        priceCache.set(c.cardId, (await db.cards.get(c.cardId))?.price ?? null);
-      }
-      cards.push({ ...c, priceUsd: priceCache.get(c.cardId) ?? null });
-    }
-    decks.push({
-      id: row.id,
-      name: row.name,
-      archetype: row.archetype,
-      era: row.era ?? null,
-      strategy: row.strategy ?? null,
-      cards,
-    });
-  }
-  return decks;
+  const ids = [...new Set(rows.flatMap((r) => r.cards.map((c) => c.cardId)))];
+  const cards = await db.cards.bulkGet(ids);
+  const priceById = new Map<number, number | null>();
+  ids.forEach((id, i) => priceById.set(id, cards[i]?.price ?? null));
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    archetype: row.archetype,
+    era: row.era ?? null,
+    strategy: row.strategy ?? null,
+    cards: row.cards.map((c) => ({ ...c, priceUsd: priceById.get(c.cardId) ?? null })),
+  }));
 }
 
 export async function getRecommendations(options?: {
@@ -69,11 +64,17 @@ export async function getMetaDeckOwnership(deckId: string): Promise<MetaDeckOwne
       isKeyCard: prev?.isKeyCard || c.isKeyCard,
     });
   }
-  const out: MetaDeckOwnedCard[] = [];
-  for (const [cardId, { needed, isKeyCard }] of byId) {
-    const card = await db.cards.get(cardId);
-    const owned = (await db.collection.get(cardId))?.quantity ?? 0;
-    out.push({ cardId, name: card?.name ?? `#${cardId}`, img: card?.img ?? null, needed, owned, isKeyCard });
-  }
-  return out;
+  const ids = [...byId.keys()];
+  const [cards, coll] = await Promise.all([db.cards.bulkGet(ids), db.collection.bulkGet(ids)]);
+  return ids.map((cardId, i) => {
+    const { needed, isKeyCard } = byId.get(cardId)!;
+    return {
+      cardId,
+      name: cards[i]?.name ?? `#${cardId}`,
+      img: cards[i]?.img ?? null,
+      needed,
+      owned: coll[i]?.quantity ?? 0,
+      isKeyCard,
+    };
+  });
 }

@@ -93,18 +93,15 @@ export interface EnrichedDeck {
 }
 
 export async function enrichDeck(deck: MDeck): Promise<EnrichedDeck> {
-  const enriched: EnrichedDeckCard[] = [];
-  for (const c of deck.cards) {
-    const card = await db.cards.get(c.cardId);
-    const owned = (await db.collection.get(c.cardId))?.quantity ?? 0;
-    enriched.push({
-      ...c,
-      name: card?.name ?? `#${c.cardId}`,
-      img: card?.img ?? null,
-      banlist: card?.banlist ?? null,
-      owned,
-    });
-  }
+  const ids = deck.cards.map((c) => c.cardId);
+  const [cards, coll] = await Promise.all([db.cards.bulkGet(ids), db.collection.bulkGet(ids)]);
+  const enriched: EnrichedDeckCard[] = deck.cards.map((c, i) => ({
+    ...c,
+    name: cards[i]?.name ?? `#${c.cardId}`,
+    img: cards[i]?.img ?? null,
+    banlist: cards[i]?.banlist ?? null,
+    owned: coll[i]?.quantity ?? 0,
+  }));
   enriched.sort((a, b) => a.name.localeCompare(b.name));
   const validation = validateDeck(
     enriched.map((c) => ({

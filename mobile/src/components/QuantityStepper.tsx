@@ -2,18 +2,8 @@ import { useEffect, useState } from "react";
 import { setOwnedQuantity } from "../services/collection";
 import { toast } from "./Toaster";
 
-export function stepperMax(banlist: string | null): number {
-  switch (banlist) {
-    case "Banned":
-      return 0;
-    case "Limited":
-      return 1;
-    case "Semi-Limited":
-      return 2;
-    default:
-      return 3;
-  }
-}
+// The UI copy limit is the same as the deck-legality copy limit.
+export { maxCopies as stepperMax } from "@shared/deck/types";
 
 export default function QuantityStepper({
   cardId,
