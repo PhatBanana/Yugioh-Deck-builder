@@ -15,18 +15,25 @@ export interface MetaFormat {
   maxDecks: number;
 }
 
+const FORMAT_BASE = "https://ygoprodeck.com/category/format/";
+
+// All era/format categories YGOPRODeck exposes (non-era buckets like
+// Fun/Casual, Anime, Non-Meta, Structure and redundant OCG regional variants
+// are intentionally omitted). A category that returns no decks is skipped
+// automatically during the scrape, so listing all of them is safe.
 export const META_FORMATS: MetaFormat[] = [
   { era: "Modern", url: META_DECKS_CATEGORY_URL, maxDecks: 12 },
-  {
-    era: "Edison",
-    url: "https://ygoprodeck.com/category/format/edison%20format%20decks",
-    maxDecks: 8,
-  },
-  {
-    era: "Goat",
-    url: "https://ygoprodeck.com/category/format/goat%20format%20decks",
-    maxDecks: 8,
-  },
+  { era: "Master Duel", url: `${FORMAT_BASE}master%20duel%20decks`, maxDecks: 8 },
+  { era: "Edison", url: `${FORMAT_BASE}edison%20format%20decks`, maxDecks: 6 },
+  { era: "Goat", url: `${FORMAT_BASE}goat%20format%20decks`, maxDecks: 6 },
+  { era: "Worlds", url: `${FORMAT_BASE}worlds%20format%20decks`, maxDecks: 5 },
+  { era: "Common Charity", url: `${FORMAT_BASE}common%20charity%20decks`, maxDecks: 5 },
+  { era: "Speed Duel", url: `${FORMAT_BASE}speed%20duel%20decks`, maxDecks: 5 },
+  { era: "Domain", url: `${FORMAT_BASE}domain%20format%20decks`, maxDecks: 5 },
+  { era: "Genesys", url: `${FORMAT_BASE}genesys%20decks`, maxDecks: 5 },
+  { era: "Trinity", url: `${FORMAT_BASE}trinity%20format%20decks`, maxDecks: 5 },
+  { era: "Progression", url: `${FORMAT_BASE}progression%20series`, maxDecks: 5 },
+  { era: "Legacy 1st Gen", url: `${FORMAT_BASE}legacy%20of%20the%20duelist%201st%20gen`, maxDecks: 5 },
 ];
 
 export function deckPageUrl(slug: string): string {
