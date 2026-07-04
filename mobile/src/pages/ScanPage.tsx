@@ -8,6 +8,7 @@ import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
+import CardThumb from "../components/CardThumb";
 import { toast } from "../components/Toaster";
 
 function ManualMatchRow({ match }: { match: NameMatch }) {
@@ -22,11 +23,7 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
   }
   return (
     <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2.5">
-      {card?.img ? (
-        <img src={card.img} alt="" className="w-12 rounded" loading="lazy" />
-      ) : (
-        <div className="w-12 h-[70px] rounded bg-neutral-800" />
-      )}
+      <CardThumb img={card?.img} w="w-12" h="h-[70px]" />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium leading-snug">{match.name}</div>
         <div className="text-xs text-neutral-500 mt-0.5">

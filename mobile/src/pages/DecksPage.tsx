@@ -16,6 +16,7 @@ import {
   type EnrichedDeck,
 } from "../services/decks";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import CardThumb from "../components/CardThumb";
 import { toast } from "../components/Toaster";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
@@ -154,11 +155,7 @@ function AddCardSearch({
                 onClick={() => add(c)}
                 className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-1.5 text-left"
               >
-                {c.img ? (
-                  <img src={c.img} alt="" className="w-8 rounded" loading="lazy" />
-                ) : (
-                  <div className="w-8 h-11 rounded bg-neutral-800" />
-                )}
+                <CardThumb img={c.img} w="w-8" h="h-11" />
                 <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
                 {suggested !== target && (
                   <span className="text-[10px] text-amber-400/80 shrink-0">usually {suggested}</span>
@@ -182,11 +179,7 @@ function DeckCardRow({
   const short = c.owned < c.quantity;
   return (
     <div className="flex items-center gap-2 py-1">
-      {c.img ? (
-        <img src={c.img} alt="" className="w-8 rounded" loading="lazy" />
-      ) : (
-        <div className="w-8 h-11 rounded bg-neutral-800" />
-      )}
+      <CardThumb img={c.img} w="w-8" h="h-11" />
       <div className="min-w-0 flex-1">
         <div className="text-sm leading-snug truncate">{c.name}</div>
         <div className={`text-xs ${short ? "text-amber-400" : "text-neutral-500"}`}>

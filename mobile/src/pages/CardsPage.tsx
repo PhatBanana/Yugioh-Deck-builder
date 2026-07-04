@@ -4,6 +4,7 @@ import { db, type MCard } from "../db";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
 import CardDetailModal from "../components/CardDetailModal";
+import CardThumb from "../components/CardThumb";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
@@ -38,11 +39,7 @@ function CardRow({
         onClick={() => onSelect(card)}
         className="flex items-center gap-3 min-w-0 flex-1 text-left"
       >
-        {card.img ? (
-          <img src={card.img} alt="" className="w-11 rounded" loading="lazy" />
-        ) : (
-          <div className="w-11 h-16 rounded bg-neutral-800" />
-        )}
+        <CardThumb img={card.img} w="w-11" h="h-16" />
         <div className="min-w-0 flex-1">
           <div className="text-sm leading-snug line-clamp-2">{card.name}</div>
           <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1.5">

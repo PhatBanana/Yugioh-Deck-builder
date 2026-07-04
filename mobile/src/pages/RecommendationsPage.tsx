@@ -11,6 +11,7 @@ import {
 import { saveMetaDeckAsDeck } from "../services/decks";
 import WishlistButton from "../components/WishlistButton";
 import { CardDetailById } from "../components/CardDetailModal";
+import CardThumb from "../components/CardThumb";
 import { toast } from "../components/Toaster";
 
 const BUDGETS: { label: string; value: number | null }[] = [
@@ -58,11 +59,7 @@ function PurchaseRow({ p }: { p: PurchaseSuggestion }) {
   const card = useLiveQuery(() => db.cards.get(p.cardId), [p.cardId]);
   return (
     <div className="flex items-center gap-2.5 py-1.5">
-      {card?.img ? (
-        <img src={card.img} alt="" className="w-8 rounded" loading="lazy" />
-      ) : (
-        <div className="w-8 h-11 rounded bg-neutral-800" />
-      )}
+      <CardThumb img={card?.img} w="w-8" h="h-11" />
       <div className="min-w-0 flex-1">
         <div className="text-sm leading-snug truncate">{p.cardName}</div>
         <div className="text-xs text-neutral-500">

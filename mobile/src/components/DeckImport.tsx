@@ -10,6 +10,7 @@ import {
   type ImportSourceResult,
 } from "../services/deckImport";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
+import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
 
 interface Selected {
@@ -110,11 +111,7 @@ export default function DeckImport() {
               key={c.cardId}
               className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2"
             >
-              {c.img ? (
-                <img src={c.img} alt="" className="w-10 rounded" loading="lazy" />
-              ) : (
-                <div className="w-10 h-14 rounded bg-neutral-800" />
-              )}
+              <CardThumb img={c.img} w="w-10" h="h-14" />
               <div className="min-w-0 flex-1">
                 <div className="text-sm leading-snug line-clamp-2">{c.name}</div>
                 <div className="text-xs text-neutral-500 mt-0.5">
