@@ -10,6 +10,7 @@ import {
 } from "../services/recommendations";
 import { saveMetaDeckAsDeck } from "../services/decks";
 import WishlistButton from "../components/WishlistButton";
+import { CardDetailById } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
 
 const BUDGETS: { label: string; value: number | null }[] = [
@@ -27,17 +28,21 @@ function copyShoppingList(rec: DeckRecommendation) {
     .catch(() => toast("Couldn't access the clipboard", "error"));
 }
 
-function MissingRow({ c }: { c: MissingCard }) {
+function MissingRow({ c, onTap }: { c: MissingCard; onTap: (id: number) => void }) {
   return (
     <li className="flex items-center justify-between gap-2 text-sm py-0.5">
-      <span className="flex items-center gap-1.5 min-w-0">
+      <button
+        type="button"
+        onClick={() => onTap(c.cardId)}
+        className="flex items-center gap-1.5 min-w-0 text-left"
+      >
         {c.isKeyCard && (
           <span className="shrink-0 text-[9px] uppercase px-1 py-0.5 rounded bg-amber-900/60 text-amber-300">
             Key
           </span>
         )}
         <span className="truncate">{c.cardName}</span>
-      </span>
+      </button>
       <span className="shrink-0 flex items-center gap-2">
         <span className="text-neutral-500 text-xs tabular-nums">
           {c.missingCostUsd != null ? `$${c.missingCostUsd.toFixed(2)} · ` : ""}
@@ -70,7 +75,15 @@ function PurchaseRow({ p }: { p: PurchaseSuggestion }) {
   );
 }
 
-function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
+function DeckCard({
+  rec,
+  rank,
+  onCardTap,
+}: {
+  rec: DeckRecommendation;
+  rank: number;
+  onCardTap: (id: number) => void;
+}) {
   const [expanded, setExpanded] = useState(rank === 1);
   const pct = Math.round(rec.completionScore * 100);
 
@@ -170,10 +183,14 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
                     key={c.cardId}
                     className="flex items-center justify-between gap-2 text-sm py-0.5"
                   >
-                    <span className="flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => onCardTap(c.cardId)}
+                      className="flex items-center gap-1.5 min-w-0 text-left"
+                    >
                       <span className="text-emerald-500 shrink-0">✓</span>
                       <span className="truncate">{c.name}</span>
-                    </span>
+                    </button>
                     <span className="shrink-0 text-neutral-400 text-xs tabular-nums">
                       {Math.min(c.owned, c.needed)}/{c.needed}
                     </span>
@@ -194,7 +211,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
                 </div>
                 <ul className="flex flex-col">
                   {rec.missingCards.map((c) => (
-                    <MissingRow key={`${c.cardId}-${c.section}`} c={c} />
+                    <MissingRow key={`${c.cardId}-${c.section}`} c={c} onTap={onCardTap} />
                   ))}
                 </ul>
               </>
@@ -215,6 +232,7 @@ export default function RecommendationsPage() {
   const [era, setEra] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<string | null>(null);
   const [sort, setSort] = useState<"completion" | "cost" | "name">("completion");
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
@@ -372,8 +390,12 @@ export default function RecommendationsPage() {
         </div>
       )}
       {displayed.map((rec, i) => (
-        <DeckCard key={rec.deckId} rec={rec} rank={i + 1} />
+        <DeckCard key={rec.deckId} rec={rec} rank={i + 1} onCardTap={setDetailId} />
       ))}
+
+      {detailId != null && (
+        <CardDetailById cardId={detailId} onClose={() => setDetailId(null)} />
+      )}
     </div>
   );
 }
