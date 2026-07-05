@@ -6,7 +6,10 @@ on:
     paths:
       - "mobile/**"
       - "shared/**"
+      - "tests/**"
       - "data/static-meta-decks.json"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/android.yml"
   workflow_dispatch:
 

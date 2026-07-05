@@ -1,24 +1,14 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# dependencies (root holds only vitest for the shared tests; mobile has its own)
+node_modules/
 
 # testing
 /coverage
 
-# next.js
+# build output / caches
+*.tsbuildinfo
 /.next/
-/out/
-
-# production
-/build
 
 # misc
 .DS_Store
@@ -26,30 +16,12 @@
 
 # debug
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# local sqlite database
-/data/app.db
-/data/app.db-*
-
-# locally cached card images
-/data/images/
-
-# bundled portable Node.js runtime (download via nodejs.org, see README-PORTABLE.txt)
-/runtime/
+# editor / local
 .claude/settings.local.json
 
-# stray build logs
-/build-logs/
+# leftover local data from the old desktop build (never committed)
+/data/app.db
+/data/app.db-*
+/data/images/
+/runtime/

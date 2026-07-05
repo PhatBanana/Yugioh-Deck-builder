@@ -2,12 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "yugioh-deck-app",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
-    },
-    {
       "name": "mobile",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "mobile", "--", "--port", "5199", "--strictPort"],

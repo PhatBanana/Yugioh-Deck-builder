@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { scoreDeck } from "../../lib/recommendation/scoreDeck";
-import { recommendTopDecks } from "../../lib/recommendation/recommend";
-import type { MetaDeck } from "../../lib/recommendation/types";
+import { scoreDeck } from "../../shared/recommendation/scoreDeck";
+import { recommendTopDecks } from "../../shared/recommendation/recommend";
+import type { MetaDeck } from "../../shared/recommendation/types";
 
 function makeDeck(overrides: Partial<MetaDeck> = {}): MetaDeck {
   return {

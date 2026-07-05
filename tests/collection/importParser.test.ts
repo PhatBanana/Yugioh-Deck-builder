@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseImportText } from "../../lib/collection/importParser";
+import { parseImportText } from "../../shared/collection/importParser";
 
 describe("parseImportText", () => {
   it("parses '3x Name' and '3 Name' and 'Name x3' formats", () => {
