@@ -10,7 +10,7 @@ import {
 } from "../services/recommendations";
 import { saveMetaDeckAsDeck } from "../services/decks";
 import WishlistButton from "../components/WishlistButton";
-import { CardDetailById } from "../components/CardDetailModal";
+import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import { toast } from "../components/Toaster";
 
@@ -29,12 +29,13 @@ function copyShoppingList(rec: DeckRecommendation) {
     .catch(() => toast("Couldn't access the clipboard", "error"));
 }
 
-function MissingRow({ c, onTap }: { c: MissingCard; onTap: (id: number) => void }) {
+function MissingRow({ c }: { c: MissingCard }) {
+  const openCard = useCardDetail();
   return (
     <li className="flex items-center justify-between gap-2 text-sm py-0.5">
       <button
         type="button"
-        onClick={() => onTap(c.cardId)}
+        onClick={() => openCard(c.cardId)}
         className="flex items-center gap-1.5 min-w-0 text-left"
       >
         {c.isKeyCard && (
@@ -57,30 +58,30 @@ function MissingRow({ c, onTap }: { c: MissingCard; onTap: (id: number) => void 
 
 function PurchaseRow({ p }: { p: PurchaseSuggestion }) {
   const card = useLiveQuery(() => db.cards.get(p.cardId), [p.cardId]);
+  const openCard = useCardDetail();
   return (
     <div className="flex items-center gap-2.5 py-1.5">
-      <CardThumb img={card?.img} w="w-8" h="h-11" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm leading-snug truncate">{p.cardName}</div>
-        <div className="text-xs text-neutral-500">
-          helps {p.decksHelped} deck{p.decksHelped === 1 ? "" : "s"}
-          {p.priceUsd != null ? ` · $${p.priceUsd.toFixed(2)}` : ""}
+      <button
+        type="button"
+        onClick={() => openCard(p.cardId)}
+        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+      >
+        <CardThumb img={card?.img} w="w-8" h="h-11" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm leading-snug truncate">{p.cardName}</div>
+          <div className="text-xs text-neutral-500">
+            helps {p.decksHelped} deck{p.decksHelped === 1 ? "" : "s"}
+            {p.priceUsd != null ? ` · $${p.priceUsd.toFixed(2)}` : ""}
+          </div>
         </div>
-      </div>
+      </button>
       <WishlistButton cardId={p.cardId} className="text-xl" />
     </div>
   );
 }
 
-function DeckCard({
-  rec,
-  rank,
-  onCardTap,
-}: {
-  rec: DeckRecommendation;
-  rank: number;
-  onCardTap: (id: number) => void;
-}) {
+function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
+  const openCard = useCardDetail();
   const [expanded, setExpanded] = useState(rank === 1);
   const pct = Math.round(rec.completionScore * 100);
 
@@ -182,7 +183,7 @@ function DeckCard({
                   >
                     <button
                       type="button"
-                      onClick={() => onCardTap(c.cardId)}
+                      onClick={() => openCard(c.cardId)}
                       className="flex items-center gap-1.5 min-w-0 text-left"
                     >
                       <span className="text-emerald-500 shrink-0">✓</span>
@@ -208,7 +209,7 @@ function DeckCard({
                 </div>
                 <ul className="flex flex-col">
                   {rec.missingCards.map((c) => (
-                    <MissingRow key={`${c.cardId}-${c.section}`} c={c} onTap={onCardTap} />
+                    <MissingRow key={`${c.cardId}-${c.section}`} c={c} />
                   ))}
                 </ul>
               </>
@@ -229,7 +230,6 @@ export default function RecommendationsPage() {
   const [era, setEra] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<string | null>(null);
   const [sort, setSort] = useState<"completion" | "cost" | "name">("completion");
-  const [detailId, setDetailId] = useState<number | null>(null);
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
@@ -388,12 +388,8 @@ export default function RecommendationsPage() {
         </div>
       )}
       {displayed.map((rec, i) => (
-        <DeckCard key={rec.deckId} rec={rec} rank={i + 1} onCardTap={setDetailId} />
+        <DeckCard key={rec.deckId} rec={rec} rank={i + 1} />
       ))}
-
-      {detailId != null && (
-        <CardDetailById cardId={detailId} onClose={() => setDetailId(null)} />
-      )}
     </div>
   );
 }

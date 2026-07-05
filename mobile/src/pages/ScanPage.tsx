@@ -9,6 +9,7 @@ import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import CardThumb from "../components/CardThumb";
+import { useCardDetail } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
 
 function ManualMatchRow({ match }: { match: NameMatch }) {
@@ -17,20 +18,27 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
     async () => (await db.collection.get(match.id))?.quantity ?? 0,
     [match.id]
   );
+  const openCard = useCardDetail();
   async function add() {
     const next = await addOwned(match.id, 1);
     toast(`${match.name} — now own ${next}`, "success");
   }
   return (
     <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2.5">
-      <CardThumb img={card?.img} w="w-12" h="h-[70px]" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium leading-snug">{match.name}</div>
-        <div className="text-xs text-neutral-500 mt-0.5">
-          {owned ? `own ${owned}` : "not owned"}
-          {card?.price != null ? ` · $${card.price.toFixed(2)}` : ""}
+      <button
+        type="button"
+        onClick={() => openCard(match.id)}
+        className="flex items-center gap-3 min-w-0 flex-1 text-left"
+      >
+        <CardThumb img={card?.img} w="w-12" h="h-[70px]" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium leading-snug">{match.name}</div>
+          <div className="text-xs text-neutral-500 mt-0.5">
+            {owned ? `own ${owned}` : "not owned"}
+            {card?.price != null ? ` · $${card.price.toFixed(2)}` : ""}
+          </div>
         </div>
-      </div>
+      </button>
       <button
         type="button"
         onClick={add}

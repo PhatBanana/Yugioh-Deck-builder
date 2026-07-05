@@ -11,6 +11,7 @@ import {
 } from "../services/deckImport";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import CardThumb from "./CardThumb";
+import { useCardDetail } from "./CardDetailModal";
 import { toast } from "./Toaster";
 
 interface Selected {
@@ -25,6 +26,7 @@ export default function DeckImport() {
   const [selected, setSelected] = useState<Selected | null>(null);
   const [cards, setCards] = useState<ImportCard[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const openCard = useCardDetail();
 
   const ownedMap = useLiveQuery(async () => {
     const map = new Map<number, number>();
@@ -111,14 +113,20 @@ export default function DeckImport() {
               key={c.cardId}
               className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2"
             >
-              <CardThumb img={c.img} w="w-10" h="h-14" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm leading-snug line-clamp-2">{c.name}</div>
-                <div className="text-xs text-neutral-500 mt-0.5">
-                  {selected.kind === "deck" ? `deck runs ${c.suggestedQty}` : ""}
-                  {c.price != null ? `${selected.kind === "deck" ? " · " : ""}$${c.price.toFixed(2)}` : ""}
+              <button
+                type="button"
+                onClick={() => openCard(c.cardId)}
+                className="flex items-center gap-3 min-w-0 flex-1 text-left"
+              >
+                <CardThumb img={c.img} w="w-10" h="h-14" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm leading-snug line-clamp-2">{c.name}</div>
+                  <div className="text-xs text-neutral-500 mt-0.5">
+                    {selected.kind === "deck" ? `deck runs ${c.suggestedQty}` : ""}
+                    {c.price != null ? `${selected.kind === "deck" ? " · " : ""}$${c.price.toFixed(2)}` : ""}
+                  </div>
                 </div>
-              </div>
+              </button>
               <QuantityStepper
                 cardId={c.cardId}
                 quantity={ownedMap?.get(c.cardId) ?? 0}

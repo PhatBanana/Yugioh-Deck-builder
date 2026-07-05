@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type MCard } from "../db";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
-import CardDetailModal from "../components/CardDetailModal";
+import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
@@ -22,21 +22,14 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "wishlist", label: "Wishlist" },
 ];
 
-function CardRow({
-  card,
-  owned,
-  onSelect,
-}: {
-  card: MCard;
-  owned: number;
-  onSelect: (card: MCard) => void;
-}) {
+function CardRow({ card, owned }: { card: MCard; owned: number }) {
+  const openCard = useCardDetail();
   return (
     <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
       {/* Tapping the image/name opens the card details; the controls stay separate. */}
       <button
         type="button"
-        onClick={() => onSelect(card)}
+        onClick={() => openCard(card.id)}
         className="flex items-center gap-3 min-w-0 flex-1 text-left"
       >
         <CardThumb img={card.img} w="w-11" h="h-16" />
@@ -64,7 +57,6 @@ export default function CardsPage() {
   const [view, setView] = useState<View>("all");
   const [limit, setLimit] = useState(PAGE);
   const [syncing, setSyncing] = useState<string | null>(null);
-  const [selected, setSelected] = useState<MCard | null>(null);
   const debouncedQuery = useDebouncedValue(query, 250);
 
   const cardCount = useLiveQuery(() => db.cards.count());
@@ -188,12 +180,7 @@ export default function CardsPage() {
 
       <div className="flex flex-col gap-2">
         {visible.map((card) => (
-          <CardRow
-            key={card.id}
-            card={card}
-            owned={ownedMap?.get(card.id) ?? 0}
-            onSelect={setSelected}
-          />
+          <CardRow key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
         ))}
         {visible.length === 0 && (
           <div className="text-center text-neutral-500 text-sm py-10">
@@ -215,8 +202,6 @@ export default function CardsPage() {
           Show more
         </button>
       )}
-
-      {selected && <CardDetailModal card={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

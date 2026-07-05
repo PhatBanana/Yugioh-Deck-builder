@@ -7,6 +7,37 @@ function uid(): string {
   return `deck_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export interface DeckUsageEntry {
+  id: string;
+  name: string;
+  era?: string | null;
+  copies: number; // how many the deck runs (max across sections)
+}
+
+export interface CardUsage {
+  meta: DeckUsageEntry[]; // cached meta decks that run this card
+  mine: DeckUsageEntry[]; // the user's own saved decks that run it
+}
+
+// Which decks (meta + your own) use a given card. Powers the "used in decks"
+// section of the card detail view.
+export async function getCardUsage(cardId: number): Promise<CardUsage> {
+  const [metaDecks, myDecks] = await Promise.all([db.metaDecks.toArray(), db.decks.toArray()]);
+  const copiesIn = (cards: { cardId: number; quantity: number }[]) =>
+    cards.filter((c) => c.cardId === cardId).reduce((n, c) => Math.max(n, c.quantity), 0);
+
+  const meta = metaDecks
+    .filter((d) => d.cards.some((c) => c.cardId === cardId))
+    .map((d) => ({ id: d.id, name: d.name, era: d.era, copies: copiesIn(d.cards) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const mine = myDecks
+    .filter((d) => d.cards.some((c) => c.cardId === cardId))
+    .map((d) => ({ id: d.id, name: d.name, copies: copiesIn(d.cards) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { meta, mine };
+}
+
 export async function listDecks(): Promise<MDeck[]> {
   const decks = await db.decks.toArray();
   return decks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

@@ -17,6 +17,7 @@ import {
 } from "../services/decks";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import CardThumb from "../components/CardThumb";
+import { useCardDetail } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
@@ -177,16 +178,23 @@ function DeckCardRow({
   c: EnrichedDeck["cards"][number];
 }) {
   const short = c.owned < c.quantity;
+  const openCard = useCardDetail();
   return (
     <div className="flex items-center gap-2 py-1">
-      <CardThumb img={c.img} w="w-8" h="h-11" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm leading-snug truncate">{c.name}</div>
-        <div className={`text-xs ${short ? "text-amber-400" : "text-neutral-500"}`}>
-          own {c.owned}/{c.quantity}
-          {c.banlist ? ` · ${c.banlist}` : ""}
+      <button
+        type="button"
+        onClick={() => openCard(c.cardId)}
+        className="flex items-center gap-2 min-w-0 flex-1 text-left"
+      >
+        <CardThumb img={c.img} w="w-8" h="h-11" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm leading-snug truncate">{c.name}</div>
+          <div className={`text-xs ${short ? "text-amber-400" : "text-neutral-500"}`}>
+            own {c.owned}/{c.quantity}
+            {c.banlist ? ` · ${c.banlist}` : ""}
+          </div>
         </div>
-      </div>
+      </button>
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"

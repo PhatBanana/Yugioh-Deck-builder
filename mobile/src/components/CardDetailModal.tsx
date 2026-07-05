@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { MCard } from "../db";
 import { db } from "../db";
+import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
 
@@ -16,11 +17,34 @@ function Stat({ label, value }: { label: string; value: string | number | null }
   );
 }
 
-// Opens the detail modal for a card id (fetches the record). Renders nothing
-// until the card is loaded. Handy for lists that only have card ids.
-export function CardDetailById({ cardId, onClose }: { cardId: number; onClose: () => void }) {
-  const card = useLiveQuery(() => db.cards.get(cardId), [cardId]);
-  return card ? <CardDetailModal card={card} onClose={onClose} /> : null;
+function deckNames(list: DeckUsageEntry[]): string {
+  const shown = list.slice(0, 6).map((d) => d.name);
+  const more = list.length - shown.length;
+  return shown.join(", ") + (more > 0 ? `, +${more} more` : "");
+}
+
+// Which meta decks and which of the user's decks run this card.
+function DeckUsage({ cardId }: { cardId: number }) {
+  const usage = useLiveQuery(() => getCardUsage(cardId), [cardId]);
+  if (!usage || (usage.meta.length === 0 && usage.mine.length === 0)) return null;
+  return (
+    <div className="mt-3 pt-3 border-t border-neutral-800 text-sm">
+      <div className="text-xs font-semibold text-neutral-400 mb-1">Used in decks</div>
+      {usage.meta.length > 0 && (
+        <p className="text-neutral-300">
+          <span className="font-medium text-neutral-100">{usage.meta.length}</span> meta deck
+          {usage.meta.length === 1 ? "" : "s"}
+          <span className="text-neutral-500"> — {deckNames(usage.meta)}</span>
+        </p>
+      )}
+      {usage.mine.length > 0 && (
+        <p className="text-emerald-300 mt-0.5">
+          In {usage.mine.length} of your deck{usage.mine.length === 1 ? "" : "s"}
+          <span className="text-neutral-500"> — {deckNames(usage.mine)}</span>
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function CardDetailModal({
@@ -99,6 +123,8 @@ export default function CardDetailModal({
           <WishlistButton cardId={card.id} className="text-2xl" />
         </div>
 
+        <DeckUsage cardId={card.id} />
+
         {card.desc && (
           <p className="mt-3 pt-3 border-t border-neutral-800 text-sm text-neutral-300 whitespace-pre-line leading-relaxed">
             {card.desc}
@@ -106,5 +132,30 @@ export default function CardDetailModal({
         )}
       </div>
     </div>
+  );
+}
+
+// Opens the detail modal for a card id (fetches the record). Renders nothing
+// until the card is loaded.
+export function CardDetailById({ cardId, onClose }: { cardId: number; onClose: () => void }) {
+  const card = useLiveQuery(() => db.cards.get(cardId), [cardId]);
+  return card ? <CardDetailModal card={card} onClose={onClose} /> : null;
+}
+
+// App-wide provider: any component can call useCardDetail()(cardId) to open the
+// card detail sheet, without threading state through the page tree.
+const CardDetailContext = createContext<(cardId: number) => void>(() => {});
+
+export function useCardDetail() {
+  return useContext(CardDetailContext);
+}
+
+export function CardDetailProvider({ children }: { children: ReactNode }) {
+  const [id, setId] = useState<number | null>(null);
+  return (
+    <CardDetailContext.Provider value={setId}>
+      {children}
+      {id != null && <CardDetailById cardId={id} onClose={() => setId(null)} />}
+    </CardDetailContext.Provider>
   );
 }
