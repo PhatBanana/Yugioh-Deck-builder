@@ -34,16 +34,24 @@ export default function App() {
   }, [immersive]);
 
   return (
-    <div className={`min-h-dvh flex flex-col text-neutral-100 ${immersive ? "" : "bg-neutral-950"}`}>
+    // Reserve space at the top for the native ad banner (drawn over the webview
+    // at the top) so it never overlaps the header/content. The var is 0 while
+    // the banner is hidden (e.g. during fullscreen scanning).
+    <div
+      className={`min-h-dvh flex flex-col text-neutral-100 ${immersive ? "" : "bg-neutral-950"}`}
+      style={{ paddingTop: "var(--ad-banner-h, 0px)" }}
+    >
       {!immersive && (
-        <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <header
+          className="sticky z-10 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]"
+          style={{ top: "var(--ad-banner-h, 0px)" }}
+        >
           <h1 className="font-semibold tracking-tight">YGO Deck Builder</h1>
         </header>
       )}
 
-      {/* Extra bottom padding = nav height + native ad-banner height so nothing
-          is hidden behind the banner overlay. */}
-      <main className="flex-1" style={{ paddingBottom: "calc(6rem + var(--ad-banner-h, 0px))" }}>
+      {/* Bottom padding leaves room for the fixed bottom nav. */}
+      <main className="flex-1 pb-24">
         {tab === "scan" && <ScanPage onImmersive={setImmersive} />}
         {tab === "cards" && <CardsPage />}
         {tab === "decks" && <DecksPage />}
@@ -52,10 +60,7 @@ export default function App() {
       </main>
 
       {!immersive && (
-        <nav
-          className="fixed inset-x-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
-          style={{ bottom: "var(--ad-banner-h, 0px)" }}
-        >
+        <nav className="fixed inset-x-0 bottom-0 border-t border-neutral-800 bg-neutral-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
           <div className="flex">
             {TABS.map((t) => (
               <button
