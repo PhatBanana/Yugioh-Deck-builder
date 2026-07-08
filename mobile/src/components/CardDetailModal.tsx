@@ -1,10 +1,62 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
 import type { MCard } from "../db";
 import { db } from "../db";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
+import { setCondition } from "../services/collection";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
+import GradeCardSheet from "./GradeCardSheet";
+import { toast } from "./Toaster";
+
+const CONDITIONS: CardCondition[] = ["NM", "LP", "MP", "HP", "DMG"];
+
+// Condition chips + camera grading, shown once the card is owned.
+function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardCondition }) {
+  const [grading, setGrading] = useState(false);
+  return (
+    <div className="mt-3 pt-3 border-t border-neutral-800">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold text-neutral-400">
+          Condition{condition ? ` — ${CONDITION_LABEL[condition]}` : ""}
+        </span>
+        <button
+          type="button"
+          onClick={() => setGrading(true)}
+          className="text-xs text-emerald-400 active:text-emerald-300"
+        >
+          📷 Grade with camera
+        </button>
+      </div>
+      <div className="flex gap-1.5">
+        {CONDITIONS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => void setCondition(cardId, condition === c ? undefined : c)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${
+              condition === c
+                ? "bg-emerald-700 text-white"
+                : "bg-neutral-800 text-neutral-400 active:bg-neutral-700"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      {grading && (
+        <GradeCardSheet
+          onClose={() => setGrading(false)}
+          onSaveCondition={(c) => {
+            void setCondition(cardId, c);
+            toast(`Condition saved: ${CONDITION_LABEL[c]}`, "success");
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 // A labelled stat, rendered only when the value is present.
 function Stat({ label, value }: { label: string; value: string | number | null }) {
@@ -54,11 +106,8 @@ export default function CardDetailModal({
   card: MCard;
   onClose: () => void;
 }) {
-  const owned = useLiveQuery(
-    async () => (await db.collection.get(card.id))?.quantity ?? 0,
-    [card.id],
-    0
-  );
+  const entry = useLiveQuery(() => db.collection.get(card.id), [card.id]);
+  const owned = entry?.quantity ?? 0;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -122,6 +171,8 @@ export default function CardDetailModal({
           </div>
           <WishlistButton cardId={card.id} className="text-2xl" />
         </div>
+
+        {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
 
         <DeckUsage cardId={card.id} />
 

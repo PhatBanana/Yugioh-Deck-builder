@@ -1,7 +1,16 @@
 import { parseImportText } from "@shared/collection/importParser";
 import type { OwnedCollection } from "@shared/recommendation/types";
+import type { CardCondition } from "@shared/grading/analyze";
 import { db } from "../db";
 import { httpGetJson } from "./http";
+
+// Writes a quantity while preserving any extra fields (condition) already on
+// the entry. All quantity writes must go through this so a stepper tap can't
+// wipe a saved condition.
+async function putQuantity(cardId: number, quantity: number): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  await db.collection.put({ ...existing, cardId, quantity: Math.min(99, quantity) });
+}
 
 export async function getOwnedMap(): Promise<OwnedCollection> {
   const owned: OwnedCollection = {};
@@ -15,8 +24,19 @@ export async function setOwnedQuantity(cardId: number, quantity: number): Promis
   if (quantity <= 0) {
     await db.collection.delete(cardId);
   } else {
-    await db.collection.put({ cardId, quantity: Math.min(99, quantity) });
+    await putQuantity(cardId, quantity);
   }
+}
+
+// Sets (or clears) the overall condition of the owned copies. No-op when the
+// card isn't in the collection.
+export async function setCondition(
+  cardId: number,
+  condition: CardCondition | undefined
+): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  if (!existing) return;
+  await db.collection.put({ ...existing, condition });
 }
 
 export async function addOwned(cardId: number, delta = 1): Promise<number> {
@@ -34,7 +54,7 @@ export async function setOwnedMany(
   await db.transaction("rw", db.collection, async () => {
     for (const { cardId, quantity } of entries) {
       if (quantity <= 0) await db.collection.delete(cardId);
-      else await db.collection.put({ cardId, quantity: Math.min(99, quantity) });
+      else await putQuantity(cardId, quantity);
     }
   });
 }
@@ -134,13 +154,25 @@ export async function applyImport(
     for (const m of matched) {
       if (mode === "add") {
         const current = (await db.collection.get(m.cardId))?.quantity ?? 0;
-        await db.collection.put({
-          cardId: m.cardId,
-          quantity: Math.min(99, current + m.quantity),
-        });
+        await putQuantity(m.cardId, current + m.quantity);
       } else {
-        await db.collection.put({ cardId: m.cardId, quantity: Math.min(99, m.quantity) });
+        await putQuantity(m.cardId, m.quantity);
       }
     }
+  });
+}
+
+// Records today's collection value (one row per day, last write wins) so the
+// Cards tab can chart it over time. Called once on app launch; skips empty
+// collections so a fresh install doesn't chart a flat $0 line.
+export async function recordValueSnapshot(): Promise<void> {
+  const stats = await getCollectionStats();
+  if (stats.totalCopies === 0) return;
+  const date = new Date().toISOString().slice(0, 10);
+  await db.valueHistory.put({
+    date,
+    valueUsd: stats.estimatedValueUsd,
+    uniqueCards: stats.uniqueCards,
+    totalCopies: stats.totalCopies,
   });
 }

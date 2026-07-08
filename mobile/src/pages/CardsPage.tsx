@@ -5,6 +5,7 @@ import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
+import ValueSparkline from "../components/ValueSparkline";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
@@ -177,6 +178,8 @@ export default function CardsPage() {
           {syncing ?? "Re-sync data"}
         </button>
       </div>
+
+      {view === "owned" && <ValueSparkline />}
 
       <div className="flex flex-col gap-2">
         {visible.map((card) => (

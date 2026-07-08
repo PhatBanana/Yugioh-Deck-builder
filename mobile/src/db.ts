@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { DeckCardRequirement } from "@shared/recommendation/types";
 import type { DeckCard } from "@shared/deck/types";
+import type { CardCondition } from "@shared/grading/analyze";
 
 // Slimmed card record — the full YGOPRODeck payload is ~50MB; we keep only
 // what browsing, scanning and recommendations need (~5MB in IndexedDB).
@@ -24,6 +25,19 @@ export interface MCard {
 export interface MCollectionEntry {
   cardId: number;
   quantity: number;
+  // Overall condition of the owned copies (worst copy, by convention). Set
+  // manually or from the rough camera grader; optional — most entries won't
+  // have one.
+  condition?: CardCondition;
+}
+
+// One collection-value snapshot per day, recorded on app launch, so the Cards
+// tab can chart value over time.
+export interface MValueSnapshot {
+  date: string; // YYYY-MM-DD (primary key — one row per day)
+  valueUsd: number;
+  uniqueCards: number;
+  totalCopies: number;
 }
 
 // Deck cards are embedded in the deck row (document style) — no join table.
@@ -64,6 +78,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   syncMeta: EntityTable<MSyncMeta, "key">;
   decks: EntityTable<MDeck, "id">;
   wishlist: EntityTable<MWishlistEntry, "cardId">;
+  valueHistory: EntityTable<MValueSnapshot, "date">;
 };
 
 db.version(1).stores({
@@ -78,6 +93,12 @@ db.version(1).stores({
 db.version(2).stores({
   decks: "id, updatedAt",
   wishlist: "cardId",
+});
+
+// v3 adds daily collection-value snapshots. (Card condition is a new optional
+// field on collection entries — non-indexed, so no store change needed.)
+db.version(3).stores({
+  valueHistory: "date",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

@@ -6,6 +6,7 @@ import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import ImportPage from "./pages/ImportPage";
 import { hideBanner, initAds, showBanner } from "./services/ads";
+import { recordValueSnapshot } from "./services/collection";
 
 type Tab = "scan" | "cards" | "decks" | "meta" | "import";
 
@@ -25,6 +26,8 @@ export default function App() {
 
   useEffect(() => {
     void initAds();
+    // Best-effort daily collection-value snapshot for the value chart.
+    recordValueSnapshot().catch(() => {});
   }, []);
 
   // Hide the banner over the fullscreen camera; show it everywhere else.
