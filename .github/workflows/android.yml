@@ -47,6 +47,17 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # Version = mobile/package.json base + the CI run number, e.g.
+      # v1.0.0-build.87. run_number only ever increases, so it doubles as the
+      # Android versionCode — every APK installs as an upgrade over the last.
+      - name: Compute version
+        id: version
+        run: |
+          BASE=$(node -p "require('./mobile/package.json').version")
+          echo "name=${BASE}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${BASE}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "code=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
       - name: Build web assets
         working-directory: mobile
         run: |
@@ -58,13 +69,34 @@ jobs:
         working-directory: mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon \
+            -PappVersionCode=${{ steps.version.outputs.code }} \
+            -PappVersionName=${{ steps.version.outputs.name }}
+
+      - name: Rename APK to versioned filename
+        run: |
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+             "ygo-deck-builder-${{ steps.version.outputs.tag }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ygo-deck-builder-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          path: ygo-deck-builder-${{ steps.version.outputs.tag }}.apk
+
+      # Permanent, versioned release — one per build, never overwritten. The
+      # rolling apk-latest release below stays as the easy stable download
+      # link; this is the history to roll back to.
+      - name: Create versioned release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.version.outputs.tag }}
+          body: >
+            Android debug build ${{ steps.version.outputs.name }}
+            (commit ${{ github.sha }}).
+          files: ygo-deck-builder-${{ steps.version.outputs.tag }}.apk
 
       # Force the rolling tag onto this commit. softprops updates an existing
       # release in place but does NOT move the underlying tag ref, which would
@@ -86,8 +118,10 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: APK latest
           body: >
-            Latest Android debug build from main
+            Latest Android debug build from main —
+            version ${{ steps.version.outputs.name }}
             (commit ${{ github.sha }}).
             Download app-debug.apk below and open it on your phone to install.
+            Older builds live under their own v* releases.
           prerelease: false
           files: mobile/android/app/build/outputs/apk/debug/app-debug.apk
