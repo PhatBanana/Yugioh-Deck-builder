@@ -14,6 +14,11 @@ let bannerCreated = false;
 // banners on phones are ~50-60px; the listener refines this to the real value.
 const FALLBACK_BANNER_H = 60;
 let lastBannerHeight = FALLBACK_BANNER_H;
+// The banner auto-closes after 30s and stays closed for the rest of the
+// session — enough of an impression without permanently eating screen space.
+const BANNER_AUTO_CLOSE_MS = 30_000;
+let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+let autoClosed = false;
 
 function adsAvailable(): boolean {
   return ADS_ENABLED && Capacitor.isNativePlatform();
@@ -42,13 +47,22 @@ export async function initAds(): Promise<void> {
   }
 }
 
+function armAutoClose(): void {
+  if (autoCloseTimer) clearTimeout(autoCloseTimer);
+  autoCloseTimer = setTimeout(() => {
+    autoClosed = true;
+    void hideBanner();
+  }, BANNER_AUTO_CLOSE_MS);
+}
+
 export async function showBanner(): Promise<void> {
-  if (!adsAvailable()) return;
+  if (!adsAvailable() || autoClosed) return;
   try {
     if (!initialized) await initAds();
     // Reserve space immediately (fallback until SizeChanged reports the exact
     // height) so the ad can't overlap the header/content.
     setBannerHeightVar(lastBannerHeight);
+    armAutoClose();
     if (bannerCreated) {
       await AdMob.resumeBanner();
       return;
@@ -67,6 +81,11 @@ export async function showBanner(): Promise<void> {
 }
 
 export async function hideBanner(): Promise<void> {
+  // Stop any pending auto-close; it's either firing right now or moot.
+  if (autoCloseTimer) {
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = null;
+  }
   if (!adsAvailable() || !bannerCreated) return;
   try {
     await AdMob.hideBanner();
