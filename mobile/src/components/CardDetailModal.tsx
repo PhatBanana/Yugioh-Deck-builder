@@ -25,7 +25,7 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
         <button
           type="button"
           onClick={() => setGrading(true)}
-          className="text-xs text-emerald-400 active:text-emerald-300"
+          className="text-xs text-amber-400 active:text-amber-300"
         >
           📷 Grade with camera
         </button>
@@ -38,7 +38,7 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
             onClick={() => void setCondition(cardId, condition === c ? undefined : c)}
             className={`pressable flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               condition === c
-                ? "bg-emerald-500/20 border-emerald-800/60 text-emerald-200"
+                ? "bg-amber-400/20 border-amber-800/60 text-amber-200"
                 : "bg-raised border-line text-neutral-400 active:bg-overlay"
             }`}
           >
@@ -91,7 +91,7 @@ function DeckUsage({ cardId }: { cardId: number }) {
         </p>
       )}
       {usage.mine.length > 0 && (
-        <p className="text-emerald-300 mt-0.5">
+        <p className="text-amber-300 mt-0.5">
           In {usage.mine.length} of your deck{usage.mine.length === 1 ? "" : "s"}
           <span className="text-neutral-500"> — {deckNames(usage.mine)}</span>
         </p>

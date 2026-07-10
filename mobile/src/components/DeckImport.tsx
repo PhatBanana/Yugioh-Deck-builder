@@ -93,7 +93,7 @@ export default function DeckImport() {
           <button
             type="button"
             onClick={() => bulkSet((c) => c.suggestedQty)}
-            className="pressable flex-1 py-2 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50 text-sm"
+            className="pressable flex-1 py-2 rounded-lg bg-amber-400/15 active:bg-amber-400/25 text-amber-200 border border-amber-900/50 text-sm"
           >
             Own all {selected.kind === "deck" ? "(deck counts)" : "(×3)"}
           </button>

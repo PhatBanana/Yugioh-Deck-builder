@@ -43,7 +43,7 @@ export default function ValueSparkline() {
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
-        <path d={path} fill="none" stroke="#34d399" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke="#fbbf24" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
     </div>
   );

@@ -29,7 +29,7 @@ function Toggle({
       </span>
       <span
         className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${
-          on ? "bg-emerald-600" : "bg-overlay"
+          on ? "bg-amber-500" : "bg-overlay"
         }`}
       >
         <span
@@ -101,7 +101,7 @@ export default function ScanSettingsSheet({
               step={100}
               value={settings.scanDelayMs}
               onChange={(e) => update({ scanDelayMs: Number(e.target.value) })}
-              className="w-full mt-2 accent-emerald-500"
+              className="w-full mt-2 accent-amber-500"
             />
             <div className="flex justify-between text-xs text-neutral-500 mt-1">
               <span>Faster</span>

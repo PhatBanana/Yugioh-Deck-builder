@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
-/* Design tokens — a green-tinted dark palette instead of flat neutrals, so
-   surfaces pick up a hint of the emerald brand. canvas < surface < raised <
-   overlay is the elevation ladder; line/line-strong are the border pair. */
+/* Design tokens — "Millennium gold": dark surfaces with a faint purple
+   undertone and warm gold accents. canvas < surface < raised < overlay is the
+   elevation ladder; line/line-strong are the border pair. */
 @theme {
-  --color-canvas: #0a0e0d;
-  --color-surface: #121715;
-  --color-raised: #1c2320;
-  --color-overlay: #273029;
-  --color-line: #212b26;
-  --color-line-strong: #313d37;
+  --color-canvas: #0d0b12;
+  --color-surface: #15121c;
+  --color-raised: #201b2a;
+  --color-overlay: #2b2438;
+  --color-line: #262033;
+  --color-line-strong: #3a3150;
 }
 
 html,
 body {
-  background: #0a0e0d;
+  background: #0d0b12;
   color: #f5f5f5;
   overscroll-behavior-y: none;
 }
 
-/* Soft emerald glow behind the top of every page, for depth. Lives on the
+/* Soft gold glow behind the top of every page, for depth. Lives on the
    body's background (single property) so the camera-scanning override below
    still clears it in one shot. */
 body {
   background:
-    radial-gradient(140% 50% at 50% -20%, rgba(16, 185, 129, 0.08), transparent 60%),
-    #0a0e0d;
+    radial-gradient(140% 50% at 50% -20%, rgba(245, 158, 11, 0.07), transparent 60%),
+    #0d0b12;
   background-attachment: fixed;
 }
 
@@ -49,10 +49,10 @@ html.camera-scanning #root {
     @apply transition-[transform,background-color,opacity] duration-150 active:scale-[0.98];
   }
 
-  /* Buttons. Primary carries the brand gradient; ghost is a quiet raised
-     surface; danger is reserved for destructive actions. */
+  /* Buttons. Primary carries the brand gradient (gold needs dark text for
+     contrast); ghost is a quiet raised surface; danger is destructive-only. */
   .btn-primary {
-    @apply rounded-xl font-semibold text-white bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-lg shadow-emerald-950/50 transition-[transform,opacity,filter] duration-150 active:scale-[0.98] active:brightness-110 disabled:opacity-40 disabled:active:scale-100;
+    @apply rounded-xl font-semibold text-black bg-gradient-to-b from-amber-400 to-amber-600 shadow-lg shadow-amber-950/50 transition-[transform,opacity,filter] duration-150 active:scale-[0.98] active:brightness-110 disabled:opacity-40 disabled:active:scale-100;
   }
   .btn-ghost {
     @apply rounded-xl bg-raised text-neutral-200 border border-line transition-[transform,background-color] duration-150 active:scale-[0.98] active:bg-overlay disabled:opacity-40 disabled:active:scale-100;
@@ -63,7 +63,7 @@ html.camera-scanning #root {
 
   /* Text inputs / textareas / selects. */
   .input-base {
-    @apply rounded-xl border border-line bg-surface placeholder:text-neutral-600 focus:outline-none focus:border-emerald-700/60 focus:ring-2 focus:ring-emerald-500/15 transition-colors;
+    @apply rounded-xl border border-line bg-surface placeholder:text-neutral-600 focus:outline-none focus:border-amber-700/60 focus:ring-2 focus:ring-amber-400/15 transition-colors;
   }
 
   /* Segmented control: a .seg container of .seg-btn, with the active one
@@ -75,7 +75,7 @@ html.camera-scanning #root {
     @apply flex-1 rounded-lg text-neutral-500 transition-colors duration-150;
   }
   .seg-on {
-    @apply bg-emerald-500/15 text-emerald-200 font-medium;
+    @apply bg-amber-400/15 text-amber-200 font-medium;
   }
 
   /* Bottom sheets & centered modals. */

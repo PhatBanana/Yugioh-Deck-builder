@@ -160,7 +160,7 @@ function AddCardSearch({
                 <CardThumb img={c.img} w="w-8" h="h-11" />
                 <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
                 {suggested !== target && (
-                  <span className="text-[10px] text-amber-400/80 shrink-0">usually {suggested}</span>
+                  <span className="text-[10px] text-orange-400/80 shrink-0">usually {suggested}</span>
                 )}
               </button>
             );
@@ -190,7 +190,7 @@ function DeckCardRow({
         <CardThumb img={c.img} w="w-8" h="h-11" />
         <div className="min-w-0 flex-1">
           <div className="text-sm leading-snug truncate">{c.name}</div>
-          <div className={`text-xs ${short ? "text-amber-400" : "text-neutral-500"}`}>
+          <div className={`text-xs ${short ? "text-orange-400" : "text-neutral-500"}`}>
             own {c.owned}/{c.quantity}
             {c.banlist ? ` · ${c.banlist}` : ""}
           </div>
@@ -280,7 +280,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => renameDeck(deckId, name)}
-          className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-emerald-800/60"
+          className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-amber-800/60"
         />
       </div>
 
@@ -289,7 +289,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         className={`rounded-xl border px-3 py-2 text-xs ${
           validation.legal
             ? "bg-emerald-950/50 border-emerald-900/50 text-emerald-300"
-            : "bg-amber-950/50 border-amber-900/50 text-amber-300"
+            : "bg-orange-950/50 border-orange-900/50 text-orange-300"
         }`}
       >
         <div className="flex items-center gap-2 tabular-nums">
@@ -329,7 +329,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
                 onClick={() => setTarget(s)}
                 className={`text-[11px] px-2 py-1 -my-1 rounded-md transition-colors ${
                   target === s
-                    ? "text-emerald-300 bg-emerald-500/10 font-medium"
+                    ? "text-amber-300 bg-amber-400/10 font-medium"
                     : "text-neutral-500 active:text-neutral-300"
                 }`}
               >

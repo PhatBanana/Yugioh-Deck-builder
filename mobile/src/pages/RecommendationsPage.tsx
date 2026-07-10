@@ -135,13 +135,13 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
 
       <div className="mt-2.5 h-1.5 rounded-full bg-raised overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-300"
           style={{ width: `${pct}%` }}
         />
       </div>
 
       {rec.missingCards.length > 0 && (
-        <div className="mt-1.5 text-xs text-amber-400/90 tabular-nums">
+        <div className="mt-1.5 text-xs text-orange-400/90 tabular-nums">
           ≈ ${rec.missingCostUsd.toFixed(2)} to complete
           {rec.missingCostUnpricedCount > 0 && (
             <span className="text-neutral-500"> +{rec.missingCostUnpricedCount} unpriced</span>
@@ -161,7 +161,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
           <button
             type="button"
             onClick={addToDecks}
-            className="pressable text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50"
+            className="pressable text-xs px-2.5 py-1.5 rounded-lg bg-amber-400/15 active:bg-amber-400/25 text-amber-200 border border-amber-900/50"
           >
             + Add to Decks
           </button>
@@ -214,7 +214,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
               <div className="text-sm text-emerald-400">You can build this deck!</div>
             ) : (
               <>
-                <div className="text-xs font-semibold text-amber-400 mb-1">
+                <div className="text-xs font-semibold text-orange-400 mb-1">
                   Still need ({rec.missingCards.length})
                 </div>
                 <ul className="flex flex-col">
@@ -405,7 +405,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
             onClick={() => setBudget(b.value)}
             className={`flex-1 py-1.5 rounded-lg text-xs border transition-colors duration-150 ${
               budget === b.value
-                ? "bg-emerald-500/15 border-emerald-900/60 text-emerald-200 font-medium"
+                ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
                 : "bg-surface border-line text-neutral-400"
             }`}
           >
@@ -477,7 +477,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
                   <button
                     type="button"
                     onClick={() => void importLive(r)}
-                    className="pressable shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50"
+                    className="pressable shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-amber-400/15 active:bg-amber-400/25 text-amber-200 border border-amber-900/50"
                   >
                     ＋ Import
                   </button>

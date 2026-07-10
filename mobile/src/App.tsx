@@ -56,7 +56,7 @@ export default function App() {
           style={{ top: "var(--ad-banner-h, 0px)" }}
         >
           <h1 className="font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-emerald-300 to-teal-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
               YGO
             </span>{" "}
             Deck Builder
@@ -83,12 +83,12 @@ export default function App() {
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`flex-1 py-2 flex flex-col items-center gap-0.5 text-[11px] transition-colors duration-150 ${
-                  tab === t.id ? "text-emerald-300" : "text-neutral-500"
+                  tab === t.id ? "text-amber-300" : "text-neutral-500"
                 }`}
               >
                 <span
                   className={`text-lg leading-none rounded-full px-3.5 py-1 transition-colors duration-150 ${
-                    tab === t.id ? "bg-emerald-500/15" : ""
+                    tab === t.id ? "bg-amber-400/15" : ""
                   }`}
                 >
                   {t.icon}

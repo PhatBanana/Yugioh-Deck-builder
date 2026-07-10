@@ -127,7 +127,7 @@ function ScanningOverlay({
                 <div className="w-12 h-[70px] rounded bg-neutral-700" />
               )}
               {e.count > 1 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-emerald-500 text-black text-xs font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
                   {e.count}
                 </span>
               )}

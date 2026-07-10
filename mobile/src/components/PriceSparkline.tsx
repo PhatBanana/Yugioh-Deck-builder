@@ -75,7 +75,7 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
         onPointerDown={onPointerMove}
         onPointerLeave={() => setHoverIdx(null)}
       >
-        <path d={path} fill="none" stroke="#34d399" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke="#fbbf24" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         {hoverIdx != null && (
           <line
             x1={xAt(hoverIdx)}
