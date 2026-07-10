@@ -9,9 +9,16 @@ import {
   getRecommendations,
 } from "../services/recommendations";
 import { saveMetaDeckAsDeck } from "../services/decks";
+import {
+  importLiveDeck,
+  searchLiveDecks,
+  type LiveSearchOutcome,
+} from "../services/deckSearch";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
+import SyncFirstNotice from "../components/SyncFirstNotice";
 import { toast } from "../components/Toaster";
 
 const BUDGETS: { label: string; value: number | null }[] = [
@@ -224,7 +231,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
   );
 }
 
-export default function RecommendationsPage() {
+export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () => void }) {
   const [recs, setRecs] = useState<DeckRecommendation[] | null>(null);
   const [purchases, setPurchases] = useState<PurchaseSuggestion[]>([]);
   const [includeSide, setIncludeSide] = useState(false);
@@ -233,6 +240,12 @@ export default function RecommendationsPage() {
   const [era, setEra] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<string | null>(null);
   const [sort, setSort] = useState<"completion" | "cost" | "name">("completion");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const [live, setLive] = useState<LiveSearchOutcome | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  // Bumped when an online deck is imported so the ranked list re-crunches.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
@@ -253,13 +266,17 @@ export default function RecommendationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [includeSide, collectionSize, cardCount]);
+  }, [includeSide, collectionSize, cardCount, refreshKey]);
+
+  // Online results are for one query; typing a new one discards them.
+  useEffect(() => setLive(null), [debouncedSearch]);
 
   if (!cardCount) {
     return (
-      <div className="p-6 text-center text-neutral-400 text-sm">
-        Sync the card database first (Cards tab) to see deck recommendations.
-      </div>
+      <SyncFirstNotice
+        reason="recommendations compare it against your collection."
+        onGoToCards={onGoToCards}
+      />
     );
   }
 
@@ -271,8 +288,17 @@ export default function RecommendationsPage() {
   ].sort();
 
   const filtersActive = budget != null || era != null || strategy != null || sort !== "completion";
+  const q = debouncedSearch.trim().toLowerCase();
 
+  // A search query looks across every cached deck (uncapped); otherwise the
+  // tab shows the usual top decks.
   const displayed = allRecs
+    .filter(
+      (r) =>
+        !q ||
+        r.deckName.toLowerCase().includes(q) ||
+        (r.archetype ?? "").toLowerCase().includes(q)
+    )
     .filter((r) => budget == null || r.missingCostUsd <= budget)
     .filter((r) => era == null || r.era === era)
     .filter((r) => strategy == null || r.strategy === strategy)
@@ -281,7 +307,28 @@ export default function RecommendationsPage() {
       if (sort === "name") return a.deckName.localeCompare(b.deckName);
       return 0; // 'completion' — already sorted by the recommender
     })
-    .slice(0, filtersActive ? 25 : 5);
+    .slice(0, q ? 50 : filtersActive ? 25 : 5);
+
+  async function runLiveSearch() {
+    setLiveBusy(true);
+    try {
+      setLive(await searchLiveDecks(debouncedSearch.trim()));
+    } catch {
+      setLive({ results: [], errors: ["Online search failed"] });
+    } finally {
+      setLiveBusy(false);
+    }
+  }
+
+  async function importLive(result: LiveSearchOutcome["results"][number]) {
+    const deck = await importLiveDeck(result).catch(() => null);
+    if (deck) {
+      toast(`Added “${deck.name}” to your meta decks`, "success");
+      setRefreshKey((k) => k + 1);
+    } else {
+      toast("Couldn't resolve that deck's cards against your card database", "error");
+    }
+  }
 
   const selectClass = "input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5";
 
@@ -301,6 +348,16 @@ export default function RecommendationsPage() {
           Side deck
         </label>
       </div>
+
+      {/* Search all known meta decks — cached ones instantly, plus an
+          explicit online lookup across the supported deck sources. */}
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search meta decks (e.g. Dark Magician)…"
+        className="input-base w-full px-4 py-2.5 text-sm"
+      />
 
       {/* Era / strategy / sort */}
       <div className="flex gap-1.5">
@@ -386,12 +443,60 @@ export default function RecommendationsPage() {
         <div className="text-neutral-500 text-sm">
           {allRecs.length === 0
             ? "No meta decks cached yet — run a sync from the Cards tab."
-            : "No decks match these filters. Try widening era, style, or budget."}
+            : q
+              ? "No cached decks match — try the online search below."
+              : "No decks match these filters. Try widening era, style, or budget."}
         </div>
       )}
       {displayed.map((rec, i) => (
         <DeckCard key={rec.deckId} rec={rec} rank={i + 1} />
       ))}
+
+      {/* Online lookup, offered whenever a search is active. */}
+      {q.length >= 2 && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={liveBusy}
+            onClick={runLiveSearch}
+            className="btn-ghost py-2.5 text-sm"
+          >
+            {liveBusy ? "Searching online…" : "🌐 Search online — YGOPRODeck · YugiohMeta"}
+          </button>
+          {live && (
+            <>
+              {live.results.map((r) => (
+                <div key={r.key} className="panel flex items-center gap-3 px-3.5 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm leading-snug truncate">{r.name}</div>
+                    <div className="text-xs text-neutral-500">
+                      {r.source}
+                      {r.format ? ` · ${r.format}` : ""}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void importLive(r)}
+                    className="pressable shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50"
+                  >
+                    ＋ Import
+                  </button>
+                </div>
+              ))}
+              {live.results.length === 0 && live.errors.length === 0 && (
+                <p className="text-xs text-neutral-500 text-center py-1">
+                  No online decks found for “{debouncedSearch.trim()}”.
+                </p>
+              )}
+              {live.errors.map((e) => (
+                <p key={e} className="text-xs text-neutral-600 text-center">
+                  {e}
+                </p>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -4,23 +4,24 @@ import ScanPage from "./pages/ScanPage";
 import CardsPage from "./pages/CardsPage";
 import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
-import ImportPage from "./pages/ImportPage";
 import { hideBanner, initAds, showBanner } from "./services/ads";
 import { recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
 
-type Tab = "scan" | "cards" | "decks" | "meta" | "import";
+type Tab = "cards" | "scan" | "decks" | "meta";
 
+// Ordered left→right along the natural workflow: your collection (Cards,
+// also home to first-run setup), getting cards in (Scan hosts camera, paste
+// and deck import), building (Decks), then optimizing against the meta.
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "scan", label: "Scan", icon: "📷" },
   { id: "cards", label: "Cards", icon: "🃏" },
+  { id: "scan", label: "Scan", icon: "📷" },
   { id: "decks", label: "Decks", icon: "📚" },
   { id: "meta", label: "Meta", icon: "🏆" },
-  { id: "import", label: "Import", icon: "📥" },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("scan");
+  const [tab, setTab] = useState<Tab>("cards");
   // Immersive = live camera scanning; hide app chrome so the preview (rendered
   // behind the webview) shows through.
   const [immersive, setImmersive] = useState(false);
@@ -65,11 +66,12 @@ export default function App() {
 
       {/* Bottom padding leaves room for the fixed bottom nav. */}
       <main className="flex-1 pb-24">
-        {tab === "scan" && <ScanPage onImmersive={setImmersive} />}
         {tab === "cards" && <CardsPage />}
-        {tab === "decks" && <DecksPage />}
-        {tab === "meta" && <RecommendationsPage />}
-        {tab === "import" && <ImportPage />}
+        {tab === "scan" && (
+          <ScanPage onImmersive={setImmersive} onGoToCards={() => setTab("cards")} />
+        )}
+        {tab === "decks" && <DecksPage onGoToCards={() => setTab("cards")} />}
+        {tab === "meta" && <RecommendationsPage onGoToCards={() => setTab("cards")} />}
       </main>
 
       {!immersive && (

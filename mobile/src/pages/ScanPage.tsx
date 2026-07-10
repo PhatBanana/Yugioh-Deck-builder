@@ -8,6 +8,9 @@ import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
+import SyncFirstNotice from "../components/SyncFirstNotice";
+import PasteImport from "../components/PasteImport";
+import DeckImport from "../components/DeckImport";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
@@ -161,10 +164,26 @@ function ScanningOverlay({
   );
 }
 
-export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) => void }) {
+// The three ways to get cards into the collection, all living on this tab.
+type AddMode = "scan" | "paste" | "deck";
+
+const ADD_MODES: { id: AddMode; label: string }[] = [
+  { id: "scan", label: "📷 Scan" },
+  { id: "paste", label: "📋 Paste list" },
+  { id: "deck", label: "🔎 Find a deck" },
+];
+
+export default function ScanPage({
+  onImmersive,
+  onGoToCards,
+}: {
+  onImmersive: (v: boolean) => void;
+  onGoToCards: () => void;
+}) {
   const { settings, update } = useScanSettings();
   const scan = useAutoScan(settings);
   const cardCount = useLiveQuery(() => db.cards.count());
+  const [mode, setMode] = useState<AddMode>("scan");
   const [manualQuery, setManualQuery] = useState("");
   const [manualMatches, setManualMatches] = useState<NameMatch[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -203,9 +222,10 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
 
   if (!cardCount) {
     return (
-      <div className="p-6 text-center text-neutral-400 text-sm">
-        Sync the card database first (Cards tab) — scanning matches photos against it.
-      </div>
+      <SyncFirstNotice
+        reason="scanning matches photos against it."
+        onGoToCards={onGoToCards}
+      />
     );
   }
 
@@ -219,45 +239,66 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
 
   return (
     <div className="p-4 flex flex-col gap-4">
-      <div className="flex justify-end -mb-2">
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          className="text-sm text-neutral-400 active:text-white px-2 py-1"
-        >
-          ⚙ Settings
-        </button>
+      {/* One tab, three ways in: camera, pasted list, or a whole deck. */}
+      <div className="seg text-xs">
+        {ADD_MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMode(m.id)}
+            className={`seg-btn py-2 ${mode === m.id ? "seg-on" : ""}`}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
-      <button
-        type="button"
-        disabled={!isScanSupported()}
-        onClick={startScan}
-        className="btn-primary w-full py-5 rounded-2xl text-lg"
-      >
-        📷 Scan cards
-      </button>
-      <p className="text-xs text-neutral-500 text-center -mt-2">
-        {isScanSupported()
-          ? "Hold each card up — it captures automatically when the name is readable. Show the next card to keep going."
-          : "Live camera scanning works in the Android app. Use the search below in the browser."}
-      </p>
 
-      <div className="mt-1">
-        <input
-          type="search"
-          value={manualQuery}
-          onChange={(e) => manualSearch(e.target.value)}
-          placeholder="Or add a card by name…"
-          className="input-base w-full px-4 py-3 text-sm"
-        />
-        {manualMatches.length > 0 && (
-          <div className="flex flex-col gap-2 mt-2">
-            {manualMatches.map((m) => (
-              <ManualMatchRow key={m.id} match={m} />
-            ))}
+      {mode === "paste" && <PasteImport />}
+      {mode === "deck" && <DeckImport />}
+
+      {mode === "scan" && (
+        <>
+          <div className="flex justify-end -mb-2 -mt-1">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="text-sm text-neutral-400 active:text-white px-2 py-1"
+            >
+              ⚙ Settings
+            </button>
           </div>
-        )}
-      </div>
+          <button
+            type="button"
+            disabled={!isScanSupported()}
+            onClick={startScan}
+            className="btn-primary w-full py-5 rounded-2xl text-lg"
+          >
+            📷 Scan cards
+          </button>
+          <p className="text-xs text-neutral-500 text-center -mt-2">
+            {isScanSupported()
+              ? "Hold each card up — it captures automatically when the name is readable. Show the next card to keep going."
+              : "Live camera scanning works in the Android app. Use the search below in the browser."}
+          </p>
+
+          <div className="mt-1">
+            <input
+              type="search"
+              value={manualQuery}
+              onChange={(e) => manualSearch(e.target.value)}
+              placeholder="Or add a card by name…"
+              className="input-base w-full px-4 py-3 text-sm"
+            />
+            {manualMatches.length > 0 && (
+              <div className="flex flex-col gap-2 mt-2">
+                {manualMatches.map((m) => (
+                  <ManualMatchRow key={m.id} match={m} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
       {settingsSheet}
     </div>
   );

@@ -48,7 +48,7 @@ export interface MMetaDeck {
   tier: string | null;
   era: string | null; // "Modern" | "Edison" | "Goat" | ...
   strategy: string | null; // "Control" | "Burn" | ... (null when unknown)
-  source: "scrape" | "static_snapshot";
+  source: "scrape" | "static_snapshot" | "live_search";
   sourceUrl: string | null;
   lastUpdated: string;
   cards: Omit<DeckCardRequirement, "priceUsd">[];

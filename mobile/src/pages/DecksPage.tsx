@@ -18,6 +18,7 @@ import {
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
+import SyncFirstNotice from "../components/SyncFirstNotice";
 import { toast } from "../components/Toaster";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
@@ -304,39 +305,45 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         ))}
       </div>
 
-      {/* Add cards */}
-      <div className="panel p-3 flex flex-col gap-2">
-        <div className="seg rounded-lg bg-raised p-0.5 text-xs">
-          {sections.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setTarget(s)}
-              className={`seg-btn rounded-md py-1.5 ${target === s ? "seg-on" : ""}`}
-            >
-              {SECTION_LABEL[s]}
-            </button>
-          ))}
-        </div>
-        <AddCardSearch deckId={deckId} target={target} enriched={enriched} />
-      </div>
+      {/* Add cards — the search's placeholder names the target section;
+          "＋ Add here" on a section header retargets it. */}
+      <AddCardSearch deckId={deckId} target={target} enriched={enriched} />
 
-      {/* Deck contents */}
+      {/* Deck contents: every section always shows, each in its own panel
+          with a divider header bar, so main/extra/side structure is obvious. */}
       {sections.map((s) => {
         const cards = enriched.cards.filter((c) => c.section === s);
-        if (cards.length === 0) return null;
         const count = cards.reduce((n, c) => n + c.quantity, 0);
         return (
-          <div key={s}>
-            <h3 className="text-xs font-semibold uppercase text-neutral-500 mb-1 mt-1">
-              {SECTION_LABEL[s]} ({count})
-            </h3>
-            <div className="divide-y divide-line/70">
-              {cards.map((c) => (
-                <DeckCardRow key={`${c.cardId}-${c.section}`} deckId={deckId} c={c} />
-              ))}
-            </div>
-          </div>
+          <section key={s} className="panel overflow-hidden">
+            <header
+              className={`flex items-center justify-between px-3 py-2 bg-raised ${
+                cards.length > 0 ? "border-b border-line" : ""
+              }`}
+            >
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-300">
+                {SECTION_LABEL[s]} <span className="text-neutral-500 font-normal">({count})</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setTarget(s)}
+                className={`text-[11px] px-2 py-1 -my-1 rounded-md transition-colors ${
+                  target === s
+                    ? "text-emerald-300 bg-emerald-500/10 font-medium"
+                    : "text-neutral-500 active:text-neutral-300"
+                }`}
+              >
+                {target === s ? "✓ Adding here" : "＋ Add here"}
+              </button>
+            </header>
+            {cards.length > 0 && (
+              <div className="divide-y divide-line/70 px-3">
+                {cards.map((c) => (
+                  <DeckCardRow key={`${c.cardId}-${c.section}`} deckId={deckId} c={c} />
+                ))}
+              </div>
+            )}
+          </section>
         );
       })}
 
@@ -360,16 +367,12 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   );
 }
 
-export default function DecksPage() {
+export default function DecksPage({ onGoToCards }: { onGoToCards: () => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const cardCount = useLiveQuery(() => db.cards.count());
 
   if (!cardCount) {
-    return (
-      <div className="p-6 text-center text-neutral-400 text-sm">
-        Sync the card database first (Cards tab) to build decks.
-      </div>
-    );
+    return <SyncFirstNotice reason="decks are built from it." onGoToCards={onGoToCards} />;
   }
 
   return openId ? (

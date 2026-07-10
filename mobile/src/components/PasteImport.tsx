@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { applyImport, resolveImport, type ImportResult } from "../services/collection";
-import DeckImport from "../components/DeckImport";
-import { toast } from "../components/Toaster";
+import { toast } from "./Toaster";
 
-export default function ImportPage() {
-  const [source, setSource] = useState<"deck" | "paste">("deck");
+// Paste-a-list collection import (3x Name lines, .ydk contents, or a JSON
+// backup), lifted from the former Import tab. Lives on the Scan tab's
+// "Paste list" mode.
+export default function PasteImport() {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"add" | "set">("add");
   const [preview, setPreview] = useState<ImportResult | null>(null);
@@ -38,24 +39,7 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-3">
-      <div className="seg text-sm">
-        {(["deck", "paste"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSource(s)}
-            className={`seg-btn py-2 ${source === s ? "seg-on" : ""}`}
-          >
-            {s === "deck" ? "Find a deck" : "Paste list"}
-          </button>
-        ))}
-      </div>
-
-      {source === "deck" && <DeckImport />}
-
-      {source === "paste" && (
-        <>
+    <div className="flex flex-col gap-3">
       <p className="text-xs text-neutral-500">
         Paste a list — <code>3x Card Name</code>, <code>3 Card Name</code>, one name per line, a
         .ydk file's contents, or a JSON backup from the desktop app.
@@ -127,8 +111,6 @@ export default function ImportPage() {
             </div>
           )}
         </div>
-      )}
-        </>
       )}
     </div>
   );
