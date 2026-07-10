@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from "dexie";
+import Dexie, { type EntityTable, type Table } from "dexie";
 import type { DeckCardRequirement } from "@shared/recommendation/types";
 import type { DeckCard } from "@shared/deck/types";
 import type { CardCondition } from "@shared/grading/analyze";
@@ -71,6 +71,15 @@ export interface MWishlistEntry {
   cardId: number;
 }
 
+// One price point per tracked card per day, so the card detail sheet can chart
+// a card's price over time. Only cards in the collection or wishlist are
+// tracked — snapshotting all ~13k cards daily would bloat IndexedDB.
+export interface MPricePoint {
+  cardId: number;
+  date: string; // YYYY-MM-DD ([cardId+date] is the primary key — one row per card per day)
+  priceUsd: number;
+}
+
 export const db = new Dexie("ygo-deck-builder") as Dexie & {
   cards: EntityTable<MCard, "id">;
   collection: EntityTable<MCollectionEntry, "cardId">;
@@ -79,6 +88,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   decks: EntityTable<MDeck, "id">;
   wishlist: EntityTable<MWishlistEntry, "cardId">;
   valueHistory: EntityTable<MValueSnapshot, "date">;
+  priceHistory: Table<MPricePoint, [number, string]>;
 };
 
 db.version(1).stores({
@@ -99,6 +109,11 @@ db.version(2).stores({
 // field on collection entries — non-indexed, so no store change needed.)
 db.version(3).stores({
   valueHistory: "date",
+});
+
+// v4 adds per-card daily price points for owned/wishlisted cards.
+db.version(4).stores({
+  priceHistory: "[cardId+date], cardId",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

@@ -7,6 +7,7 @@ import RecommendationsPage from "./pages/RecommendationsPage";
 import ImportPage from "./pages/ImportPage";
 import { hideBanner, initAds, showBanner } from "./services/ads";
 import { recordValueSnapshot } from "./services/collection";
+import { recordPriceSnapshots } from "./services/priceHistory";
 
 type Tab = "scan" | "cards" | "decks" | "meta" | "import";
 
@@ -26,8 +27,10 @@ export default function App() {
 
   useEffect(() => {
     void initAds();
-    // Best-effort daily collection-value snapshot for the value chart.
+    // Best-effort daily snapshots: collection value for the value chart, and
+    // per-card prices (owned + wishlisted) for the price-history charts.
     recordValueSnapshot().catch(() => {});
+    recordPriceSnapshots().catch(() => {});
   }, []);
 
   // Hide the banner over the fullscreen camera; show it everywhere else.

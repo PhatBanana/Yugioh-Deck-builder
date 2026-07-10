@@ -3,6 +3,7 @@ import type { OwnedCollection } from "@shared/recommendation/types";
 import type { CardCondition } from "@shared/grading/analyze";
 import { db } from "../db";
 import { httpGetJson } from "./http";
+import { recordPricePoints } from "./priceHistory";
 
 // Writes a quantity while preserving any extra fields (condition) already on
 // the entry. All quantity writes must go through this so a stepper tap can't
@@ -25,6 +26,9 @@ export async function setOwnedQuantity(cardId: number, quantity: number): Promis
     await db.collection.delete(cardId);
   } else {
     await putQuantity(cardId, quantity);
+    // Start the card's price history at add time (best-effort) rather than
+    // waiting for the next launch snapshot.
+    recordPricePoints([cardId]).catch(() => {});
   }
 }
 
@@ -57,6 +61,9 @@ export async function setOwnedMany(
       else await putQuantity(cardId, quantity);
     }
   });
+  recordPricePoints(
+    entries.filter((e) => e.quantity > 0).map((e) => e.cardId)
+  ).catch(() => {});
 }
 
 export interface CollectionStats {
@@ -160,6 +167,7 @@ export async function applyImport(
       }
     }
   });
+  recordPricePoints(matched.map((m) => m.cardId)).catch(() => {});
 }
 
 // Records today's collection value (one row per day, last write wins) so the

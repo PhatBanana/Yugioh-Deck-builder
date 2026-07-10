@@ -1,5 +1,6 @@
 import { db, setSyncMeta, type MCard } from "../db";
 import { httpGetJson } from "./http";
+import { recordPriceSnapshots } from "./priceHistory";
 
 const CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
 const DBVER_URL = "https://db.ygoprodeck.com/api/v7/checkDBVer.php";
@@ -84,6 +85,10 @@ export async function syncCards(
   await db.cards.bulkPut(cards);
   await setSyncMeta("cards_last_synced_at", new Date().toISOString());
   if (remoteVersion) await setSyncMeta("cards_db_version", remoteVersion);
+
+  // A sync is the only time local prices change — refresh today's tracked
+  // price points so history reflects the new prices (best-effort).
+  await recordPriceSnapshots().catch(() => {});
 
   return { cardCount: cards.length, skipped: false };
 }

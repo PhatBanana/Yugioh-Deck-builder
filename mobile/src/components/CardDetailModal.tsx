@@ -7,6 +7,7 @@ import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import { setCondition } from "../services/collection";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
+import PriceSparkline from "./PriceSparkline";
 import GradeCardSheet from "./GradeCardSheet";
 import { toast } from "./Toaster";
 
@@ -173,6 +174,8 @@ export default function CardDetailModal({
         </div>
 
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
+
+        <PriceSparkline cardId={card.id} />
 
         <DeckUsage cardId={card.id} />
 
