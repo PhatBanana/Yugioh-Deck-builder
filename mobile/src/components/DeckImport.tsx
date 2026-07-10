@@ -93,14 +93,14 @@ export default function DeckImport() {
           <button
             type="button"
             onClick={() => bulkSet((c) => c.suggestedQty)}
-            className="flex-1 py-2 rounded-lg bg-emerald-800/70 active:bg-emerald-700 text-sm"
+            className="pressable flex-1 py-2 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50 text-sm"
           >
             Own all {selected.kind === "deck" ? "(deck counts)" : "(×3)"}
           </button>
           <button
             type="button"
             onClick={() => bulkSet(() => 0)}
-            className="px-3 py-2 rounded-lg bg-neutral-800 active:bg-neutral-700 text-sm"
+            className="btn-ghost px-3 py-2 rounded-lg text-sm"
           >
             Clear
           </button>
@@ -111,7 +111,7 @@ export default function DeckImport() {
           {cards?.map((c) => (
             <div
               key={c.cardId}
-              className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2"
+              className="flex items-center gap-3 panel p-2"
             >
               <button
                 type="button"
@@ -159,7 +159,7 @@ export default function DeckImport() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search decks & archetypes…"
-        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm"
+        className="input-base w-full px-4 py-3 text-sm"
       />
 
       {results.metaDecks.length > 0 && (
@@ -171,7 +171,7 @@ export default function DeckImport() {
                 key={d.id}
                 type="button"
                 onClick={() => open({ kind: "deck", key: d.id, title: d.name })}
-                className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-3 text-left"
+                className="pressable flex items-center justify-between panel px-3.5 py-3 text-left"
               >
                 <span className="text-sm">{d.name}</span>
                 <span className="text-xs text-neutral-500">{d.cardCount} cards →</span>
@@ -190,7 +190,7 @@ export default function DeckImport() {
                 key={a.name}
                 type="button"
                 onClick={() => open({ kind: "archetype", key: a.name, title: a.name })}
-                className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-3 text-left"
+                className="pressable flex items-center justify-between panel px-3.5 py-3 text-left"
               >
                 <span className="text-sm">{a.name}</span>
                 <span className="text-xs text-neutral-500">{a.cardCount} cards →</span>

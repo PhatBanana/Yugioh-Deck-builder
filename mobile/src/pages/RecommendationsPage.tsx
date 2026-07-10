@@ -98,7 +98,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
   }
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-3.5">
+    <div className="panel p-3.5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] text-neutral-500">#{rank}</div>
@@ -106,7 +106,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
           {(rec.era || rec.strategy) && (
             <div className="flex flex-wrap gap-1 mt-1">
               {rec.era && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-raised border border-line text-neutral-300">
                   {rec.era}
                 </span>
               )}
@@ -126,8 +126,11 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
         </div>
       </div>
 
-      <div className="mt-2.5 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-        <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+      <div className="mt-2.5 h-1.5 rounded-full bg-raised overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+          style={{ width: `${pct}%` }}
+        />
       </div>
 
       {rec.missingCards.length > 0 && (
@@ -151,7 +154,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
           <button
             type="button"
             onClick={addToDecks}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-800/70 active:bg-emerald-700 text-emerald-100"
+            className="pressable text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-200 border border-emerald-900/50"
           >
             + Add to Decks
           </button>
@@ -159,7 +162,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
             <button
               type="button"
               onClick={() => copyShoppingList(rec)}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-neutral-800 active:bg-neutral-700"
+              className="btn-ghost text-xs px-2.5 py-1.5 rounded-lg"
             >
               Copy list
             </button>
@@ -168,7 +171,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
       </div>
 
       {expanded && (
-        <div className="mt-2 pt-2 border-t border-neutral-800 flex flex-col gap-2">
+        <div className="mt-2 pt-2 border-t border-line flex flex-col gap-2">
           {/* Cards you already own */}
           {owned && owned.length > 0 && (
             <div>
@@ -280,8 +283,7 @@ export default function RecommendationsPage() {
     })
     .slice(0, filtersActive ? 25 : 5);
 
-  const selectClass =
-    "flex-1 min-w-0 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs px-2 py-1.5";
+  const selectClass = "input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5";
 
   return (
     <div className="p-4 flex flex-col gap-3">
@@ -344,10 +346,10 @@ export default function RecommendationsPage() {
             key={b.label}
             type="button"
             onClick={() => setBudget(b.value)}
-            className={`flex-1 py-1.5 rounded-lg text-xs ${
+            className={`flex-1 py-1.5 rounded-lg text-xs border transition-colors duration-150 ${
               budget === b.value
-                ? "bg-neutral-700 text-white"
-                : "bg-neutral-900 border border-neutral-800 text-neutral-400"
+                ? "bg-emerald-500/15 border-emerald-900/60 text-emerald-200 font-medium"
+                : "bg-surface border-line text-neutral-400"
             }`}
           >
             {b.label}
@@ -357,7 +359,7 @@ export default function RecommendationsPage() {
 
       {/* What to buy next */}
       {purchases.length > 0 && (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+        <div className="panel p-3">
           <button
             type="button"
             onClick={() => setBuyNextOpen((o) => !o)}
@@ -367,7 +369,7 @@ export default function RecommendationsPage() {
             <span className="text-neutral-500 text-xs">{buyNextOpen ? "Hide" : "Show"}</span>
           </button>
           {buyNextOpen && (
-            <div className="mt-2 pt-2 border-t border-neutral-800 divide-y divide-neutral-800/60">
+            <div className="mt-2 pt-2 border-t border-line divide-y divide-line/70">
               {purchases.map((p) => (
                 <PurchaseRow key={p.cardId} p={p} />
               ))}

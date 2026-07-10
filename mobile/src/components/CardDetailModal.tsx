@@ -17,7 +17,7 @@ const CONDITIONS: CardCondition[] = ["NM", "LP", "MP", "HP", "DMG"];
 function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardCondition }) {
   const [grading, setGrading] = useState(false);
   return (
-    <div className="mt-3 pt-3 border-t border-neutral-800">
+    <div className="mt-3 pt-3 border-t border-line">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-semibold text-neutral-400">
           Condition{condition ? ` — ${CONDITION_LABEL[condition]}` : ""}
@@ -36,10 +36,10 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
             key={c}
             type="button"
             onClick={() => void setCondition(cardId, condition === c ? undefined : c)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${
+            className={`pressable flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               condition === c
-                ? "bg-emerald-700 text-white"
-                : "bg-neutral-800 text-neutral-400 active:bg-neutral-700"
+                ? "bg-emerald-500/20 border-emerald-800/60 text-emerald-200"
+                : "bg-raised border-line text-neutral-400 active:bg-overlay"
             }`}
           >
             {c}
@@ -63,7 +63,7 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
 function Stat({ label, value }: { label: string; value: string | number | null }) {
   if (value == null || value === "") return null;
   return (
-    <div className="flex justify-between gap-3 border-b border-neutral-800/60 py-1 text-sm">
+    <div className="flex justify-between gap-3 border-b border-line/70 py-1 text-sm">
       <dt className="text-neutral-500">{label}</dt>
       <dd className="text-neutral-200 text-right">{value}</dd>
     </div>
@@ -81,7 +81,7 @@ function DeckUsage({ cardId }: { cardId: number }) {
   const usage = useLiveQuery(() => getCardUsage(cardId), [cardId]);
   if (!usage || (usage.meta.length === 0 && usage.mine.length === 0)) return null;
   return (
-    <div className="mt-3 pt-3 border-t border-neutral-800 text-sm">
+    <div className="mt-3 pt-3 border-t border-line text-sm">
       <div className="text-xs font-semibold text-neutral-400 mb-1">Used in decks</div>
       {usage.meta.length > 0 && (
         <p className="text-neutral-300">
@@ -117,11 +117,12 @@ export default function CardDetailModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70" onClick={onClose}>
+    <div className="sheet-backdrop z-[70] flex items-end sm:items-center justify-center" onClick={onClose}>
       <div
-        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-neutral-900 border border-neutral-800 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+        className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sheet-handle sm:hidden" />
         <div className="flex items-start justify-between gap-3 mb-3">
           <h2 className="text-lg font-semibold leading-tight">{card.name}</h2>
           <button
@@ -136,9 +137,9 @@ export default function CardDetailModal({
 
         <div className="flex gap-4">
           {card.img ? (
-            <img src={card.img} alt={card.name} className="w-32 rounded-lg shrink-0" />
+            <img src={card.img} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10 shrink-0" />
           ) : (
-            <div className="w-32 h-44 rounded-lg bg-neutral-800 shrink-0" />
+            <div className="w-32 h-44 rounded-lg bg-raised ring-1 ring-white/5 shrink-0" />
           )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -180,7 +181,7 @@ export default function CardDetailModal({
         <DeckUsage cardId={card.id} />
 
         {card.desc && (
-          <p className="mt-3 pt-3 border-t border-neutral-800 text-sm text-neutral-300 whitespace-pre-line leading-relaxed">
+          <p className="mt-3 pt-3 border-t border-line text-sm text-neutral-300 whitespace-pre-line leading-relaxed">
             {card.desc}
           </p>
         )}

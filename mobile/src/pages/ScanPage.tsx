@@ -24,7 +24,7 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
     toast(`${match.name} — now own ${next}`, "success");
   }
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2.5">
+    <div className="flex items-center gap-3 panel p-2.5">
       <button
         type="button"
         onClick={() => openCard(match.id)}
@@ -42,7 +42,7 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
       <button
         type="button"
         onClick={add}
-        className="shrink-0 px-4 py-2.5 rounded-lg bg-emerald-700 active:bg-emerald-600 text-sm font-medium"
+        className="btn-primary shrink-0 px-4 py-2.5 rounded-lg text-sm"
       >
         +1
       </button>
@@ -146,13 +146,13 @@ function ScanningOverlay({
         <button
           type="button"
           onClick={() => void scan.captureNow()}
-          className="w-16 h-16 rounded-full bg-white active:bg-neutral-300 border-4 border-white/40"
+          className="w-16 h-16 rounded-full bg-white active:bg-neutral-300 ring-4 ring-white/30 border-2 border-black/20 transition-transform active:scale-95"
           aria-label="Capture now"
         />
         <button
           type="button"
           onClick={() => void scan.stop()}
-          className="px-4 py-3 rounded-xl bg-emerald-700 active:bg-emerald-600 text-white text-sm font-medium"
+          className="btn-primary px-4 py-3 text-sm"
         >
           Done
         </button>
@@ -232,7 +232,7 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
         type="button"
         disabled={!isScanSupported()}
         onClick={startScan}
-        className="w-full py-5 rounded-2xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 text-lg font-semibold"
+        className="btn-primary w-full py-5 rounded-2xl text-lg"
       >
         📷 Scan cards
       </button>
@@ -248,7 +248,7 @@ export default function ScanPage({ onImmersive }: { onImmersive: (v: boolean) =>
           value={manualQuery}
           onChange={(e) => manualSearch(e.target.value)}
           placeholder="Or add a card by name…"
-          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm"
+          className="input-base w-full px-4 py-3 text-sm"
         />
         {manualMatches.length > 0 && (
           <div className="flex flex-col gap-2 mt-2">

@@ -19,7 +19,7 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
   if (history.length === 0) return null;
   if (history.length === 1) {
     return (
-      <p className="mt-3 pt-3 border-t border-neutral-800 text-xs text-neutral-500">
+      <p className="mt-3 pt-3 border-t border-line text-xs text-neutral-500">
         Price tracked since {history[0].date} — the chart appears once there
         are a few days of data.
       </p>
@@ -55,7 +55,7 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-neutral-800">
+    <div className="mt-3 pt-3 border-t border-line">
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="text-neutral-500">
           {hovered

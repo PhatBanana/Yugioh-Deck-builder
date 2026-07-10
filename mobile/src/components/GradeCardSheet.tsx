@@ -17,7 +17,7 @@ function wearLabel(f: number): { text: string; className: string } {
 function CornerBadge({ label, value }: { label: string; value: number }) {
   const w = wearLabel(value);
   return (
-    <div className="rounded-lg bg-neutral-800/70 px-2 py-1.5 text-center">
+    <div className="rounded-lg bg-raised px-2 py-1.5 text-center border border-line">
       <div className="text-[10px] text-neutral-500">{label}</div>
       <div className={`text-xs font-medium ${w.className}`}>{w.text}</div>
     </div>
@@ -28,7 +28,7 @@ function ResultView({ analysis }: { analysis: CardAnalysis }) {
   const { centering, wear, grade } = analysis;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between rounded-xl bg-neutral-800/70 px-4 py-3">
+      <div className="flex items-center justify-between rounded-xl bg-raised border border-line px-4 py-3">
         <div>
           <div className="text-xs text-neutral-500">Estimated condition</div>
           <div className="text-lg font-semibold">
@@ -108,11 +108,12 @@ export default function GradeCardSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70" onClick={onClose}>
+    <div className="sheet-backdrop z-[80] flex items-end justify-center" onClick={onClose}>
       <div
-        className="w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-2xl bg-neutral-900 border border-neutral-800 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+        className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sheet-handle" />
         <div className="flex items-start justify-between gap-3 mb-3">
           <h2 className="text-lg font-semibold">Grade condition</h2>
           <button
@@ -135,7 +136,7 @@ export default function GradeCardSheet({
               type="button"
               disabled={busy}
               onClick={() => inputRef.current?.click()}
-              className="w-full py-4 rounded-xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 font-semibold"
+              className="btn-primary w-full py-4"
             >
               {busy ? "Analyzing…" : "📷 Photograph card"}
             </button>
@@ -157,14 +158,14 @@ export default function GradeCardSheet({
             <img
               src={result.previewUrl}
               alt="Graded card"
-              className="w-full max-h-56 object-contain rounded-lg bg-neutral-950"
+              className="w-full max-h-56 object-contain rounded-lg bg-canvas"
             />
             <ResultView analysis={result.analysis} />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setResult(null)}
-                className="flex-1 py-2.5 rounded-xl bg-neutral-800 active:bg-neutral-700 text-sm"
+                className="btn-ghost flex-1 py-2.5 text-sm"
               >
                 Retake
               </button>
@@ -175,7 +176,7 @@ export default function GradeCardSheet({
                     onSaveCondition(result.analysis.grade.condition);
                     onClose();
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-700 active:bg-emerald-600 text-sm font-medium"
+                  className="btn-primary flex-1 py-2.5 text-sm"
                 >
                   Save as {result.analysis.grade.condition}
                 </button>

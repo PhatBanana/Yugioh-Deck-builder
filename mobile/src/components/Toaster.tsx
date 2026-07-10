@@ -19,9 +19,9 @@ export function toast(message: string, type: ToastType = "info") {
 }
 
 const TYPE_STYLES: Record<ToastType, string> = {
-  success: "border-emerald-700 bg-emerald-950/95 text-emerald-100",
-  error: "border-red-700 bg-red-950/95 text-red-100",
-  info: "border-neutral-700 bg-neutral-900/95 text-neutral-100",
+  success: "border-emerald-800/70 bg-emerald-950/90 text-emerald-100",
+  error: "border-red-800/70 bg-red-950/90 text-red-100",
+  info: "border-line-strong bg-surface/90 text-neutral-100",
 };
 
 export default function Toaster() {
@@ -43,7 +43,7 @@ export default function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`rounded-lg border px-4 py-2 text-sm shadow-lg ${TYPE_STYLES[t.type]}`}
+          className={`rounded-xl border px-4 py-2 text-sm shadow-lg shadow-black/40 backdrop-blur-md ${TYPE_STYLES[t.type]}`}
           role="status"
         >
           {t.message}

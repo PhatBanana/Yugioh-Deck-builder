@@ -33,7 +33,7 @@ export default function QuantityStepper({
   }
 
   const btn =
-    "w-9 h-9 flex items-center justify-center rounded-lg bg-neutral-800 active:bg-neutral-700 disabled:opacity-30 text-lg";
+    "pressable w-9 h-9 flex items-center justify-center rounded-lg bg-raised border border-line active:bg-overlay disabled:opacity-30 disabled:active:scale-100 text-lg";
 
   return (
     <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>

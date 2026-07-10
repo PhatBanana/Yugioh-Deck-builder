@@ -35,7 +35,7 @@ export default function ValueSparkline() {
   const deltaText = `${delta >= 0 ? "+" : "−"}$${Math.abs(delta).toFixed(0)}`;
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2">
+    <div className="panel rounded-xl px-3 py-2">
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="text-neutral-500">Collection value · {points.length} days</span>
         <span className={delta >= 0 ? "text-emerald-400" : "text-red-400"}>

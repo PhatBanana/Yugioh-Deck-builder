@@ -64,11 +64,11 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
         <button
           type="button"
           onClick={newDeck}
-          className="flex-1 py-3 rounded-xl bg-emerald-700 active:bg-emerald-600 font-medium"
+          className="btn-primary flex-1 py-3"
         >
           + New deck
         </button>
-        <label className="px-3 py-3 rounded-xl bg-neutral-800 active:bg-neutral-700 text-sm cursor-pointer flex items-center">
+        <label className="btn-ghost px-3 py-3 text-sm cursor-pointer flex items-center">
           Import .ydk
           <input
             type="file"
@@ -95,7 +95,7 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
               key={d.id}
               type="button"
               onClick={() => onOpen(d.id)}
-              className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-left"
+              className="pressable flex items-center justify-between panel px-4 py-3 text-left"
             >
               <span className="font-medium">{d.name}</span>
               <span className="text-xs text-neutral-500">{total} main →</span>
@@ -143,7 +143,7 @@ function AddCardSearch({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={`Add a card to ${SECTION_LABEL[target]}…`}
-        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm"
+        className="input-base w-full px-4 py-2.5 text-sm"
       />
       {results.length > 0 && (
         <div className="flex flex-col gap-1.5 mt-2 max-h-64 overflow-y-auto">
@@ -154,7 +154,7 @@ function AddCardSearch({
                 key={c.id}
                 type="button"
                 onClick={() => add(c)}
-                className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 p-1.5 text-left"
+                className="pressable flex items-center gap-2 rounded-lg border border-line bg-raised p-1.5 text-left"
               >
                 <CardThumb img={c.img} w="w-8" h="h-11" />
                 <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
@@ -199,7 +199,7 @@ function DeckCardRow({
         <button
           type="button"
           onClick={() => setDeckCard(deckId, c.cardId, c.section, c.quantity - 1)}
-          className="w-7 h-7 rounded bg-neutral-800 active:bg-neutral-700"
+          className="pressable w-7 h-7 rounded-md bg-raised active:bg-overlay"
         >
           −
         </button>
@@ -207,7 +207,7 @@ function DeckCardRow({
         <button
           type="button"
           onClick={() => setDeckCard(deckId, c.cardId, c.section, c.quantity + 1)}
-          className="w-7 h-7 rounded bg-neutral-800 active:bg-neutral-700"
+          className="pressable w-7 h-7 rounded-md bg-raised active:bg-overlay"
         >
           +
         </button>
@@ -279,16 +279,16 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => renameDeck(deckId, name)}
-          className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-neutral-700"
+          className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-emerald-800/60"
         />
       </div>
 
       {/* Validation summary */}
       <div
-        className={`rounded-lg px-3 py-2 text-xs ${
+        className={`rounded-xl border px-3 py-2 text-xs ${
           validation.legal
-            ? "bg-emerald-950/60 text-emerald-300"
-            : "bg-amber-950/60 text-amber-300"
+            ? "bg-emerald-950/50 border-emerald-900/50 text-emerald-300"
+            : "bg-amber-950/50 border-amber-900/50 text-amber-300"
         }`}
       >
         <div className="flex items-center gap-2 tabular-nums">
@@ -305,16 +305,14 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       </div>
 
       {/* Add cards */}
-      <div className="rounded-xl border border-neutral-800 p-3 flex flex-col gap-2">
-        <div className="flex rounded-lg bg-neutral-900 border border-neutral-800 p-0.5 text-xs">
+      <div className="panel p-3 flex flex-col gap-2">
+        <div className="seg rounded-lg bg-raised p-0.5 text-xs">
           {sections.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setTarget(s)}
-              className={`flex-1 py-1.5 rounded-md ${
-                target === s ? "bg-neutral-700 text-white" : "text-neutral-400"
-              }`}
+              className={`seg-btn rounded-md py-1.5 ${target === s ? "seg-on" : ""}`}
             >
               {SECTION_LABEL[s]}
             </button>
@@ -333,7 +331,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
             <h3 className="text-xs font-semibold uppercase text-neutral-500 mb-1 mt-1">
               {SECTION_LABEL[s]} ({count})
             </h3>
-            <div className="divide-y divide-neutral-800/60">
+            <div className="divide-y divide-line/70">
               {cards.map((c) => (
                 <DeckCardRow key={`${c.cardId}-${c.section}`} deckId={deckId} c={c} />
               ))}
@@ -346,14 +344,14 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         <button
           type="button"
           onClick={exportYdk}
-          className="flex-1 py-2.5 rounded-xl bg-neutral-800 active:bg-neutral-700 text-sm"
+          className="btn-ghost flex-1 py-2.5 text-sm"
         >
           Export .ydk
         </button>
         <button
           type="button"
           onClick={removeDeck}
-          className="px-4 py-2.5 rounded-xl bg-red-900/60 active:bg-red-900 text-red-200 text-sm"
+          className="btn-danger px-4 py-2.5 text-sm"
         >
           Delete
         </button>

@@ -11,8 +11,8 @@ export default function CardThumb({
   h: string;
 }) {
   return img ? (
-    <img src={img} alt="" className={`${w} rounded`} loading="lazy" />
+    <img src={img} alt="" className={`${w} rounded-md ring-1 ring-white/10`} loading="lazy" />
   ) : (
-    <div className={`${w} ${h} rounded bg-neutral-800`} />
+    <div className={`${w} ${h} rounded-md bg-raised ring-1 ring-white/5`} />
   );
 }

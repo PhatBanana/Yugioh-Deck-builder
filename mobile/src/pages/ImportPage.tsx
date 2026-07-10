@@ -39,15 +39,13 @@ export default function ImportPage() {
 
   return (
     <div className="p-4 flex flex-col gap-3">
-      <div className="flex rounded-xl bg-neutral-900 border border-neutral-800 p-1 text-sm">
+      <div className="seg text-sm">
         {(["deck", "paste"] as const).map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setSource(s)}
-            className={`flex-1 py-2 rounded-lg ${
-              source === s ? "bg-neutral-700 text-white" : "text-neutral-400"
-            }`}
+            className={`seg-btn py-2 ${source === s ? "seg-on" : ""}`}
           >
             {s === "deck" ? "Find a deck" : "Paste list"}
           </button>
@@ -69,7 +67,7 @@ export default function ImportPage() {
           setPreview(null);
         }}
         placeholder={"3x Ash Blossom & Joyous Spring\n2 Effect Veiler"}
-        className="w-full h-44 rounded-xl border border-neutral-800 bg-neutral-900 p-3 text-sm font-mono"
+        className="input-base w-full h-44 p-3 text-sm font-mono"
       />
 
       <div className="flex items-center gap-4 text-sm">
@@ -86,7 +84,7 @@ export default function ImportPage() {
             type="button"
             disabled={busy || !text.trim()}
             onClick={doPreview}
-            className="px-3.5 py-2 rounded-lg bg-neutral-800 active:bg-neutral-700 disabled:opacity-40 text-sm"
+            className="btn-ghost px-3.5 py-2 rounded-lg text-sm"
           >
             Preview
           </button>
@@ -94,7 +92,7 @@ export default function ImportPage() {
             type="button"
             disabled={busy || !preview || preview.matched.length === 0}
             onClick={doApply}
-            className="px-3.5 py-2 rounded-lg bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 text-sm font-medium"
+            className="btn-primary px-3.5 py-2 rounded-lg text-sm"
           >
             Apply
           </button>

@@ -29,7 +29,7 @@ function Toggle({
       </span>
       <span
         className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${
-          on ? "bg-emerald-600" : "bg-neutral-700"
+          on ? "bg-emerald-600" : "bg-overlay"
         }`}
       >
         <span
@@ -53,13 +53,14 @@ export default function ScanSettingsSheet({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end bg-black/60"
+      className="sheet-backdrop z-[70] flex items-end"
       onClick={onClose}
     >
       <div
-        className="w-full rounded-t-2xl bg-neutral-900 border-t border-neutral-800 p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+        className="sheet w-full rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="sheet-handle" />
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold">Scan settings</h2>
           <button
@@ -72,7 +73,7 @@ export default function ScanSettingsSheet({
           </button>
         </div>
 
-        <div className="divide-y divide-neutral-800">
+        <div className="divide-y divide-line">
           <Toggle
             label="Keep screen awake"
             hint="Stops the screen dimming/locking while scanning."

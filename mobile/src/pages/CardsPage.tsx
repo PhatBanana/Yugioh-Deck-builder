@@ -26,7 +26,7 @@ const VIEWS: { id: View; label: string }[] = [
 function CardRow({ card, owned }: { card: MCard; owned: number }) {
   const openCard = useCardDetail();
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
+    <div className="flex items-center gap-3 panel p-2">
       {/* Tapping the image/name opens the card details; the controls stay separate. */}
       <button
         type="button"
@@ -129,7 +129,7 @@ export default function CardsPage() {
           type="button"
           disabled={!!syncing}
           onClick={runFullSync}
-          className="px-6 py-3.5 rounded-xl bg-emerald-700 active:bg-emerald-600 disabled:opacity-40 font-semibold mt-2"
+          className="btn-primary px-6 py-3.5 mt-2"
         >
           {syncing ?? "Download card database"}
         </button>
@@ -150,17 +150,15 @@ export default function CardsPage() {
           setLimit(PAGE);
         }}
         placeholder={`Search ${cardCount?.toLocaleString() ?? ""} cards…`}
-        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm"
+        className="input-base w-full px-4 py-2.5 text-sm"
       />
-      <div className="flex rounded-xl bg-neutral-900 border border-neutral-800 p-0.5 text-sm">
+      <div className="seg text-sm">
         {VIEWS.map((v) => (
           <button
             key={v.id}
             type="button"
             onClick={() => setView(v.id)}
-            className={`flex-1 py-1.5 rounded-lg ${
-              view === v.id ? "bg-neutral-700 text-white" : "text-neutral-400"
-            }`}
+            className={`seg-btn py-1.5 ${view === v.id ? "seg-on" : ""}`}
           >
             {v.label}
           </button>
@@ -200,7 +198,7 @@ export default function CardsPage() {
         <button
           type="button"
           onClick={() => setLimit((l) => l + PAGE)}
-          className="py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-sm"
+          className="btn-ghost py-3 text-sm"
         >
           Show more
         </button>
