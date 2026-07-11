@@ -51,7 +51,8 @@ async function resolveCard(cardId: number): Promise<ResolvedCard | null> {
   }
 }
 
-async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MMetaDeck | null> {
+// Also used by the Meta tab's online deck search as a fallback importer.
+export async function scrapeOneDeck(slug: string, era: string, now: string): Promise<MMetaDeck | null> {
   const html = await httpGetText(deckPageUrl(slug));
   const name = extractDeckName(html);
   if (!name) return null;

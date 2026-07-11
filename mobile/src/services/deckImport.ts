@@ -1,3 +1,4 @@
+import { matchesQuery, queryTokens } from "@shared/search/textMatch";
 import { db } from "../db";
 
 export interface ImportSourceResult {
@@ -10,11 +11,12 @@ export interface ImportSourceResult {
 // whose name contains the query — e.g. "Dark Magician" -> the archetype with
 // every Dark Magician card.
 export async function searchImportSources(query: string): Promise<ImportSourceResult> {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return { metaDecks: [], archetypes: [] };
+  if (query.trim().length < 2) return { metaDecks: [], archetypes: [] };
+  // Token matching: case- and word-order-insensitive.
+  const tokens = queryTokens(query);
 
   const metaDecks = (await db.metaDecks.toArray())
-    .filter((d) => d.name.toLowerCase().includes(q))
+    .filter((d) => matchesQuery(d.name, tokens))
     .map((d) => ({
       id: d.id,
       name: d.name,
@@ -24,7 +26,7 @@ export async function searchImportSources(query: string): Promise<ImportSourceRe
 
   const counts = new Map<string, number>();
   await db.cards.each((c) => {
-    if (c.archetype && c.archetype.toLowerCase().includes(q)) {
+    if (c.archetype && matchesQuery(c.archetype, tokens)) {
       counts.set(c.archetype, (counts.get(c.archetype) ?? 0) + 1);
     }
   });

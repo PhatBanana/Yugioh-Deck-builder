@@ -14,6 +14,7 @@ import {
   searchLiveDecks,
   type LiveSearchOutcome,
 } from "../services/deckSearch";
+import { matchesQuery } from "@shared/search/textMatch";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -288,17 +289,13 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   ].sort();
 
   const filtersActive = budget != null || era != null || strategy != null || sort !== "completion";
-  const q = debouncedSearch.trim().toLowerCase();
+  const q = debouncedSearch.trim();
 
   // A search query looks across every cached deck (uncapped); otherwise the
-  // tab shows the usual top decks.
+  // tab shows the usual top decks. Matching is token-based, so case and word
+  // order don't matter ("branded despia" finds "Despia Branded").
   const displayed = allRecs
-    .filter(
-      (r) =>
-        !q ||
-        r.deckName.toLowerCase().includes(q) ||
-        (r.archetype ?? "").toLowerCase().includes(q)
-    )
+    .filter((r) => !q || matchesQuery(`${r.deckName} ${r.archetype ?? ""}`, q))
     .filter((r) => budget == null || r.missingCostUsd <= budget)
     .filter((r) => era == null || r.era === era)
     .filter((r) => strategy == null || r.strategy === strategy)
