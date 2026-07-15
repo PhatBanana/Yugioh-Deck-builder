@@ -51,6 +51,37 @@ const MILL_CARDS = new Set([
   "morphing jar", "dark world dealings", "magical mallet", "foolish burial goods",
 ]);
 
+// Templated "how it plays" explanation per strategy. {keys} is replaced with
+// the deck's key cards so the text names what to actually dig for.
+const STRATEGY_PLAYBOOK: Record<string, string> = {
+  Combo:
+    "Combo deck — the goal is a big turn 1. Open by searching/summoning {keys}, chain their effects into your extra-deck boss monsters, and end your turn with interruption ready. Mulligan priority: any one-card starter that finds {keys}.",
+  Control:
+    "Control deck — win the long game. Set traps and interruption early, trade one-for-one with the opponent's plays, and land {keys} once their resources are spent. Don't overextend into board wipes.",
+  Aggro:
+    "Aggro deck — pressure from turn 1. Summon your strongest attackers ({keys}) as fast as possible and force the opponent to answer them. Keep swinging; card advantage matters less than tempo.",
+  Burn:
+    "Burn deck — win with effect damage, not battle. Stall the board and chip life points with your burn cards; {keys} do the heavy lifting. Protect your stall pieces and count damage to 8000.",
+  Stall:
+    "Stall/stun deck — lock the game down. Keep floodgates and defensive cards like {keys} on the field so the opponent can't play, then win slowly with a protected attacker or the clock.",
+  Mill:
+    "Mill deck — empty their deck or fuel your graveyard. Cycle draw/mill effects fast ({keys} are core), keep defense up, and win through deck-out or a graveyard-powered swing turn.",
+  "FTK/OTK":
+    "FTK/OTK deck — one explosive turn. Every card either finds the combo or is the combo: assemble {keys} as fast as possible and take the whole game in a single turn. Practice the line in the hand tester.",
+};
+
+const GENERIC_PLAYBOOK =
+  "Build around the key cards: open hands that find {keys}, summon them early, and use the rest of the deck to protect and recycle them.";
+
+// One-paragraph game-plan blurb for a deck: how it expects to play out and
+// which cards to get onto the field. Key names are truncated to three.
+export function strategyBlurb(strategy: string | null, keyCardNames: string[]): string {
+  const template = (strategy && STRATEGY_PLAYBOOK[strategy]) || GENERIC_PLAYBOOK;
+  const unique = [...new Set(keyCardNames)].slice(0, 3);
+  const keys = unique.length > 0 ? unique.join(", ") : "your boss monsters";
+  return template.replaceAll("{keys}", keys);
+}
+
 export function classifyStrategy(
   deckName: string,
   cards: StrategyCardInfo[],

@@ -29,6 +29,18 @@ export interface MCollectionEntry {
   // manually or from the rough camera grader; optional — most entries won't
   // have one.
   condition?: CardCondition;
+  // Which printing the owned copies are (set code + rarity), picked from the
+  // card's known sets. Optional; one per entry, like condition.
+  printing?: { code: string; rarity: string };
+}
+
+// Cached list of a card's printings (sets), fetched on demand when the user
+// opens the printing picker — the full card DB sync strips set data to stay
+// small.
+export interface MCardSets {
+  cardId: number;
+  fetchedAt: string;
+  sets: { code: string; name: string; rarity: string; price: number | null }[];
 }
 
 // One collection-value snapshot per day, recorded on app launch, so the Cards
@@ -65,6 +77,9 @@ export interface MDeck {
   name: string;
   updatedAt: string;
   cards: DeckCard[];
+  // Strategy notes: turn order, combo lines, tech choices. Seeded with a
+  // generated game-plan blurb when copied from a meta deck.
+  notes?: string;
 }
 
 export interface MWishlistEntry {
@@ -89,6 +104,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   wishlist: EntityTable<MWishlistEntry, "cardId">;
   valueHistory: EntityTable<MValueSnapshot, "date">;
   priceHistory: Table<MPricePoint, [number, string]>;
+  cardSets: EntityTable<MCardSets, "cardId">;
 };
 
 db.version(1).stores({
@@ -114,6 +130,12 @@ db.version(3).stores({
 // v4 adds per-card daily price points for owned/wishlisted cards.
 db.version(4).stores({
   priceHistory: "[cardId+date], cardId",
+});
+
+// v5 adds the on-demand printing (card set) cache. (The printing chosen for a
+// collection entry is a new optional field — non-indexed, no store change.)
+db.version(5).stores({
+  cardSets: "cardId",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

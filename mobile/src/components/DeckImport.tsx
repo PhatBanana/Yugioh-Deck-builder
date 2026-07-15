@@ -12,6 +12,7 @@ import {
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import CardThumb from "./CardThumb";
 import { useCardDetail } from "./CardDetailModal";
+import BackClose from "./BackClose";
 import { toast } from "./Toaster";
 
 interface Selected {
@@ -70,6 +71,12 @@ export default function DeckImport() {
   if (selected) {
     return (
       <div className="flex flex-col gap-3">
+        <BackClose
+          onBack={() => {
+            setSelected(null);
+            setCards(null);
+          }}
+        />
         <button
           type="button"
           onClick={() => {

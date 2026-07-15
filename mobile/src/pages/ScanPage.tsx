@@ -11,6 +11,7 @@ import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import SyncFirstNotice from "../components/SyncFirstNotice";
 import PasteImport from "../components/PasteImport";
 import DeckImport from "../components/DeckImport";
+import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
@@ -60,6 +61,8 @@ function ScanningOverlay({
   scan: AutoScanState;
   onOpenSettings: () => void;
 }) {
+  // Hardware back exits the fullscreen scan instead of minimizing the app.
+  useBackClose(() => void scan.stop());
   const sessionTotal = scan.session.reduce((n, e) => n + e.count, 0);
   return (
     <div className="fixed inset-0 z-[60] flex flex-col">

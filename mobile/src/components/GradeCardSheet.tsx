@@ -5,6 +5,7 @@ import {
   type CardCondition,
 } from "@shared/grading/analyze";
 import { gradeCardPhoto, type GradePhotoResult } from "../services/grader";
+import { useBackClose } from "../hooks/useBackClose";
 import { toast } from "./Toaster";
 
 function wearLabel(f: number): { text: string; className: string } {
@@ -90,6 +91,7 @@ export default function GradeCardSheet({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<GradePhotoResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  useBackClose(onClose);
 
   async function onPick(file: File) {
     setBusy(true);

@@ -1,6 +1,7 @@
 import type { DeckCard, DeckSection } from "@shared/deck/types";
 import { validateDeck, type DeckValidation } from "@shared/deck/validate";
 import { serializeYdk } from "@shared/deck/ydk";
+import { strategyBlurb } from "@shared/metaDecks/strategy";
 import { db, type MDeck } from "../db";
 
 function uid(): string {
@@ -62,6 +63,13 @@ export async function renameDeck(id: string, name: string): Promise<void> {
   await db.decks.update(id, { name: name.trim() || "Untitled", updatedAt: new Date().toISOString() });
 }
 
+export async function setDeckNotes(id: string, notes: string): Promise<void> {
+  await db.decks.update(id, {
+    notes: notes.trim() || undefined,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export async function deleteDeck(id: string): Promise<void> {
   await db.decks.delete(id);
 }
@@ -77,7 +85,8 @@ export async function saveDeckFromYdk(name: string, cards: DeckCard[]): Promise<
   return deck;
 }
 
-// Copies a cached meta deck into the user's editable Decks (deck builder).
+// Copies a cached meta deck into the user's editable Decks (deck builder),
+// seeding the strategy notes with a generated game plan.
 export async function saveMetaDeckAsDeck(metaDeckId: string): Promise<MDeck | null> {
   const meta = await db.metaDecks.get(metaDeckId);
   if (!meta) return null;
@@ -86,7 +95,10 @@ export async function saveMetaDeckAsDeck(metaDeckId: string): Promise<MDeck | nu
     quantity: c.quantity,
     section: c.section,
   }));
-  return saveDeckFromYdk(meta.name, cards);
+  const deck = await saveDeckFromYdk(meta.name, cards);
+  const keys = meta.cards.filter((c) => c.isKeyCard).map((c) => c.cardName);
+  await setDeckNotes(deck.id, strategyBlurb(meta.strategy, keys));
+  return (await db.decks.get(deck.id)) ?? deck;
 }
 
 // Sets the quantity of a card in a section (0 removes it). Copies in other
@@ -114,6 +126,8 @@ export interface EnrichedDeckCard extends DeckCard {
   img: string | null;
   banlist: string | null;
   owned: number; // copies owned in collection
+  price: number | null;
+  type: string;
 }
 
 export interface EnrichedDeck {
@@ -132,6 +146,8 @@ export async function enrichDeck(deck: MDeck): Promise<EnrichedDeck> {
     img: cards[i]?.img ?? null,
     banlist: cards[i]?.banlist ?? null,
     owned: coll[i]?.quantity ?? 0,
+    price: cards[i]?.price ?? null,
+    type: cards[i]?.type ?? "",
   }));
   enriched.sort((a, b) => a.name.localeCompare(b.name));
   const validation = validateDeck(

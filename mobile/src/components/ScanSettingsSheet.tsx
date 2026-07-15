@@ -4,6 +4,7 @@ import {
   type FlashMode,
   type ScanSettings,
 } from "../hooks/useScanSettings";
+import { useBackClose } from "../hooks/useBackClose";
 
 const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "continuous", label: "Steady" },
@@ -57,6 +58,7 @@ export default function ScanSettingsSheet({
   update: (patch: Partial<ScanSettings>) => void;
   onClose: () => void;
 }) {
+  useBackClose(onClose);
   return (
     <div
       className="sheet-backdrop z-[70] flex items-end"

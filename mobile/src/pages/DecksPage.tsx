@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckSection } from "@shared/deck/types";
 import { parseYdk } from "@shared/deck/ydk";
+import { computeDeckStats } from "@shared/deck/stats";
 import { db, type MCard } from "../db";
 import {
   createDeck,
@@ -13,12 +14,16 @@ import {
   renameDeck,
   saveDeckFromYdk,
   setDeckCard,
+  setDeckNotes,
   type EnrichedDeck,
 } from "../services/decks";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
+import { useBackClose } from "../hooks/useBackClose";
+import HandSimSheet from "../components/HandSimSheet";
+import DuelToolsSheet from "../components/DuelToolsSheet";
 import { toast } from "../components/Toaster";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
@@ -37,6 +42,7 @@ function suggestSection(type: string): DeckSection {
 
 function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
   const decks = useLiveQuery(() => listDecks(), [], []);
+  const [duelOpen, setDuelOpen] = useState(false);
 
   async function newDeck() {
     const d = await createDeck("New Deck");
@@ -78,7 +84,17 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
             onChange={(e) => e.target.files?.[0] && importYdk(e.target.files[0])}
           />
         </label>
+        <button
+          type="button"
+          onClick={() => setDuelOpen(true)}
+          className="btn-ghost px-3 py-3 text-sm"
+          aria-label="Duel tools"
+        >
+          🎲
+        </button>
       </div>
+
+      {duelOpen && <DuelToolsSheet onClose={() => setDuelOpen(false)} />}
 
       {decks.length === 0 && (
         <p className="text-sm text-neutral-500 text-center py-10">
@@ -217,10 +233,43 @@ function DeckCardRow({
   );
 }
 
+// Free-text strategy notes (turn order, combo lines), saved on blur. Seeded
+// automatically when the deck was copied from a meta deck.
+function DeckNotes({ deckId, initial }: { deckId: string; initial: string }) {
+  const [notes, setNotes] = useState(initial);
+  const [open, setOpen] = useState(initial.length > 0);
+  return (
+    <div className="panel overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-raised text-left"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-300">
+          📝 How it plays
+        </span>
+        <span className="text-neutral-500 text-xs">{open ? "Hide" : notes ? "Show" : "Add"}</span>
+      </button>
+      {open && (
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={() => void setDeckNotes(deckId, notes)}
+          placeholder="Turn order, combo lines, what to search first…"
+          className="w-full h-24 bg-transparent p-3 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none resize-y"
+        />
+      )}
+    </div>
+  );
+}
+
 function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) {
   const [target, setTarget] = useState<DeckSection>("main");
   const [name, setName] = useState("");
   const [nameLoaded, setNameLoaded] = useState(false);
+  const [testingHand, setTestingHand] = useState(false);
+  // Hardware back returns to the deck list.
+  useBackClose(onBack);
 
   const enriched = useLiveQuery(async () => {
     const d = await getDeck(deckId);
@@ -305,6 +354,28 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         ))}
       </div>
 
+      {/* Composition + cost at a glance. */}
+      {enriched.cards.length > 0 &&
+        (() => {
+          const s = computeDeckStats(enriched.cards);
+          return (
+            <div className="flex items-center justify-between text-xs text-neutral-400 tabular-nums px-1">
+              <span>
+                👹 {s.monsters} · ✨ {s.spells} · ⚡ {s.traps}
+              </span>
+              <span className="text-amber-400/90">
+                deck ≈ ${s.priceUsd.toFixed(2)}
+                {s.unpricedCount > 0 && (
+                  <span className="text-neutral-600"> +{s.unpricedCount} unpriced</span>
+                )}
+              </span>
+            </div>
+          );
+        })()}
+
+      {/* Strategy notes — remounts when the deck record changes id. */}
+      <DeckNotes key={deckId} deckId={deckId} initial={enriched.deck.notes ?? ""} />
+
       {/* Add cards — the search's placeholder names the target section;
           "＋ Add here" on a section header retargets it. */}
       <AddCardSearch deckId={deckId} target={target} enriched={enriched} />
@@ -350,6 +421,13 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       <div className="flex gap-2 mt-2">
         <button
           type="button"
+          onClick={() => setTestingHand(true)}
+          className="btn-ghost flex-1 py-2.5 text-sm"
+        >
+          🎴 Test hand
+        </button>
+        <button
+          type="button"
           onClick={exportYdk}
           className="btn-ghost flex-1 py-2.5 text-sm"
         >
@@ -363,6 +441,10 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           Delete
         </button>
       </div>
+
+      {testingHand && (
+        <HandSimSheet cards={enriched.cards} onClose={() => setTestingHand(false)} />
+      )}
     </div>
   );
 }

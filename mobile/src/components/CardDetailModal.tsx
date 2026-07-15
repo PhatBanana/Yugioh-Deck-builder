@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
-import type { MCard } from "../db";
+import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import { setCondition } from "../services/collection";
+import { getCardPrintings, setPrinting } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
 import PriceSparkline from "./PriceSparkline";
+import { useBackClose } from "../hooks/useBackClose";
 import GradeCardSheet from "./GradeCardSheet";
 import { toast } from "./Toaster";
 
@@ -55,6 +57,61 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
           }}
         />
       )}
+    </div>
+  );
+}
+
+// Which printing (set + rarity) the owned copies are, chosen from the card's
+// known sets — fetched on demand and cached, since the bulk sync strips them.
+function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEntry }) {
+  const [sets, setSets] = useState<MCardSets["sets"] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getCardPrintings(cardId).then((s) => !cancelled && setSets(s));
+    return () => {
+      cancelled = true;
+    };
+  }, [cardId]);
+
+  const value = entry?.printing ? `${entry.printing.code}|${entry.printing.rarity}` : "";
+  const selected = sets?.find((s) => `${s.code}|${s.rarity}` === value);
+
+  if (sets === null)
+    return <p className="mt-3 text-xs text-neutral-600">Loading printings…</p>;
+  if (sets.length === 0)
+    return (
+      <p className="mt-3 text-xs text-neutral-600">
+        No printing data available{navigator.onLine ? "" : " (offline)"}.
+      </p>
+    );
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold text-neutral-400">Printing</span>
+        {selected?.price != null && (
+          <span className="text-xs text-amber-400/90 tabular-nums">
+            this printing ≈ ${selected.price.toFixed(2)}
+          </span>
+        )}
+      </div>
+      <select
+        className="input-base w-full rounded-lg px-3 py-2 text-sm"
+        value={value}
+        onChange={(e) => {
+          const next = sets.find((s) => `${s.code}|${s.rarity}` === e.target.value);
+          void setPrinting(cardId, next ? { code: next.code, rarity: next.rarity } : undefined);
+        }}
+      >
+        <option value="">Printing not set</option>
+        {sets.map((s) => (
+          <option key={`${s.code}|${s.rarity}`} value={`${s.code}|${s.rarity}`}>
+            {s.code} · {s.rarity}
+            {s.price != null ? ` · $${s.price.toFixed(2)}` : ""}
+          </option>
+        ))}
+      </select>
+      {selected?.name && <p className="text-[11px] text-neutral-600 mt-1">{selected.name}</p>}
     </div>
   );
 }
@@ -109,6 +166,7 @@ export default function CardDetailModal({
 }) {
   const entry = useLiveQuery(() => db.collection.get(card.id), [card.id]);
   const owned = entry?.quantity ?? 0;
+  useBackClose(onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -175,6 +233,7 @@ export default function CardDetailModal({
         </div>
 
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
+        {owned > 0 && <PrintingRow cardId={card.id} entry={entry} />}
 
         <PriceSparkline cardId={card.id} />
 

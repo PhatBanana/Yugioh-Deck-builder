@@ -6,6 +6,7 @@ import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import ValueSparkline from "../components/ValueSparkline";
+import BackupSheet from "../components/BackupSheet";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
@@ -22,6 +23,17 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "owned", label: "Owned" },
   { id: "wishlist", label: "Wishlist" },
 ];
+
+type TypeFilter = "" | "Monster" | "Spell" | "Trap";
+type SortBy = "name" | "price" | "atk" | "level";
+
+// Nulls sort last for the numeric sorts (descending).
+const SORTERS: Record<SortBy, (a: MCard, b: MCard) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  price: (a, b) => (b.price ?? -1) - (a.price ?? -1),
+  atk: (a, b) => (b.atk ?? -1) - (a.atk ?? -1),
+  level: (a, b) => (b.level ?? -1) - (a.level ?? -1),
+};
 
 function CardRow({ card, owned }: { card: MCard; owned: number }) {
   const openCard = useCardDetail();
@@ -58,6 +70,9 @@ export default function CardsPage() {
   const [view, setView] = useState<View>("all");
   const [limit, setLimit] = useState(PAGE);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [cardType, setCardType] = useState<TypeFilter>("");
+  const [sortBy, setSortBy] = useState<SortBy>("name");
   const debouncedQuery = useDebouncedValue(query, 250);
 
   const cardCount = useLiveQuery(() => db.cards.count());
@@ -75,23 +90,23 @@ export default function CardsPage() {
       const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
       const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
-      rows.sort((a, b) => a.name.localeCompare(b.name));
     } else if (view === "wishlist") {
       const ids = (await db.wishlist.toArray()).map((w) => w.cardId);
       const cards = await db.cards.bulkGet(ids);
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
-      rows.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (q) {
-      rows = await db.cards
-        .filter((c) => c.nameLower.includes(q))
-        .limit(limit + 1)
-        .toArray();
-      rows.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (!q && !cardType && sortBy === "name") {
+      // Fast path: the index is already in name order.
+      return db.cards.orderBy("nameLower").limit(limit + 1).toArray();
     } else {
-      rows = await db.cards.orderBy("nameLower").limit(limit + 1).toArray();
+      // Filter/sort need the full pool (the slimmed table is small enough).
+      rows = q
+        ? await db.cards.filter((c) => c.nameLower.includes(q)).toArray()
+        : await db.cards.toArray();
     }
-    return rows;
-  }, [debouncedQuery, view, limit]);
+    if (cardType) rows = rows.filter((c) => c.type.includes(cardType));
+    rows.sort(SORTERS[sortBy]);
+    return view === "all" ? rows.slice(0, limit + 1) : rows;
+  }, [debouncedQuery, view, limit, cardType, sortBy]);
 
   async function runFullSync() {
     setSyncing("Starting…");
@@ -133,6 +148,14 @@ export default function CardsPage() {
         >
           {syncing ?? "Download card database"}
         </button>
+        <button
+          type="button"
+          onClick={() => setBackupOpen(true)}
+          className="text-xs text-neutral-500 underline"
+        >
+          Restore a backup
+        </button>
+        {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
       </div>
     );
   }
@@ -165,6 +188,36 @@ export default function CardsPage() {
         ))}
       </div>
 
+      {/* Type filter + sort order. */}
+      <div className="flex gap-1.5">
+        <select
+          className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+          value={cardType}
+          onChange={(e) => {
+            setCardType(e.target.value as TypeFilter);
+            setLimit(PAGE);
+          }}
+        >
+          <option value="">All types</option>
+          <option value="Monster">Monsters</option>
+          <option value="Spell">Spells</option>
+          <option value="Trap">Traps</option>
+        </select>
+        <select
+          className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value as SortBy);
+            setLimit(PAGE);
+          }}
+        >
+          <option value="name">A–Z</option>
+          <option value="price">Price ↓</option>
+          <option value="atk">ATK ↓</option>
+          <option value="level">Level ↓</option>
+        </select>
+      </div>
+
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>
           {stats
@@ -172,9 +225,14 @@ export default function CardsPage() {
               (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
             : ""}
         </span>
-        <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
-          {syncing ?? "Re-sync data"}
-        </button>
+        <span className="flex gap-3">
+          <button type="button" onClick={() => setBackupOpen(true)} className="underline">
+            Backup
+          </button>
+          <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
+            {syncing ?? "Re-sync data"}
+          </button>
+        </span>
       </div>
 
       {view === "owned" && <ValueSparkline />}
@@ -203,6 +261,8 @@ export default function CardsPage() {
           Show more
         </button>
       )}
+
+      {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
     </div>
   );
 }

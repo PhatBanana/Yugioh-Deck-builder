@@ -5,6 +5,7 @@ import CardsPage from "./pages/CardsPage";
 import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import { hideBanner, initAds, showBanner } from "./services/ads";
+import { initBackButton } from "./services/backButton";
 import { recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
 
@@ -28,6 +29,8 @@ export default function App() {
 
   useEffect(() => {
     void initAds();
+    // Android back button closes open popups/sub-views instead of minimizing.
+    initBackButton();
     // Best-effort daily snapshots: collection value for the value chart, and
     // per-card prices (owned + wishlisted) for the price-history charts.
     recordValueSnapshot().catch(() => {});

@@ -8,6 +8,7 @@ import {
   getPurchaseSuggestions,
   getRecommendations,
 } from "../services/recommendations";
+import { strategyBlurb } from "@shared/metaDecks/strategy";
 import { saveMetaDeckAsDeck } from "../services/decks";
 import {
   importLiveDeck,
@@ -180,6 +181,16 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
 
       {expanded && (
         <div className="mt-2 pt-2 border-t border-line flex flex-col gap-2">
+          {/* How the deck expects to play out, naming its key cards. */}
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            <span className="font-semibold text-neutral-300">How it plays: </span>
+            {strategyBlurb(
+              rec.strategy,
+              [...(owned ?? []).filter((c) => c.isKeyCard).map((c) => c.name),
+               ...rec.missingCards.filter((c) => c.isKeyCard).map((c) => c.cardName)]
+            )}
+          </p>
+
           {/* Cards you already own */}
           {owned && owned.length > 0 && (
             <div>
