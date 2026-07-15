@@ -1,5 +1,10 @@
 import { useCallback, useState } from "react";
 
+/** How the torch behaves while scanning. Android exposes no torch dimming
+ *  while the camera session owns the light, so glare is reduced by pulsing:
+ *  the light fires only around each read instead of burning continuously. */
+export type FlashMode = "continuous" | "pulse";
+
 export interface ScanSettings {
   /** Keep the screen from dimming/locking while a scan session is active. */
   keepAwake: boolean;
@@ -7,6 +12,8 @@ export interface ScanSettings {
   scanDelayMs: number;
   /** Play a short beep when a card is added (hands-free confirmation). */
   beepOnAdd: boolean;
+  /** Torch style when the 🔦 toggle is on. */
+  flashMode: FlashMode;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -16,6 +23,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   keepAwake: true,
   scanDelayMs: 2000,
   beepOnAdd: false,
+  flashMode: "continuous",
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

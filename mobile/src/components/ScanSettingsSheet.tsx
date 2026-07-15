@@ -1,8 +1,14 @@
 import {
   SCAN_DELAY_MAX,
   SCAN_DELAY_MIN,
+  type FlashMode,
   type ScanSettings,
 } from "../hooks/useScanSettings";
+
+const FLASH_MODES: { id: FlashMode; label: string }[] = [
+  { id: "continuous", label: "Steady" },
+  { id: "pulse", label: "Pulse (less glare)" },
+];
 
 function Toggle({
   on,
@@ -86,6 +92,26 @@ export default function ScanSettingsSheet({
             on={settings.beepOnAdd}
             onChange={(v) => update({ beepOnAdd: v })}
           />
+
+          <div className="py-3">
+            <span className="block text-sm">Flash style</span>
+            <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
+              The light can't be dimmed, so Pulse fires it only during each
+              read — much less glare on the card.
+            </span>
+            <div className="seg text-xs">
+              {FLASH_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => update({ flashMode: m.id })}
+                  className={`seg-btn py-1.5 ${settings.flashMode === m.id ? "seg-on" : ""}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="py-3">
             <div className="flex items-center justify-between">

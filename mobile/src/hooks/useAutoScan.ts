@@ -72,6 +72,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const pendingIdRef = useRef<number | null>(null); // top match from previous frame
   const lockedIdRef = useRef<number | null>(null); // added; wait until it leaves frame
   const orderRef = useRef<number[]>([]); // commit order, for undo
+  const torchWantedRef = useRef(false); // 🔦 toggle state, readable inside the loop
 
   // Keep the latest settings in a ref so the async scan loop reads current
   // values (delay/beep) without needing to be re-created on every change.
@@ -108,11 +109,26 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     []
   );
 
+  // In pulse mode the torch only fires around a read: on, a short settle for
+  // exposure, capture, off. Cuts the constant glare of a continuous torch.
+  const withPulse = useCallback(async <T,>(work: () => Promise<T>): Promise<T> => {
+    const pulse = torchWantedRef.current && settingsRef.current.flashMode === "pulse";
+    if (pulse) {
+      await setTorchNative(true);
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    try {
+      return await work();
+    } finally {
+      if (pulse) await setTorchNative(false);
+    }
+  }, []);
+
   const tick = useCallback(async () => {
     if (!runningRef.current || busyRef.current) return;
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode } = await captureFrameAndMatch();
+      const { matches, matchedByPasscode } = await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
       if (!top || top.score < AUTO_SCORE) {
@@ -144,7 +160,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         timerRef.current = setTimeout(tick, settingsRef.current.scanDelayMs);
       }
     }
-  }, [commit]);
+  }, [commit, withPulse]);
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
@@ -161,26 +177,34 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const stop = useCallback(async () => {
     runningRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (torch) {
+    if (torchWantedRef.current) {
+      torchWantedRef.current = false;
       await setTorchNative(false);
       setTorch(false);
     }
     await setScreenAwake(false);
     await stopPreview();
     setScanning(false);
-  }, [torch]);
+  }, []);
 
   const toggleTorch = useCallback(async () => {
-    const next = !torch;
+    const next = !torchWantedRef.current;
+    torchWantedRef.current = next;
     setTorch(next);
-    await setTorchNative(next);
-  }, [torch]);
+    // Continuous mode drives the light directly; pulse mode leaves it off and
+    // lets the scan loop fire it around each read.
+    if (settingsRef.current.flashMode === "pulse") {
+      if (!next) await setTorchNative(false);
+    } else {
+      await setTorchNative(next);
+    }
+  }, []);
 
   // Force-add the current top match, bypassing the stability/lock gates.
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode } = await captureFrameAndMatch();
+      const { matches, matchedByPasscode } = await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
@@ -191,7 +215,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     } catch {
       setStatus("Capture failed — try again");
     }
-  }, [commit]);
+  }, [commit, withPulse]);
 
   const undoLast = useCallback(async () => {
     const id = orderRef.current.pop();

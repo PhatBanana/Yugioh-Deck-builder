@@ -9,7 +9,9 @@
 //
 // NEVER tap your own live ads, and never ship test ids to production.
 
-export const ADS_ENABLED = true;
+// Banner disabled for now (per user request) — flip back to true to restore.
+// All ad plumbing (init, show/hide, layout reserve) stays intact behind this.
+export const ADS_ENABLED = false;
 
 // Flip to false only once your real ids (and manifest App ID) are in place.
 export const USE_TEST_ADS = true;

@@ -247,6 +247,8 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   const [liveBusy, setLiveBusy] = useState(false);
   // Bumped when an online deck is imported so the ranked list re-crunches.
   const [refreshKey, setRefreshKey] = useState(0);
+  // "Show more decks" grows the visible cap; resets when the view changes.
+  const [extraShown, setExtraShown] = useState(0);
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const collectionSize = useLiveQuery(() => db.collection.count());
@@ -272,6 +274,9 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   // Online results are for one query; typing a new one discards them.
   useEffect(() => setLive(null), [debouncedSearch]);
 
+  // A new search/filter view starts back at the base number of decks.
+  useEffect(() => setExtraShown(0), [debouncedSearch, budget, era, strategy, sort]);
+
   if (!cardCount) {
     return (
       <SyncFirstNotice
@@ -291,10 +296,10 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   const filtersActive = budget != null || era != null || strategy != null || sort !== "completion";
   const q = debouncedSearch.trim();
 
-  // A search query looks across every cached deck (uncapped); otherwise the
-  // tab shows the usual top decks. Matching is token-based, so case and word
-  // order don't matter ("branded despia" finds "Despia Branded").
-  const displayed = allRecs
+  // A search query looks across every cached deck; otherwise the tab shows
+  // the usual top decks. Matching is token-based, so case and word order
+  // don't matter ("branded despia" finds "Despia Branded").
+  const matching = allRecs
     .filter((r) => !q || matchesQuery(`${r.deckName} ${r.archetype ?? ""}`, q))
     .filter((r) => budget == null || r.missingCostUsd <= budget)
     .filter((r) => era == null || r.era === era)
@@ -303,8 +308,10 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
       if (sort === "cost") return a.missingCostUsd - b.missingCostUsd;
       if (sort === "name") return a.deckName.localeCompare(b.deckName);
       return 0; // 'completion' — already sorted by the recommender
-    })
-    .slice(0, q ? 50 : filtersActive ? 25 : 5);
+    });
+  const shownCap = (q ? 50 : filtersActive ? 25 : 5) + extraShown;
+  const displayed = matching.slice(0, shownCap);
+  const hasMore = matching.length > shownCap;
 
   async function runLiveSearch() {
     setLiveBusy(true);
@@ -448,6 +455,16 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
       {displayed.map((rec, i) => (
         <DeckCard key={rec.deckId} rec={rec} rank={i + 1} />
       ))}
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExtraShown((n) => n + 10)}
+          className="btn-ghost py-3 text-sm"
+        >
+          Show more decks ({matching.length - shownCap} more)
+        </button>
+      )}
 
       {/* Online lookup, offered whenever a search is active. */}
       {q.length >= 2 && (
