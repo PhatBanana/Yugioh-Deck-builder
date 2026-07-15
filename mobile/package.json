@@ -16,6 +16,8 @@
     "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
     "@jcesarmobile/capacitor-ocr": "^0.3.0",
     "@tailwindcss/vite": "^4.3.2",
     "dexie": "^4.4.4",

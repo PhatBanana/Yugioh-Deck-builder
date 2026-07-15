@@ -116,6 +116,36 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
   );
 }
 
+// Fullscreen card art, opened by tapping the card image in the detail sheet.
+// The card DB only stores thumbnail URLs, but YGOPRODeck serves the full-size
+// scan at a predictable URL per card id; fall back to the thumb if it 404s.
+function CardArtViewer({ card, onClose }: { card: MCard; onClose: () => void }) {
+  const [src, setSrc] = useState(`https://images.ygoprodeck.com/images/cards/${card.id}.jpg`);
+  useBackClose(onClose);
+  return (
+    <div
+      className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-3"
+      onClick={(e) => {
+        // Don't let the close-tap bubble to the detail sheet's backdrop.
+        e.stopPropagation();
+        onClose();
+      }}
+      role="button"
+      aria-label="Close card art"
+    >
+      <img
+        src={src}
+        alt={card.name}
+        className="max-w-full max-h-full rounded-xl"
+        onError={() => card.img && src !== card.img && setSrc(card.img)}
+      />
+      <span className="absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] text-xs text-neutral-500">
+        Tap anywhere to close
+      </span>
+    </div>
+  );
+}
+
 // A labelled stat, rendered only when the value is present.
 function Stat({ label, value }: { label: string; value: string | number | null }) {
   if (value == null || value === "") return null;
@@ -166,6 +196,7 @@ export default function CardDetailModal({
 }) {
   const entry = useLiveQuery(() => db.collection.get(card.id), [card.id]);
   const owned = entry?.quantity ?? 0;
+  const [artOpen, setArtOpen] = useState(false);
   useBackClose(onClose);
 
   useEffect(() => {
@@ -195,7 +226,14 @@ export default function CardDetailModal({
 
         <div className="flex gap-4">
           {card.img ? (
-            <img src={card.img} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10 shrink-0" />
+            <button
+              type="button"
+              onClick={() => setArtOpen(true)}
+              className="shrink-0 self-start"
+              aria-label="Show full card art"
+            >
+              <img src={card.img} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10" />
+            </button>
           ) : (
             <div className="w-32 h-44 rounded-lg bg-raised ring-1 ring-white/5 shrink-0" />
           )}
@@ -245,6 +283,8 @@ export default function CardDetailModal({
           </p>
         )}
       </div>
+
+      {artOpen && <CardArtViewer card={card} onClose={() => setArtOpen(false)} />}
     </div>
   );
 }

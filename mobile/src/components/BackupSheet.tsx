@@ -1,4 +1,7 @@
 import { useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import {
   createBackup,
   parseBackup,
@@ -19,13 +22,39 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
   async function exportFile() {
     const backup = await createBackup();
     const json = JSON.stringify(backup);
-    const date = backup.exportedAt.slice(0, 10);
+    const name = `ygo-backup-${backup.exportedAt.slice(0, 10)}.json`;
+
+    // On Android, open the system share sheet so the user picks the
+    // destination (Files, Drive, email, …) instead of a silent drop into a
+    // folder they'd have to hunt for.
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const file = await Filesystem.writeFile({
+          path: name,
+          data: json,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: name,
+          url: file.uri,
+          dialogTitle: "Save your backup to…",
+        });
+      } catch (err) {
+        // Dismissing the share sheet lands here too — only real failures toast.
+        const msg = err instanceof Error ? err.message : "";
+        if (!/cancel/i.test(msg)) toast("Couldn't share the file — use Copy instead", "error");
+      }
+      return;
+    }
+
+    // Browser: a normal download (the browser controls where it saves).
     try {
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `ygo-backup-${date}.json`;
+      a.download = name;
       a.click();
       URL.revokeObjectURL(url);
       toast("Backup exported", "success");
@@ -89,7 +118,7 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
         </p>
         <div className="flex gap-2">
           <button type="button" onClick={() => void exportFile()} className="btn-primary flex-1 py-2.5 text-sm">
-            ⬇ Export file
+            ⬇ Export — choose where to save
           </button>
           <button type="button" onClick={() => void exportCopy()} className="btn-ghost px-4 py-2.5 text-sm">
             Copy
