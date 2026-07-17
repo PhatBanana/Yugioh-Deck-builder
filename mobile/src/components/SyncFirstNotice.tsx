@@ -9,8 +9,11 @@ export default function SyncFirstNotice({
   onGoToCards: () => void;
 }) {
   return (
-    <div className="p-6 flex flex-col items-center gap-4 text-center">
-      <span className="text-3xl" aria-hidden>
+    <div className="page p-6 flex flex-col items-center gap-4 text-center">
+      <span
+        className="text-5xl mt-4 drop-shadow-[0_0_24px_rgba(245,158,11,0.35)]"
+        aria-hidden
+      >
         🃏
       </span>
       <p className="text-neutral-400 text-sm max-w-xs">

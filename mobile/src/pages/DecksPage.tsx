@@ -67,7 +67,7 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
   }
 
   return (
-    <div className="p-4 flex flex-col gap-3">
+    <div className="page p-4 flex flex-col gap-3">
       <div className="flex gap-2">
         <button
           type="button"
@@ -322,7 +322,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const sections: DeckSection[] = ["main", "extra", "side"];
 
   return (
-    <div className="p-4 flex flex-col gap-3 pb-24">
+    <div className="page p-4 flex flex-col gap-3 pb-24">
       <div className="flex items-center gap-2">
         <button type="button" onClick={onBack} className="text-sm text-neutral-400 shrink-0">
           ←

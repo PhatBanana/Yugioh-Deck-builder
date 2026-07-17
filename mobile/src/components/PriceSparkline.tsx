@@ -75,6 +75,13 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
         onPointerDown={onPointerMove}
         onPointerLeave={() => setHoverIdx(null)}
       >
+        <defs>
+          <filter id="pglow">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+        </defs>
+        {/* Soft glow under the line. */}
+        <path d={path} fill="none" stroke="#fbbf24" strokeWidth="6" opacity="0.22" filter="url(#pglow)" vectorEffect="non-scaling-stroke" />
         <path d={path} fill="none" stroke="#fbbf24" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         {hoverIdx != null && (
           <line

@@ -43,6 +43,13 @@ export default function ValueSparkline() {
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12" preserveAspectRatio="none">
+        <defs>
+          <filter id="vglow">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+        </defs>
+        {/* Soft glow under the line. */}
+        <path d={path} fill="none" stroke="#fbbf24" strokeWidth="6" opacity="0.22" filter="url(#vglow)" vectorEffect="non-scaling-stroke" />
         <path d={path} fill="none" stroke="#fbbf24" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
     </div>

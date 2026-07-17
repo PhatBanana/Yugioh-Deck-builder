@@ -43,7 +43,7 @@ export default function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`rounded-xl border px-4 py-2 text-sm shadow-lg shadow-black/40 backdrop-blur-md ${TYPE_STYLES[t.type]}`}
+          className={`toast-in rounded-xl border px-4 py-2 text-sm shadow-lg shadow-black/40 backdrop-blur-md ${TYPE_STYLES[t.type]}`}
           role="status"
         >
           {t.message}

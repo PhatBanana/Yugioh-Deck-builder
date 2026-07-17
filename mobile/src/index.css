@@ -19,14 +19,92 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Soft gold glow behind the top of every page, for depth. Lives on the
-   body's background (single property) so the camera-scanning override below
-   still clears it in one shot. */
+/* Soft gold glow + a whisper of diagonal texture behind every page, for
+   depth. Lives on the body's background (single property) so the
+   camera-scanning override below still clears it in one shot. */
 body {
   background:
     radial-gradient(140% 50% at 50% -20%, rgba(245, 158, 11, 0.07), transparent 60%),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.014) 0px,
+      rgba(255, 255, 255, 0.014) 1px,
+      transparent 1px,
+      transparent 9px
+    ),
     #0d0b12;
   background-attachment: fixed;
+}
+
+/* Motion system — every entrance animation lives here and is skipped for
+   users who prefer reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0.8);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  @keyframes wordmark-shimmer {
+    0%,
+    70% {
+      background-position: 0% 50%;
+    }
+    85% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .sheet {
+    animation: sheet-in 0.28s cubic-bezier(0.32, 0.72, 0.33, 1);
+  }
+  .sheet-backdrop {
+    animation: backdrop-in 0.2s ease-out;
+  }
+  .page {
+    animation: rise 0.22s ease-out;
+  }
+  .toast-in {
+    animation: rise 0.2s ease-out;
+  }
+  .pop-in {
+    animation: pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .wordmark {
+    background-size: 200% 100%;
+    animation: wordmark-shimmer 6s ease-in-out infinite;
+  }
 }
 
 /* While live scanning, the camera preview renders behind the webview
@@ -39,9 +117,9 @@ html.camera-scanning #root {
 }
 
 @layer components {
-  /* Elevated card/panel container. */
+  /* Elevated card/panel container, lit faintly from above. */
   .panel {
-    @apply rounded-2xl border border-line bg-surface;
+    @apply rounded-2xl border border-line bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.03)];
   }
 
   /* Tap feedback shared by every button-like element. */

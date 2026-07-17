@@ -128,7 +128,13 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
           )}
         </div>
         <div className="text-right shrink-0">
-          <div className="text-xl font-semibold tabular-nums">{pct}%</div>
+          <div
+            className={`text-xl font-semibold tabular-nums ${
+              pct >= 80 ? "bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent" : ""
+            }`}
+          >
+            {pct}%
+          </div>
           <div className="text-[11px] text-neutral-500 tabular-nums">
             {rec.totalCardsOwned}/{rec.totalCardsNeeded}
           </div>
@@ -348,7 +354,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   const selectClass = "input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5";
 
   return (
-    <div className="p-4 flex flex-col gap-3">
+    <div className="page p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-xs text-neutral-500">
           Meta decks ranked by how close you are

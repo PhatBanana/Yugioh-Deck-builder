@@ -52,7 +52,7 @@ function GridCell({ card, owned }: { card: MCard; owned: number }) {
         </div>
       )}
       {owned > 0 && (
-        <span className="absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
+        <span className="pop-in absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
           {owned}
         </span>
       )}
@@ -185,7 +185,7 @@ export default function CardsPage() {
 
   if (cardCount === 0) {
     return (
-      <div className="p-6 flex flex-col items-center gap-4 text-center">
+      <div className="page p-6 flex flex-col items-center gap-4 text-center">
         <h2 className="text-lg font-semibold mt-6">Welcome 👋</h2>
         <p className="text-neutral-300 text-sm max-w-xs">
           Scan the cards you own with your camera, then see which top meta decks
@@ -219,7 +219,7 @@ export default function CardsPage() {
   const visible = hasMore ? results!.slice(0, limit) : (results ?? []);
 
   return (
-    <div className="p-4 flex flex-col gap-3">
+    <div className="page p-4 flex flex-col gap-3">
       <input
         type="search"
         value={query}
@@ -336,25 +336,59 @@ export default function CardsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-neutral-500">
-        <span>
-          {stats
-            ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
-              (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
-            : ""}
-        </span>
-        <span className="flex gap-3">
-          <button type="button" onClick={() => setTradesOpen(true)} className="underline">
-            Trades
-          </button>
-          <button type="button" onClick={() => setBackupOpen(true)} className="underline">
-            Backup
-          </button>
-          <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
-            {syncing ?? "Re-sync data"}
-          </button>
-        </span>
-      </div>
+      {/* Collection hero on Owned; a compact line elsewhere. */}
+      {view === "owned" && stats ? (
+        <div className="panel relative overflow-hidden px-4 py-3">
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-[radial-gradient(120%_140%_at_85%_-30%,rgba(245,158,11,0.12),transparent_60%)]"
+          />
+          <div className="relative flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+                Collection value
+              </div>
+              <div className="text-3xl font-bold tabular-nums bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
+                ${stats.estimatedValueUsd.toFixed(0)}
+              </div>
+              <div className="text-xs text-neutral-500 mt-0.5">
+                {stats.totalCopies} cards · {stats.uniqueCards} unique
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 text-xs text-neutral-500">
+              <button type="button" onClick={() => setTradesOpen(true)} className="underline">
+                Trades
+              </button>
+              <button type="button" onClick={() => setBackupOpen(true)} className="underline">
+                Backup
+              </button>
+              <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
+                {syncing ?? "Re-sync data"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between text-xs text-neutral-500">
+          <span>
+            {stats
+              ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
+                (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
+              : ""}
+          </span>
+          <span className="flex gap-3">
+            <button type="button" onClick={() => setTradesOpen(true)} className="underline">
+              Trades
+            </button>
+            <button type="button" onClick={() => setBackupOpen(true)} className="underline">
+              Backup
+            </button>
+            <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
+              {syncing ?? "Re-sync data"}
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Binder filter chips (owned view, only when binders exist). */}
       {view === "owned" && tags.length > 0 && (

@@ -130,7 +130,7 @@ function ScanningOverlay({
                 <div className="w-12 h-[70px] rounded bg-neutral-700" />
               )}
               {e.count > 1 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
+                <span className="pop-in absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
                   {e.count}
                 </span>
               )}
@@ -241,7 +241,7 @@ export default function ScanPage({
     );
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="page p-4 flex flex-col gap-4">
       {/* One tab, three ways in: camera, pasted list, or a whole deck. */}
       <div className="seg text-xs">
         {ADD_MODES.map((m) => (

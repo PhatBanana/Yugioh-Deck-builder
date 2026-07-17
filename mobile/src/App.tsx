@@ -55,15 +55,20 @@ export default function App() {
     >
       {!immersive && (
         <header
-          className="sticky z-10 border-b border-line bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]"
+          className="sticky z-10 bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]"
           style={{ top: "var(--ad-banner-h, 0px)" }}
         >
           <h1 className="font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
+            <span className="wordmark bg-gradient-to-r from-amber-300 via-yellow-200 to-yellow-500 bg-clip-text text-transparent">
               YGO
             </span>{" "}
             Deck Builder
           </h1>
+          {/* Gold hairline instead of a flat border. */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-amber-500/50 via-amber-700/20 to-transparent"
+          />
         </header>
       )}
 
@@ -91,7 +96,7 @@ export default function App() {
               >
                 <span
                   className={`text-lg leading-none rounded-full px-3.5 py-1 transition-colors duration-150 ${
-                    tab === t.id ? "bg-amber-400/15" : ""
+                    tab === t.id ? "bg-amber-400/15 pop-in" : ""
                   }`}
                 >
                   {t.icon}
