@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type MCard } from "../db";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
@@ -7,21 +7,25 @@ import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import ValueSparkline from "../components/ValueSparkline";
 import BackupSheet from "../components/BackupSheet";
+import SetSheet from "../components/SetSheet";
+import TradesSheet from "../components/TradesSheet";
+import { ensureSetList, searchSets } from "../services/sets";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
 import { invalidateCandidateCache } from "../services/scanner";
-import { getCollectionStats } from "../services/collection";
+import { allTags, getCollectionStats } from "../services/collection";
 
 const PAGE = 50;
 
-type View = "all" | "owned" | "wishlist";
+type View = "all" | "owned" | "wishlist" | "sets";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "all", label: "All" },
   { id: "owned", label: "Owned" },
   { id: "wishlist", label: "Wishlist" },
+  { id: "sets", label: "Sets" },
 ];
 
 type TypeFilter = "" | "Monster" | "Spell" | "Trap";
@@ -34,6 +38,30 @@ const SORTERS: Record<SortBy, (a: MCard, b: MCard) => number> = {
   atk: (a, b) => (b.atk ?? -1) - (a.atk ?? -1),
   level: (a, b) => (b.level ?? -1) - (a.level ?? -1),
 };
+
+// Grid-view cell: image with owned-count badge, tiny name caption.
+function GridCell({ card, owned }: { card: MCard; owned: number }) {
+  const openCard = useCardDetail();
+  return (
+    <button type="button" onClick={() => openCard(card.id)} className="pressable relative text-left">
+      {card.img ? (
+        <img src={card.img} alt={card.name} className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
+      ) : (
+        <div className="w-full aspect-[59/86] rounded-md bg-raised ring-1 ring-white/5 flex items-end p-1">
+          <span className="text-[10px] leading-tight text-neutral-400 line-clamp-3">{card.name}</span>
+        </div>
+      )}
+      {owned > 0 && (
+        <span className="absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
+          {owned}
+        </span>
+      )}
+      <span className="block text-[10px] leading-tight text-neutral-400 mt-1 line-clamp-1">
+        {card.name}
+      </span>
+    </button>
+  );
+}
 
 function CardRow({ card, owned }: { card: MCard; owned: number }) {
   const openCard = useCardDetail();
@@ -73,7 +101,26 @@ export default function CardsPage() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [cardType, setCardType] = useState<TypeFilter>("");
   const [sortBy, setSortBy] = useState<SortBy>("name");
+  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [attr, setAttr] = useState("");
+  const [level, setLevel] = useState("");
+  const [banStatus, setBanStatus] = useState("");
+  const [openSet, setOpenSet] = useState<string | null>(null);
+  const [tradesOpen, setTradesOpen] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [setCount, setSetCount] = useState<number | null>(null);
   const debouncedQuery = useDebouncedValue(query, 250);
+
+  // Prime the set catalogue when the Sets view is first opened.
+  useEffect(() => {
+    if (view === "sets") ensureSetList().then(setSetCount);
+  }, [view]);
+
+  const setResults = useLiveQuery(
+    async () => (view === "sets" ? searchSets(debouncedQuery) : []),
+    [view, debouncedQuery, setCount],
+    []
+  );
 
   const cardCount = useLiveQuery(() => db.cards.count());
   const ownedMap = useLiveQuery(async () => {
@@ -87,14 +134,16 @@ export default function CardsPage() {
     const q = debouncedQuery.trim().toLowerCase();
     let rows: MCard[];
     if (view === "owned") {
-      const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
+      const entries = (await db.collection.toArray()).filter(
+        (e) => e.quantity > 0 && (!tagFilter || (e.tags ?? []).includes(tagFilter))
+      );
       const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
     } else if (view === "wishlist") {
       const ids = (await db.wishlist.toArray()).map((w) => w.cardId);
       const cards = await db.cards.bulkGet(ids);
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
-    } else if (!q && !cardType && sortBy === "name") {
+    } else if (!q && !cardType && !attr && !level && !banStatus && sortBy === "name") {
       // Fast path: the index is already in name order.
       return db.cards.orderBy("nameLower").limit(limit + 1).toArray();
     } else {
@@ -104,9 +153,15 @@ export default function CardsPage() {
         : await db.cards.toArray();
     }
     if (cardType) rows = rows.filter((c) => c.type.includes(cardType));
+    if (attr) rows = rows.filter((c) => c.attribute === attr);
+    if (level) rows = rows.filter((c) => c.level === Number(level));
+    if (banStatus) rows = rows.filter((c) => c.banlist === banStatus);
     rows.sort(SORTERS[sortBy]);
     return view === "all" ? rows.slice(0, limit + 1) : rows;
-  }, [debouncedQuery, view, limit, cardType, sortBy]);
+  }, [debouncedQuery, view, limit, cardType, sortBy, tagFilter, attr, level, banStatus]);
+
+  // Binder chips shown on the Owned view.
+  const tags = useLiveQuery(() => allTags(), [], []);
 
   async function runFullSync() {
     setSyncing("Starting…");
@@ -172,7 +227,11 @@ export default function CardsPage() {
           setQuery(e.target.value);
           setLimit(PAGE);
         }}
-        placeholder={`Search ${cardCount?.toLocaleString() ?? ""} cards…`}
+        placeholder={
+          view === "sets"
+            ? `Search ${setCount?.toLocaleString() ?? ""} sets…`
+            : `Search ${cardCount?.toLocaleString() ?? ""} cards…`
+        }
         className="input-base w-full px-4 py-2.5 text-sm"
       />
       <div className="seg text-sm">
@@ -189,6 +248,7 @@ export default function CardsPage() {
       </div>
 
       {/* Type filter + sort order. */}
+      {view !== "sets" && (
       <div className="flex gap-1.5">
         <select
           className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
@@ -216,7 +276,65 @@ export default function CardsPage() {
           <option value="atk">ATK ↓</option>
           <option value="level">Level ↓</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
+          className="btn-ghost px-3 py-1.5 rounded-lg text-sm shrink-0"
+          aria-label={layout === "list" ? "Switch to grid view" : "Switch to list view"}
+        >
+          {layout === "list" ? "▦" : "☰"}
+        </button>
       </div>
+      )}
+
+      {/* Advanced filters. */}
+      {view !== "sets" && (
+        <div className="flex gap-1.5">
+          <select
+            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            value={attr}
+            onChange={(e) => {
+              setAttr(e.target.value);
+              setLimit(PAGE);
+            }}
+          >
+            <option value="">Any attribute</option>
+            {["DARK", "LIGHT", "EARTH", "WATER", "FIRE", "WIND", "DIVINE"].map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            value={level}
+            onChange={(e) => {
+              setLevel(e.target.value);
+              setLimit(PAGE);
+            }}
+          >
+            <option value="">Any level</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((l) => (
+              <option key={l} value={l}>
+                Lv {l}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            value={banStatus}
+            onChange={(e) => {
+              setBanStatus(e.target.value);
+              setLimit(PAGE);
+            }}
+          >
+            <option value="">Any status</option>
+            <option value="Banned">Banned</option>
+            <option value="Limited">Limited</option>
+            <option value="Semi-Limited">Semi-Limited</option>
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>
@@ -226,6 +344,9 @@ export default function CardsPage() {
             : ""}
         </span>
         <span className="flex gap-3">
+          <button type="button" onClick={() => setTradesOpen(true)} className="underline">
+            Trades
+          </button>
           <button type="button" onClick={() => setBackupOpen(true)} className="underline">
             Backup
           </button>
@@ -235,14 +356,68 @@ export default function CardsPage() {
         </span>
       </div>
 
+      {/* Binder filter chips (owned view, only when binders exist). */}
+      {view === "owned" && tags.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap">
+          {tags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTagFilter((cur) => (cur === t ? null : t))}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                tagFilter === t
+                  ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
+                  : "bg-surface border-line text-neutral-400"
+              }`}
+            >
+              📁 {t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {view === "owned" && <ValueSparkline />}
 
-      <div className="flex flex-col gap-2">
-        {visible.map((card) => (
-          <CardRow key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
-        ))}
+      {/* Sets view: browse the set catalogue and open completion sheets. */}
+      {view === "sets" && (
+        <div className="flex flex-col gap-2">
+          {setResults.map((s) => (
+            <button
+              key={s.name}
+              type="button"
+              onClick={() => setOpenSet(s.name)}
+              className="pressable panel flex items-center justify-between px-3.5 py-3 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm leading-snug truncate">{s.name}</span>
+                <span className="block text-xs text-neutral-500 mt-0.5">
+                  {s.code ?? "—"} · {s.cardCount} cards{s.date ? ` · ${s.date}` : ""}
+                </span>
+              </span>
+              <span className="text-neutral-600 shrink-0 ml-2">→</span>
+            </button>
+          ))}
+          {setResults.length === 0 && (
+            <div className="text-center text-neutral-500 text-sm py-10">
+              {setCount === 0
+                ? "Couldn't load the set list — check your connection and reopen this tab."
+                : "No sets match."}
+            </div>
+          )}
+        </div>
+      )}
+
+      {view !== "sets" && (
+      <div className={layout === "grid" ? "grid grid-cols-3 gap-2" : "flex flex-col gap-2"}>
+        {visible.map((card) =>
+          layout === "grid" ? (
+            <GridCell key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
+          ) : (
+            <CardRow key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
+          )
+        )}
         {visible.length === 0 && (
-          <div className="text-center text-neutral-500 text-sm py-10">
+          <div className="col-span-3 text-center text-neutral-500 text-sm py-10">
             {view === "wishlist"
               ? "Your wishlist is empty. Tap ♡ on cards, or on the Meta tab's “buy next” list."
               : view === "owned"
@@ -251,6 +426,7 @@ export default function CardsPage() {
           </div>
         )}
       </div>
+      )}
 
       {hasMore && (
         <button
@@ -263,6 +439,8 @@ export default function CardsPage() {
       )}
 
       {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
+      {tradesOpen && <TradesSheet onClose={() => setTradesOpen(false)} />}
+      {openSet && <SetSheet setName={openSet} onClose={() => setOpenSet(null)} />}
     </div>
   );
 }

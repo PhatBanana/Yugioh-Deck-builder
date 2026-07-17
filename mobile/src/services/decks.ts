@@ -2,7 +2,7 @@ import type { DeckCard, DeckSection } from "@shared/deck/types";
 import { validateDeck, type DeckValidation } from "@shared/deck/validate";
 import { serializeYdk } from "@shared/deck/ydk";
 import { strategyBlurb } from "@shared/metaDecks/strategy";
-import { db, type MDeck } from "../db";
+import { db, type MCard, type MDeck } from "../db";
 
 function uid(): string {
   return `deck_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -130,25 +130,46 @@ export interface EnrichedDeckCard extends DeckCard {
   type: string;
 }
 
+// Which banlist validates the deck. OCG/Goat data arrives with a card re-sync;
+// before that the fields are undefined and treated as unlimited.
+export type BanlistFormat = "tcg" | "ocg" | "goat";
+
 export interface EnrichedDeck {
   deck: MDeck;
   cards: EnrichedDeckCard[];
   validation: DeckValidation;
   ydkName: string;
+  // True when the chosen non-TCG format has no banlist data locally yet.
+  formatDataMissing: boolean;
 }
 
-export async function enrichDeck(deck: MDeck): Promise<EnrichedDeck> {
+function banFor(card: MCard | undefined, format: BanlistFormat): string | null {
+  if (!card) return null;
+  if (format === "ocg") return card.banOcg ?? null;
+  if (format === "goat") return card.banGoat ?? null;
+  return card.banlist;
+}
+
+export async function enrichDeck(
+  deck: MDeck,
+  format: BanlistFormat = "tcg"
+): Promise<EnrichedDeck> {
   const ids = deck.cards.map((c) => c.cardId);
   const [cards, coll] = await Promise.all([db.cards.bulkGet(ids), db.collection.bulkGet(ids)]);
   const enriched: EnrichedDeckCard[] = deck.cards.map((c, i) => ({
     ...c,
     name: cards[i]?.name ?? `#${c.cardId}`,
     img: cards[i]?.img ?? null,
-    banlist: cards[i]?.banlist ?? null,
+    banlist: banFor(cards[i], format),
     owned: coll[i]?.quantity ?? 0,
     price: cards[i]?.price ?? null,
     type: cards[i]?.type ?? "",
   }));
+  const present = cards.filter((c): c is MCard => !!c);
+  const formatDataMissing =
+    format !== "tcg" &&
+    present.length > 0 &&
+    present.every((c) => (format === "ocg" ? c.banOcg === undefined : c.banGoat === undefined));
   enriched.sort((a, b) => a.name.localeCompare(b.name));
   const validation = validateDeck(
     enriched.map((c) => ({
@@ -160,7 +181,7 @@ export async function enrichDeck(deck: MDeck): Promise<EnrichedDeck> {
     }))
   );
   const ydkName = deck.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  return { deck, cards: enriched, validation, ydkName };
+  return { deck, cards: enriched, validation, ydkName, formatDataMissing };
 }
 
 export function deckToYdk(deck: MDeck): string {

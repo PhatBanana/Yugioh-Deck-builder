@@ -16,7 +16,7 @@ interface ApiCard {
   atk?: number;
   def?: number;
   level?: number;
-  banlist_info?: { ban_tcg?: string };
+  banlist_info?: { ban_tcg?: string; ban_ocg?: string; ban_goat?: string };
   card_images?: { image_url_small?: string }[];
   card_prices?: { tcgplayer_price?: string }[];
 }
@@ -49,6 +49,8 @@ function slim(c: ApiCard): MCard {
     level: c.level ?? null,
     desc: c.desc ?? "",
     banlist: c.banlist_info?.ban_tcg ?? null,
+    banOcg: c.banlist_info?.ban_ocg ?? null,
+    banGoat: c.banlist_info?.ban_goat ?? null,
     price: Number.isFinite(price) && price > 0 ? price : null,
     img: c.card_images?.[0]?.image_url_small ?? null,
   };

@@ -17,7 +17,9 @@ export interface MCard {
   def: number | null;
   level: number | null;
   desc: string;
-  banlist: string | null; // 'Banned' | 'Limited' | 'Semi-Limited'
+  banlist: string | null; // TCG: 'Banned' | 'Limited' | 'Semi-Limited'
+  banOcg?: string | null; // OCG banlist (null until the next full card sync)
+  banGoat?: string | null; // Goat-format banlist (same)
   price: number | null; // lowest TCGPlayer USD
   img: string | null; // small image URL
 }
@@ -32,6 +34,8 @@ export interface MCollectionEntry {
   // Which printing the owned copies are (set code + rarity), picked from the
   // card's known sets. Optional; one per entry, like condition.
   printing?: { code: string; rarity: string };
+  // Binder/tag names this card is filed under (e.g. "trade binder").
+  tags?: string[];
 }
 
 // Cached list of a card's printings (sets), fetched on demand when the user
@@ -41,6 +45,35 @@ export interface MCardSets {
   cardId: number;
   fetchedAt: string;
   sets: { code: string; name: string; rarity: string; price: number | null }[];
+}
+
+// The catalogue of all card sets (from cardsets.php), fetched once and cached
+// so the Sets browser can search offline afterwards.
+export interface MSet {
+  name: string;
+  nameLower: string;
+  code: string | null;
+  cardCount: number;
+  date: string | null; // TCG release date, when known
+}
+
+// A set's contents resolved against the local card DB (fetched on demand).
+export interface MSetCards {
+  setName: string;
+  fetchedAt: string;
+  cardIds: number[];
+  unresolvedCount: number; // cards in the set with no local match
+}
+
+// A logged trade: what left and what arrived, valued at log time.
+export interface MTrade {
+  id: string;
+  date: string; // ISO timestamp
+  gave: { cardId: number; quantity: number }[];
+  got: { cardId: number; quantity: number }[];
+  gaveValueUsd: number;
+  gotValueUsd: number;
+  note?: string;
 }
 
 // One collection-value snapshot per day, recorded on app launch, so the Cards
@@ -105,6 +138,9 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   valueHistory: EntityTable<MValueSnapshot, "date">;
   priceHistory: Table<MPricePoint, [number, string]>;
   cardSets: EntityTable<MCardSets, "cardId">;
+  sets: EntityTable<MSet, "name">;
+  setCards: EntityTable<MSetCards, "setName">;
+  trades: EntityTable<MTrade, "id">;
 };
 
 db.version(1).stores({
@@ -136,6 +172,14 @@ db.version(4).stores({
 // collection entry is a new optional field — non-indexed, no store change.)
 db.version(5).stores({
   cardSets: "cardId",
+});
+
+// v6 adds the set catalogue + per-set contents (Sets browser) and the trade
+// log. (Collection tags and OCG/Goat banlists are non-indexed field additions.)
+db.version(6).stores({
+  sets: "name, nameLower",
+  setCards: "setName",
+  trades: "id, date",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

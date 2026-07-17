@@ -43,6 +43,20 @@ export async function setCondition(
   await db.collection.put({ ...existing, condition });
 }
 
+// Sets which binders/tags the card is filed under. No-op when not owned.
+export async function setTags(cardId: number, tags: string[]): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  if (!existing) return;
+  const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+  await db.collection.put({ ...existing, tags: cleaned.length > 0 ? cleaned : undefined });
+}
+
+// Every binder/tag name in use, for suggestion chips and filters.
+export async function allTags(): Promise<string[]> {
+  const entries = await db.collection.toArray();
+  return [...new Set(entries.flatMap((e) => e.tags ?? []))].sort((a, b) => a.localeCompare(b));
+}
+
 export async function addOwned(cardId: number, delta = 1): Promise<number> {
   const current = (await db.collection.get(cardId))?.quantity ?? 0;
   const next = Math.max(0, Math.min(99, current + delta));

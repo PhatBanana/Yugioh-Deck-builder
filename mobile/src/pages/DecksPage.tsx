@@ -15,6 +15,7 @@ import {
   saveDeckFromYdk,
   setDeckCard,
   setDeckNotes,
+  type BanlistFormat,
   type EnrichedDeck,
 } from "../services/decks";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
@@ -268,13 +269,14 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const [name, setName] = useState("");
   const [nameLoaded, setNameLoaded] = useState(false);
   const [testingHand, setTestingHand] = useState(false);
+  const [format, setFormat] = useState<BanlistFormat>("tcg");
   // Hardware back returns to the deck list.
   useBackClose(onBack);
 
   const enriched = useLiveQuery(async () => {
     const d = await getDeck(deckId);
-    return d ? await enrichDeck(d) : null;
-  }, [deckId]);
+    return d ? await enrichDeck(d, format) : null;
+  }, [deckId, format]);
 
   // Seed the name field once when the deck loads.
   useEffect(() => {
@@ -332,6 +334,28 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-amber-800/60"
         />
       </div>
+
+      {/* Which banlist to validate against. */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-neutral-500 shrink-0">Format</span>
+        <div className="seg rounded-lg bg-raised p-0.5 text-xs flex-1">
+          {(["tcg", "ocg", "goat"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFormat(f)}
+              className={`seg-btn rounded-md py-1 ${format === f ? "seg-on" : ""}`}
+            >
+              {f.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+      {enriched.formatDataMissing && (
+        <p className="text-[11px] text-orange-300 -mt-1">
+          No {format.toUpperCase()} banlist data yet — re-sync cards on the Cards tab to load it.
+        </p>
+      )}
 
       {/* Validation summary */}
       <div

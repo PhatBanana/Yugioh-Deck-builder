@@ -1,3 +1,7 @@
+import { Capacitor } from "@capacitor/core";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { collectionToCsv } from "@shared/collection/csv";
 import {
   db,
   type MCollectionEntry,
@@ -18,6 +22,56 @@ export interface BackupFile {
   decks: MDeck[];
   valueHistory: MValueSnapshot[];
   priceHistory: MPricePoint[];
+}
+
+// Gets a text file to the user: Android opens the system share sheet (user
+// picks the destination — Files, Drive, …); the browser downloads normally.
+// Returns false only on real failure (dismissing the share sheet is fine).
+export async function exportTextFile(name: string, mime: string, content: string): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const file = await Filesystem.writeFile({
+        path: name,
+        data: content,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
+      });
+      await Share.share({ title: name, url: file.uri, dialogTitle: `Save ${name} to…` });
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      return /cancel/i.test(msg); // dismissed ≠ failed
+    }
+  }
+  try {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Collection as a spreadsheet-friendly CSV (one row per owned card).
+export async function createCollectionCsv(): Promise<string> {
+  const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
+  const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
+  const rows = entries.map((e, i) => ({
+    name: cards[i]?.name ?? `#${e.cardId}`,
+    quantity: e.quantity,
+    condition: e.condition ?? null,
+    printingCode: e.printing?.code ?? null,
+    rarity: e.printing?.rarity ?? null,
+    priceUsd: cards[i]?.price ?? null,
+    tags: e.tags ?? null,
+  }));
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+  return collectionToCsv(rows);
 }
 
 export async function createBackup(): Promise<BackupFile> {

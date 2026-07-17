@@ -4,7 +4,7 @@ import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
 import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
-import { setCondition } from "../services/collection";
+import { allTags, setCondition, setTags } from "../services/collection";
 import { getCardPrintings, setPrinting } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
@@ -112,6 +112,71 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
         ))}
       </select>
       {selected?.name && <p className="text-[11px] text-neutral-600 mt-1">{selected.name}</p>}
+    </div>
+  );
+}
+
+// Binders/tags the owned copies are filed under: current tags as removable
+// chips, one-tap suggestions from binders used elsewhere, plus a free input.
+function BindersRow({ cardId, tags }: { cardId: number; tags: string[] }) {
+  const [draft, setDraft] = useState("");
+  const suggestions = useLiveQuery(
+    async () => (await allTags()).filter((t) => !tags.includes(t)).slice(0, 6),
+    [tags],
+    []
+  );
+
+  const add = (name: string) => {
+    if (!name.trim()) return;
+    void setTags(cardId, [...tags, name]);
+    setDraft("");
+  };
+
+  return (
+    <div className="mt-3">
+      <span className="block text-xs font-semibold text-neutral-400 mb-1.5">Binders</span>
+      <div className="flex flex-wrap gap-1.5">
+        {tags.map((t) => (
+          <span
+            key={t}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-400/15 border border-amber-900/50 text-amber-200"
+          >
+            {t}
+            <button
+              type="button"
+              aria-label={`Remove from ${t}`}
+              onClick={() => void setTags(cardId, tags.filter((x) => x !== t))}
+              className="text-amber-200/70"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        {suggestions.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => add(t)}
+            className="text-xs px-2 py-1 rounded-full bg-raised border border-line text-neutral-400"
+          >
+            ＋ {t}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-1.5 mt-1.5">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add(draft)}
+          placeholder="New binder (e.g. trade binder)…"
+          className="input-base flex-1 rounded-lg px-3 py-1.5 text-xs"
+        />
+        {draft.trim() && (
+          <button type="button" onClick={() => add(draft)} className="btn-ghost px-3 py-1.5 rounded-lg text-xs">
+            Add
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -272,6 +337,7 @@ export default function CardDetailModal({
 
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
         {owned > 0 && <PrintingRow cardId={card.id} entry={entry} />}
+        {owned > 0 && <BindersRow cardId={card.id} tags={entry?.tags ?? []} />}
 
         <PriceSparkline cardId={card.id} />
 
