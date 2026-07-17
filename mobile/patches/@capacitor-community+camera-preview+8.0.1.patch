@@ -1,0 +1,80 @@
+diff --git a/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java b/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
+index 854aeee..402c822 100644
+--- a/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
++++ b/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
+@@ -68,6 +68,75 @@ public class CameraPreview extends Plugin implements CameraActivity.CameraPrevie
+         }
+     }
+ 
++    @PluginMethod
++    public void setZoom(PluginCall call) {
++        if (this.hasCamera(call) == false) {
++            call.reject("Camera is not running");
++            return;
++        }
++        try {
++            Integer level = call.getInt("level", 0);
++            Camera camera = fragment.getCamera();
++            Camera.Parameters params = camera.getParameters();
++            if (!params.isZoomSupported()) {
++                call.reject("Zoom not supported on this camera");
++                return;
++            }
++            int clamped = Math.max(0, Math.min(params.getMaxZoom(), level));
++            params.setZoom(clamped);
++            fragment.setCameraParameters(params);
++            call.resolve();
++        } catch (Exception e) {
++            Logger.debug(getLogTag(), "setZoom exception: " + e);
++            call.reject("failed to set zoom");
++        }
++    }
++
++    @PluginMethod
++    public void getZoomState(PluginCall call) {
++        if (this.hasCamera(call) == false) {
++            call.reject("Camera is not running");
++            return;
++        }
++        try {
++            Camera camera = fragment.getCamera();
++            Camera.Parameters params = camera.getParameters();
++            boolean supported = params.isZoomSupported();
++            JSObject state = new JSObject();
++            state.put("supported", supported);
++            state.put("max", supported ? params.getMaxZoom() : 0);
++            state.put("current", supported ? params.getZoom() : 0);
++            call.resolve(state);
++        } catch (Exception e) {
++            Logger.debug(getLogTag(), "getZoomState exception: " + e);
++            call.reject("failed to read zoom state");
++        }
++    }
++
++    @PluginMethod
++    public void refocus(PluginCall call) {
++        if (this.hasCamera(call) == false) {
++            call.reject("Camera is not running");
++            return;
++        }
++        try {
++            final Camera camera = fragment.getCamera();
++            camera.cancelAutoFocus();
++            camera.autoFocus(
++                new Camera.AutoFocusCallback() {
++                    @Override
++                    public void onAutoFocus(boolean success, Camera c) {
++                        // one-shot refocus; nothing to report back
++                    }
++                }
++            );
++            call.resolve();
++        } catch (Exception e) {
++            Logger.debug(getLogTag(), "refocus exception: " + e);
++            call.reject("failed to refocus");
++        }
++    }
++
+     @PluginMethod
+     public void setOpacity(PluginCall call) {
+         if (this.hasCamera(call) == false) {

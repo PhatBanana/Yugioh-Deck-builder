@@ -71,6 +71,58 @@ export async function setTorch(on: boolean): Promise<void> {
   }
 }
 
+// ---- Camera controls (zoom/refocus are patched-in native methods; see
+// mobile/patches/@capacitor-community+camera-preview+8.0.1.patch). The
+// Capacitor plugin proxy forwards any method name to native, so we extend the
+// type locally. Everything is best-effort — no-ops in the browser.
+
+export interface ZoomState {
+  supported: boolean;
+  max: number; // device zoom index range is 0..max (not a ratio)
+  current: number;
+}
+
+const CameraPreviewX = CameraPreview as typeof CameraPreview & {
+  setZoom(options: { level: number }): Promise<void>;
+  getZoomState(): Promise<ZoomState>;
+  refocus(): Promise<void>;
+};
+
+// Switches between the rear and front camera. Zoom/torch reset with the new
+// camera, so callers should re-apply what they need.
+export async function flipCamera(): Promise<void> {
+  try {
+    await CameraPreviewX.flip();
+  } catch {
+    // Single-camera device; ignore.
+  }
+}
+
+export async function setZoomLevel(level: number): Promise<void> {
+  try {
+    await CameraPreviewX.setZoom({ level });
+  } catch {
+    // Unsupported camera or not running; ignore.
+  }
+}
+
+export async function getZoomState(): Promise<ZoomState> {
+  try {
+    return await CameraPreviewX.getZoomState();
+  } catch {
+    return { supported: false, max: 0, current: 0 };
+  }
+}
+
+// One-shot autofocus trigger (tap-to-refocus).
+export async function refocusCamera(): Promise<void> {
+  try {
+    await CameraPreviewX.refocus();
+  } catch {
+    // ignore
+  }
+}
+
 // Keeps the screen on for the duration of a scan session (phone in a mount,
 // working through a stack of cards hands-free). Best-effort — falls back to
 // normal sleep behavior on unsupported platforms/devices.

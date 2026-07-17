@@ -14,6 +14,8 @@ export interface ScanSettings {
   beepOnAdd: boolean;
   /** Torch style when the 🔦 toggle is on. */
   flashMode: FlashMode;
+  /** Last-used camera zoom index (0 = 1x); clamped to the device max natively. */
+  zoomLevel: number;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -24,6 +26,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   scanDelayMs: 2000,
   beepOnAdd: false,
   flashMode: "continuous",
+  zoomLevel: 0,
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

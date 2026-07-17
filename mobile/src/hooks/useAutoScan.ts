@@ -3,10 +3,15 @@ import { db } from "../db";
 import { addOwned } from "../services/collection";
 import {
   captureFrameAndMatch,
+  flipCamera,
+  getZoomState,
+  refocusCamera,
   setScreenAwake,
   setTorch as setTorchNative,
+  setZoomLevel,
   startPreview,
   stopPreview,
+  type ZoomState,
 } from "../services/scanner";
 import { DEFAULT_SCAN_SETTINGS, type ScanSettings } from "./useScanSettings";
 
@@ -52,9 +57,13 @@ export interface AutoScanState {
   session: ScannedEntry[];
   torch: boolean;
   flash: { name: string; count: number } | null;
+  zoom: ZoomState;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   toggleTorch: () => Promise<void>;
+  setZoom: (level: number) => Promise<void>;
+  flip: () => Promise<void>;
+  refocus: () => Promise<void>;
   captureNow: () => Promise<void>;
   undoLast: () => Promise<void>;
 }
@@ -65,6 +74,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const [session, setSession] = useState<ScannedEntry[]>([]);
   const [torch, setTorch] = useState(false);
   const [flash, setFlash] = useState<{ name: string; count: number } | null>(null);
+  const [zoom, setZoomState] = useState<ZoomState>({ supported: false, max: 0, current: 0 });
 
   const runningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +178,11 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     // Phone is typically in a mount for a scan session — keep the screen from
     // dimming/locking so it doesn't cut the session short (unless disabled).
     if (settingsRef.current.keepAwake) await setScreenAwake(true);
+    // Restore the last-used zoom, then read back what the camera actually has.
+    if (settingsRef.current.zoomLevel > 0) {
+      await setZoomLevel(settingsRef.current.zoomLevel);
+    }
+    setZoomState(await getZoomState());
     runningRef.current = true;
     setScanning(true);
     setStatus("Point the camera at a card");
@@ -198,6 +213,31 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     } else {
       await setTorchNative(next);
     }
+  }, []);
+
+  const setZoom = useCallback(async (level: number) => {
+    setZoomState((z) => ({ ...z, current: level })); // optimistic — slider stays smooth
+    await setZoomLevel(level);
+  }, []);
+
+  const flip = useCallback(async () => {
+    await flipCamera();
+    // The new camera starts with fresh params — re-apply torch (continuous
+    // mode only) and zoom, then refresh what this camera supports.
+    if (torchWantedRef.current && settingsRef.current.flashMode === "continuous") {
+      await setTorchNative(true);
+    }
+    const level = settingsRef.current.zoomLevel;
+    if (level > 0) await setZoomLevel(level);
+    setZoomState(await getZoomState());
+  }, []);
+
+  const refocus = useCallback(async () => {
+    await refocusCamera();
+    setStatus("Refocusing…");
+    setTimeout(() => {
+      if (runningRef.current) setStatus("Point the camera at a card");
+    }, 700);
   }, []);
 
   // Force-add the current top match, bypassing the stability/lock gates.
@@ -248,9 +288,13 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     session,
     torch,
     flash,
+    zoom,
     start,
     stop,
     toggleTorch,
+    setZoom,
+    flip,
+    refocus,
     captureNow,
     undoLast,
   };

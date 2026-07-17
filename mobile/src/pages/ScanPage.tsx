@@ -57,9 +57,11 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
 function ScanningOverlay({
   scan,
   onOpenSettings,
+  onZoom,
 }: {
   scan: AutoScanState;
   onOpenSettings: () => void;
+  onZoom: (level: number) => void;
 }) {
   // Hardware back exits the fullscreen scan instead of minimizing the app.
   useBackClose(() => void scan.stop());
@@ -82,6 +84,14 @@ function ScanningOverlay({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => void scan.flip()}
+            className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-lg"
+            aria-label="Switch camera"
+          >
+            🔄
+          </button>
+          <button
+            type="button"
             onClick={onOpenSettings}
             className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-lg"
             aria-label="Scan settings"
@@ -101,10 +111,37 @@ function ScanningOverlay({
         </div>
       </div>
 
-      {/* Framing guide */}
-      <div className="flex-1 flex items-center justify-center pointer-events-none px-8">
-        <div className="w-full max-w-xs aspect-[59/86] rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+      {/* Framing guide — tapping it re-triggers autofocus. */}
+      <div
+        className="flex-1 flex items-center justify-center px-8"
+        onClick={() => void scan.refocus()}
+        role="button"
+        aria-label="Tap to refocus"
+      >
+        <div className="w-full max-w-xs aspect-[59/86] rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)] pointer-events-none" />
       </div>
+
+      {/* Zoom slider (when the camera supports zoom). */}
+      {scan.zoom.supported && scan.zoom.max > 0 && (
+        <div className="flex items-center gap-2 px-6 pb-1">
+          <span className="text-white/70 text-sm" aria-hidden>
+            🔍−
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={scan.zoom.max}
+            step={1}
+            value={scan.zoom.current}
+            onChange={(e) => onZoom(Number(e.target.value))}
+            className="flex-1 accent-amber-400"
+            aria-label="Camera zoom"
+          />
+          <span className="text-white/70 text-sm" aria-hidden>
+            🔍＋
+          </span>
+        </div>
+      )}
 
       {/* Status + flash */}
       <div className="text-center pb-2 min-h-6">
@@ -235,7 +272,14 @@ export default function ScanPage({
   if (scan.scanning)
     return (
       <>
-        <ScanningOverlay scan={scan} onOpenSettings={() => setSettingsOpen(true)} />
+        <ScanningOverlay
+          scan={scan}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onZoom={(level) => {
+            void scan.setZoom(level);
+            update({ zoomLevel: level }); // remember for the next session
+          }}
+        />
         {settingsSheet}
       </>
     );
