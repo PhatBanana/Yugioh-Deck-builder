@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -47,4 +48,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- The camera-preview plugin declares RECORD_AUDIO for its (unused) video
+         capture. We only ever start with disableAudio, so strip it from the
+         merged manifest to keep the app off the microphone permission. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
 </manifest>
