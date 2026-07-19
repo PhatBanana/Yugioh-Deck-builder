@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { CameraPreview } from "@capacitor-community/camera-preview";
+import { CameraPreview } from "@capgo/camera-preview";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Ocr } from "@jcesarmobile/capacitor-ocr";
 import {
@@ -52,6 +52,8 @@ let previewActive = false;
 
 // Starts the camera preview rendered behind the webview. The caller must make
 // the page background transparent (see ScanPage) so the preview shows through.
+// enablePhysicalDeviceSelection lets zoom reach the device's telephoto /
+// ultra-wide lenses (real optical zoom) on multi-camera phones.
 export async function startPreview(): Promise<void> {
   if (previewActive) return;
   await CameraPreview.start({
@@ -60,6 +62,7 @@ export async function startPreview(): Promise<void> {
     disableAudio: true,
     width: window.screen.width,
     height: window.screen.height,
+    enablePhysicalDeviceSelection: true,
   });
   previewActive = true;
 }
@@ -82,49 +85,36 @@ export async function setTorch(on: boolean): Promise<void> {
   }
 }
 
-// ---- Camera controls (zoom/refocus are patched-in native methods; see
-// mobile/patches/@capacitor-community+camera-preview+8.0.1.patch). The
-// Capacitor plugin proxy forwards any method name to native, so we extend the
-// type locally. Everything is best-effort — no-ops in the browser.
+// ---- Camera controls. Zoom is a ratio (1× = the main lens); on multi-camera
+// phones the native layer switches to the ultra-wide / telephoto lens as the
+// ratio crosses each lens's range, so this is real optical zoom, not a crop.
+// Everything is best-effort — no-ops in the browser.
 
 export interface ZoomState {
   supported: boolean;
-  max: number; // device zoom index range is 0..max (not a ratio)
-  current: number;
+  min: number; // minimum zoom ratio (e.g. 0.5 when an ultra-wide is present)
+  max: number; // maximum zoom ratio
+  current: number; // current zoom ratio
+  // Quick-jump lens ratios the device offers, e.g. [0.5, 1, 2, 3].
+  buttons: number[];
 }
 
-const CameraPreviewX = CameraPreview as typeof CameraPreview & {
-  setZoom(options: { level: number }): Promise<void>;
-  getZoomState(): Promise<ZoomState>;
-  refocus(): Promise<void>;
-  setFocusMode(options: { mode: FocusMode }): Promise<void>;
-};
-
-// "auto" = continuous autofocus (default); "macro" = close-up focus, sharper on
-// a card held near the lens and better at resolving foil texture.
-export type FocusMode = "auto" | "macro";
-
-export async function setFocusMode(mode: FocusMode): Promise<void> {
-  try {
-    await CameraPreviewX.setFocusMode({ mode });
-  } catch {
-    // Unsupported focus mode / not running — ignore.
-  }
-}
+const NO_ZOOM: ZoomState = { supported: false, min: 1, max: 1, current: 1, buttons: [] };
 
 // Switches between the rear and front camera. Zoom/torch reset with the new
 // camera, so callers should re-apply what they need.
 export async function flipCamera(): Promise<void> {
   try {
-    await CameraPreviewX.flip();
+    await CameraPreview.flip();
   } catch {
     // Single-camera device; ignore.
   }
 }
 
+// Sets the zoom ratio (auto-selecting the matching physical lens).
 export async function setZoomLevel(level: number): Promise<void> {
   try {
-    await CameraPreviewX.setZoom({ level });
+    await CameraPreview.setZoom({ level });
   } catch {
     // Unsupported camera or not running; ignore.
   }
@@ -132,16 +122,27 @@ export async function setZoomLevel(level: number): Promise<void> {
 
 export async function getZoomState(): Promise<ZoomState> {
   try {
-    return await CameraPreviewX.getZoomState();
+    const [z, b] = await Promise.all([
+      CameraPreview.getZoom(),
+      CameraPreview.getZoomButtonValues().catch(() => ({ values: [] as number[] })),
+    ]);
+    return {
+      supported: z.max > z.min,
+      min: z.min,
+      max: z.max,
+      current: z.current,
+      buttons: b.values ?? [],
+    };
   } catch {
-    return { supported: false, max: 0, current: 0 };
+    return NO_ZOOM;
   }
 }
 
-// One-shot autofocus trigger (tap-to-refocus).
+// Refocuses on the centre of the frame (tap-to-refocus). The plugin has no
+// autofocus trigger, so we nudge the focus point to recentre it.
 export async function refocusCamera(): Promise<void> {
   try {
-    await CameraPreviewX.refocus();
+    await CameraPreview.setFocus({ x: 0.5, y: 0.5 });
   } catch {
     // ignore
   }

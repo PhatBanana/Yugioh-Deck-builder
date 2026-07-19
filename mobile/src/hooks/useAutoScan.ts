@@ -8,7 +8,6 @@ import {
   flipCamera,
   getZoomState,
   refocusCamera,
-  setFocusMode,
   setScreenAwake,
   setTorch as setTorchNative,
   setZoomLevel,
@@ -89,7 +88,13 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const [session, setSession] = useState<ScannedEntry[]>([]);
   const [torch, setTorch] = useState(false);
   const [flash, setFlash] = useState<{ name: string; count: number } | null>(null);
-  const [zoom, setZoomState] = useState<ZoomState>({ supported: false, max: 0, current: 0 });
+  const [zoom, setZoomState] = useState<ZoomState>({
+    supported: false,
+    min: 1,
+    max: 1,
+    current: 1,
+    buttons: [],
+  });
 
   const runningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,11 +115,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   useEffect(() => {
     if (scanning) void setScreenAwake(settings.keepAwake);
   }, [settings.keepAwake, scanning]);
-
-  // Apply focus-mode changes (auto/macro) mid-session.
-  useEffect(() => {
-    if (scanning) void setFocusMode(settings.focusMode);
-  }, [settings.focusMode, scanning]);
 
   // Merges resolved printing/rarity/edition into a session entry once the
   // (async) lookup returns — the card was already added.
@@ -228,12 +228,10 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     // Phone is typically in a mount for a scan session — keep the screen from
     // dimming/locking so it doesn't cut the session short (unless disabled).
     if (settingsRef.current.keepAwake) await setScreenAwake(true);
-    // Restore the last-used zoom + focus mode, then read back what the camera
-    // actually has.
-    if (settingsRef.current.zoomLevel > 0) {
-      await setZoomLevel(settingsRef.current.zoomLevel);
+    // Restore the last-used zoom ratio, then read back what the camera has.
+    if (settingsRef.current.zoomRatio !== 1) {
+      await setZoomLevel(settingsRef.current.zoomRatio);
     }
-    await setFocusMode(settingsRef.current.focusMode);
     setZoomState(await getZoomState());
     runningRef.current = true;
     setScanning(true);
@@ -279,9 +277,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (torchWantedRef.current && settingsRef.current.flashMode === "continuous") {
       await setTorchNative(true);
     }
-    const level = settingsRef.current.zoomLevel;
-    if (level > 0) await setZoomLevel(level);
-    await setFocusMode(settingsRef.current.focusMode);
+    const ratio = settingsRef.current.zoomRatio;
+    if (ratio !== 1) await setZoomLevel(ratio);
     setZoomState(await getZoomState());
   }, []);
 

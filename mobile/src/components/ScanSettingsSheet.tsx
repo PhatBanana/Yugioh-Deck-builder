@@ -11,11 +11,6 @@ const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "pulse", label: "Pulse (less glare)" },
 ];
 
-const FOCUS_MODES: { id: "auto" | "macro"; label: string }[] = [
-  { id: "auto", label: "Auto" },
-  { id: "macro", label: "Macro (close-up)" },
-];
-
 function Toggle({
   on,
   onChange,
@@ -105,26 +100,6 @@ export default function ScanSettingsSheet({
             on={settings.detectPrinting}
             onChange={(v) => update({ detectPrinting: v })}
           />
-
-          <div className="py-3">
-            <span className="block text-sm">Focus</span>
-            <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
-              Macro locks focus close to the lens — sharper on a card held near
-              the phone, and better at catching the foil.
-            </span>
-            <div className="seg text-xs">
-              {FOCUS_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => update({ focusMode: m.id })}
-                  className={`seg-btn py-1.5 ${settings.focusMode === m.id ? "seg-on" : ""}`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="py-3">
             <span className="block text-sm">Flash style</span>

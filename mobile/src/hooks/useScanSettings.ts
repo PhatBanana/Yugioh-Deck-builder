@@ -14,14 +14,12 @@ export interface ScanSettings {
   beepOnAdd: boolean;
   /** Torch style when the 🔦 toggle is on. */
   flashMode: FlashMode;
-  /** Last-used camera zoom index (0 = 1x); clamped to the device max natively. */
-  zoomLevel: number;
+  /** Last-used camera zoom ratio (1 = main lens; >1 reaches the telephoto,
+   *  <1 the ultra-wide on multi-camera phones). */
+  zoomRatio: number;
   /** Read the set code + edition off each card to tag its printing/rarity.
    *  Costs a per-card printings lookup (cached after first fetch). */
   detectPrinting: boolean;
-  /** Camera focus: continuous autofocus, or macro for sharp close-ups (better
-   *  at resolving a card's foil). Falls back to auto if the lens lacks macro. */
-  focusMode: "auto" | "macro";
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -32,9 +30,8 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   scanDelayMs: 2000,
   beepOnAdd: false,
   flashMode: "continuous",
-  zoomLevel: 0,
+  zoomRatio: 1,
   detectPrinting: true,
-  focusMode: "auto",
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

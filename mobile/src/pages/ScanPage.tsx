@@ -123,25 +123,47 @@ function ScanningOverlay({
         <div className="w-full max-w-xs aspect-[59/86] rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)] pointer-events-none" />
       </div>
 
-      {/* Zoom slider (when the camera supports zoom). */}
-      {scan.zoom.supported && scan.zoom.max > 0 && (
-        <div className="flex items-center gap-2 px-6 pb-1">
-          <span className="text-white/70 text-sm" aria-hidden>
-            🔍−
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={scan.zoom.max}
-            step={1}
-            value={scan.zoom.current}
-            onChange={(e) => onZoom(Number(e.target.value))}
-            className="flex-1 accent-amber-400"
-            aria-label="Camera zoom"
-          />
-          <span className="text-white/70 text-sm" aria-hidden>
-            🔍＋
-          </span>
+      {/* Zoom: quick lens buttons (0.5×/1×/2×/3× — real optical lenses on
+          multi-camera phones) plus a fine ratio slider. */}
+      {scan.zoom.supported && (
+        <div className="flex flex-col gap-2 px-6 pb-1">
+          {scan.zoom.buttons.length > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              {scan.zoom.buttons.map((v) => {
+                const active = Math.abs(scan.zoom.current - v) < 0.15;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onZoom(v)}
+                    className={`min-w-11 px-2.5 py-1 rounded-full text-sm font-semibold backdrop-blur ${
+                      active ? "bg-amber-400 text-black" : "bg-black/50 text-white"
+                    }`}
+                  >
+                    {v % 1 === 0 ? v : v.toFixed(1)}×
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-white/70 text-sm" aria-hidden>
+              🔍−
+            </span>
+            <input
+              type="range"
+              min={scan.zoom.min}
+              max={scan.zoom.max}
+              step={0.1}
+              value={scan.zoom.current}
+              onChange={(e) => onZoom(Number(e.target.value))}
+              className="flex-1 accent-amber-400"
+              aria-label="Camera zoom"
+            />
+            <span className="text-white/70 text-sm" aria-hidden>
+              🔍＋
+            </span>
+          </div>
         </div>
       )}
 
@@ -301,7 +323,7 @@ export default function ScanPage({
           onOpenSettings={() => setSettingsOpen(true)}
           onZoom={(level) => {
             void scan.setZoom(level);
-            update({ zoomLevel: level }); // remember for the next session
+            update({ zoomRatio: level }); // remember for the next session
           }}
         />
         {settingsSheet}
