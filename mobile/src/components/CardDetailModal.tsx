@@ -5,7 +5,7 @@ import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
-import { allTags, setCondition, setTags } from "../services/collection";
+import { allTags, setCondition, setEdition, setTags } from "../services/collection";
 import { getCardPrintings, setPrinting } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
@@ -113,9 +113,34 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
         ))}
       </select>
       {selected?.name && <p className="text-[11px] text-neutral-600 mt-1">{selected.name}</p>}
+
+      <div className="flex items-center justify-between gap-2 mt-2">
+        <span className="text-xs font-semibold text-neutral-400">Edition</span>
+        <div className="seg text-[11px]">
+          {EDITIONS.map((ed) => {
+            const on = (entry?.edition ?? "") === ed.value;
+            return (
+              <button
+                key={ed.label}
+                type="button"
+                onClick={() => void setEdition(cardId, on ? undefined : ed.value)}
+                className={`seg-btn px-2.5 py-1 ${on ? "seg-on" : ""}`}
+              >
+                {ed.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
+
+const EDITIONS: { label: string; value: string }[] = [
+  { label: "1st", value: "1st Edition" },
+  { label: "Unlimited", value: "Unlimited" },
+  { label: "Limited", value: "Limited Edition" },
+];
 
 // Binders/tags the owned copies are filed under: current tags as removable
 // chips, one-tap suggestions from binders used elsewhere, plus a free input.

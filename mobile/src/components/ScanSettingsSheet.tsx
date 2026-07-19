@@ -94,6 +94,12 @@ export default function ScanSettingsSheet({
             on={settings.beepOnAdd}
             onChange={(v) => update({ beepOnAdd: v })}
           />
+          <Toggle
+            label="Detect edition & rarity"
+            hint="Reads the set code (e.g. LOB-EN001) and 1st Edition mark to tag each copy's printing."
+            on={settings.detectPrinting}
+            onChange={(v) => update({ detectPrinting: v })}
+          />
 
           <div className="py-3">
             <span className="block text-sm">Flash style</span>

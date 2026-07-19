@@ -8,6 +8,7 @@ import {
   type NameCandidate,
   type NameMatch,
 } from "@shared/scan/nameMatcher";
+import { detectEdition, extractSetCode } from "@shared/scan/setCode";
 import { db } from "../db";
 
 export interface ScanOutcome {
@@ -16,6 +17,10 @@ export interface ScanOutcome {
   // True when the top match came from the printed 8-digit passcode (exact id
   // lookup) rather than fuzzy name matching.
   matchedByPasscode?: boolean;
+  // Set code (e.g. "SDCB-EN001") and edition marking read off the same frame,
+  // used to infer the copy's printing/rarity. Either may be absent.
+  setCode?: string | null;
+  edition?: string;
 }
 
 let candidateCache: NameCandidate[] | null = null;
@@ -190,6 +195,11 @@ async function ocrAndMatch(image: string): Promise<ScanOutcome> {
     .map((l) => l.trim())
     .filter((l) => l.length >= 3);
 
+  // Set code + edition come from the same OCR text regardless of how the card
+  // itself was identified (passcode or name).
+  const setCode = extractSetCode(rawLines);
+  const edition = detectEdition(rawLines);
+
   // Prefer the printed passcode: an exact card-id lookup beats fuzzy name
   // matching whenever the number is legible.
   for (const id of extractPasscodes(rawLines)) {
@@ -199,11 +209,13 @@ async function ocrAndMatch(image: string): Promise<ScanOutcome> {
         matches: [{ id: card.id, name: card.name, score: 1 }],
         rawLines,
         matchedByPasscode: true,
+        setCode,
+        edition,
       };
     }
   }
 
   const candidates = await getNameCandidates();
   const matches = matchOcrLines(rawLines, candidates, { limit: 6, minScore: 0.55 });
-  return { matches, rawLines };
+  return { matches, rawLines, setCode, edition };
 }

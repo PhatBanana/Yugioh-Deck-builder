@@ -58,6 +58,11 @@ export async function setTags(cardId: number, tags: string[]): Promise<void> {
   await patchCollectionEntry(cardId, { tags: cleaned.length > 0 ? cleaned : undefined });
 }
 
+// Sets (or clears) the edition marking ("1st Edition" / "Limited Edition").
+export async function setEdition(cardId: number, edition: string | undefined): Promise<void> {
+  await patchCollectionEntry(cardId, { edition: edition || undefined });
+}
+
 // Every binder/tag name in use, for suggestion chips and filters.
 export async function allTags(): Promise<string[]> {
   const entries = await db.collection.toArray();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { db } from "../db";
 import { addOwned } from "../services/collection";
+import { applyScannedPrinting } from "../services/printings";
 import {
   captureFrameAndMatch,
   flipCamera,
@@ -20,6 +21,14 @@ export interface ScannedEntry {
   name: string;
   img: string | null;
   count: number; // copies added this session
+  rarity?: string; // inferred from the set code, once resolved
+  edition?: string; // "1st Edition" / "Limited Edition", when read
+}
+
+// Set code + edition read off the frame the card was committed from.
+interface CardMarks {
+  setCode?: string | null;
+  edition?: string;
 }
 
 // Auto-add when a single frame is this confident, or when a slightly lower
@@ -96,8 +105,17 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (scanning) void setScreenAwake(settings.keepAwake);
   }, [settings.keepAwake, scanning]);
 
+  // Merges resolved printing/rarity/edition into a session entry once the
+  // (async, networked) lookup returns — the card was already added.
+  const tagSession = useCallback((id: number, tag: { rarity?: string; edition?: string }) => {
+    if (!tag.rarity && !tag.edition) return;
+    setSession((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, rarity: tag.rarity ?? e.rarity, edition: tag.edition ?? e.edition } : e))
+    );
+  }, []);
+
   const commit = useCallback(
-    async (id: number, name: string, byPasscode = false) => {
+    async (id: number, name: string, byPasscode = false, marks?: CardMarks) => {
       const nextCount = await addOwned(id, 1);
       const card = await db.cards.get(id);
       orderRef.current.push(id);
@@ -108,6 +126,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
           name,
           img: card?.img ?? null,
           count: (existing?.count ?? 0) + 1,
+          edition: marks?.edition ?? existing?.edition,
+          rarity: existing?.rarity,
         };
         return [entry, ...prev.filter((e) => e.id !== id)];
       });
@@ -115,8 +135,16 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setFlash({ name, count: nextCount });
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
+
+      // Resolve the printing (rarity) in the background — a networked printings
+      // lookup shouldn't hold up the scan loop.
+      if (settingsRef.current.detectPrinting && (marks?.setCode || marks?.edition)) {
+        applyScannedPrinting(id, marks.setCode ?? null, marks.edition)
+          .then((resolved) => tagSession(id, resolved))
+          .catch(() => {});
+      }
     },
-    []
+    [tagSession]
   );
 
   // In pulse mode the torch only fires around a read: on, a short settle for
@@ -138,7 +166,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (!runningRef.current || busyRef.current) return;
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode } = await withPulse(captureFrameAndMatch);
+      const { matches, matchedByPasscode, setCode, edition } = await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
       if (!top || top.score < AUTO_SCORE) {
@@ -156,7 +184,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name, matchedByPasscode);
+          await commit(top.id, top.name, matchedByPasscode, { setCode, edition });
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -244,11 +272,11 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode } = await withPulse(captureFrameAndMatch);
+      const { matches, matchedByPasscode, setCode, edition } = await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name, matchedByPasscode);
+        await commit(top.id, top.name, matchedByPasscode, { setCode, edition });
       } else {
         setStatus("No card recognised — try again");
       }

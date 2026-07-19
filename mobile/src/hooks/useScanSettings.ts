@@ -16,6 +16,9 @@ export interface ScanSettings {
   flashMode: FlashMode;
   /** Last-used camera zoom index (0 = 1x); clamped to the device max natively. */
   zoomLevel: number;
+  /** Read the set code + edition off each card to tag its printing/rarity.
+   *  Costs a per-card printings lookup (cached after first fetch). */
+  detectPrinting: boolean;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -27,6 +30,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   beepOnAdd: false,
   flashMode: "continuous",
   zoomLevel: 0,
+  detectPrinting: true,
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

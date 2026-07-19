@@ -32,8 +32,12 @@ export interface MCollectionEntry {
   // have one.
   condition?: CardCondition;
   // Which printing the owned copies are (set code + rarity), picked from the
-  // card's known sets. Optional; one per entry, like condition.
+  // card's known sets or read off the card while scanning. Optional; one per
+  // entry, like condition.
   printing?: { code: string; rarity: string };
+  // Edition marking read while scanning ("1st Edition" / "Limited Edition").
+  // Unlimited copies carry no marking, so this stays unset for them.
+  edition?: string;
   // Binder/tag names this card is filed under (e.g. "trade binder").
   tags?: string[];
 }

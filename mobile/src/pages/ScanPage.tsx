@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { NameMatch } from "@shared/scan/nameMatcher";
 import { matchCardName } from "@shared/scan/nameMatcher";
+import { rarityAbbrev } from "@shared/scan/setCode";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { addOwned } from "../services/collection";
@@ -161,16 +162,28 @@ function ScanningOverlay({
       {scan.session.length > 0 && (
         <div className="flex gap-2 overflow-x-auto px-4 pb-2">
           {scan.session.map((e) => (
-            <div key={e.id} className="relative shrink-0">
-              {e.img ? (
-                <img src={e.img} alt={e.name} className="w-12 rounded" />
-              ) : (
-                <div className="w-12 h-[70px] rounded bg-neutral-700" />
-              )}
-              {e.count > 1 && (
-                <span className="pop-in absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
-                  {e.count}
-                </span>
+            <div key={e.id} className="shrink-0 w-12">
+              <div className="relative">
+                {e.img ? (
+                  <img src={e.img} alt={e.name} className="w-12 rounded" />
+                ) : (
+                  <div className="w-12 h-[70px] rounded bg-neutral-700" />
+                )}
+                {e.count > 1 && (
+                  <span className="pop-in absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
+                    {e.count}
+                  </span>
+                )}
+                {e.edition === "1st Edition" && (
+                  <span className="absolute -bottom-1 -left-1 px-1 rounded bg-sky-500 text-white text-[9px] font-bold leading-tight">
+                    1st
+                  </span>
+                )}
+              </div>
+              {e.rarity && (
+                <div className="text-center text-[9px] text-amber-300/90 font-semibold mt-0.5 leading-tight tabular-nums">
+                  {rarityAbbrev(e.rarity)}
+                </div>
               )}
             </div>
           ))}
