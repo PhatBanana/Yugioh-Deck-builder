@@ -1,6 +1,7 @@
 import { db, setSyncMeta, type MCard } from "../db";
 import { httpGetJson } from "./http";
 import { recordPriceSnapshots } from "./priceHistory";
+import { rebuildPrintingIndex } from "./rarity";
 
 const CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
 const DBVER_URL = "https://db.ygoprodeck.com/api/v7/checkDBVer.php";
@@ -19,6 +20,7 @@ interface ApiCard {
   banlist_info?: { ban_tcg?: string; ban_ocg?: string; ban_goat?: string };
   card_images?: { image_url_small?: string }[];
   card_prices?: { tcgplayer_price?: string }[];
+  card_sets?: { set_code?: string; set_rarity?: string }[];
 }
 
 // A couple of names arrive from the API HTML-escaped (same quirk the desktop
@@ -87,6 +89,20 @@ export async function syncCards(
   await db.cards.bulkPut(cards);
   await setSyncMeta("cards_last_synced_at", new Date().toISOString());
   if (remoteVersion) await setSyncMeta("cards_db_version", remoteVersion);
+
+  // Build the global rarity/foil index from the same dump (its set lists are
+  // otherwise discarded by slim()). Best-effort — a failure here shouldn't
+  // fail the whole sync.
+  onProgress?.("Indexing rarities…");
+  const printingRows: { cardId: number; code: string; rarity: string }[] = [];
+  for (const c of payload.data) {
+    for (const s of c.card_sets ?? []) {
+      if (s.set_code && s.set_rarity) {
+        printingRows.push({ cardId: c.id, code: s.set_code, rarity: s.set_rarity });
+      }
+    }
+  }
+  await rebuildPrintingIndex(printingRows).catch(() => {});
 
   // A sync is the only time local prices change — refresh today's tracked
   // price points so history reflects the new prices (best-effort).

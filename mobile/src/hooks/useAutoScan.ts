@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
 import { db } from "../db";
 import { addOwned } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
@@ -7,6 +8,7 @@ import {
   flipCamera,
   getZoomState,
   refocusCamera,
+  setFocusMode,
   setScreenAwake,
   setTorch as setTorchNative,
   setZoomLevel,
@@ -23,12 +25,16 @@ export interface ScannedEntry {
   count: number; // copies added this session
   rarity?: string; // inferred from the set code, once resolved
   edition?: string; // "1st Edition" / "Limited Edition", when read
+  agreement?: Agreement; // whether the visual foil pass backed the set code
 }
 
-// Set code + edition read off the frame the card was committed from.
+// Everything read off the frame the card was committed from, for resolving the
+// copy's printing/rarity after the fact.
 interface CardMarks {
   setCode?: string | null;
   edition?: string;
+  foil?: FoilClass;
+  modelRarity?: string | null;
 }
 
 // Auto-add when a single frame is this confident, or when a slightly lower
@@ -105,14 +111,26 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (scanning) void setScreenAwake(settings.keepAwake);
   }, [settings.keepAwake, scanning]);
 
+  // Apply focus-mode changes (auto/macro) mid-session.
+  useEffect(() => {
+    if (scanning) void setFocusMode(settings.focusMode);
+  }, [settings.focusMode, scanning]);
+
   // Merges resolved printing/rarity/edition into a session entry once the
-  // (async, networked) lookup returns — the card was already added.
-  const tagSession = useCallback((id: number, tag: { rarity?: string; edition?: string }) => {
-    if (!tag.rarity && !tag.edition) return;
-    setSession((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, rarity: tag.rarity ?? e.rarity, edition: tag.edition ?? e.edition } : e))
-    );
-  }, []);
+  // (async) lookup returns — the card was already added.
+  const tagSession = useCallback(
+    (id: number, tag: { rarity?: string; edition?: string; agreement?: Agreement }) => {
+      if (!tag.rarity && !tag.edition) return;
+      setSession((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? { ...e, rarity: tag.rarity ?? e.rarity, edition: tag.edition ?? e.edition, agreement: tag.agreement }
+            : e
+        )
+      );
+    },
+    []
+  );
 
   const commit = useCallback(
     async (id: number, name: string, byPasscode = false, marks?: CardMarks) => {
@@ -136,10 +154,13 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
 
-      // Resolve the printing (rarity) in the background — a networked printings
-      // lookup shouldn't hold up the scan loop.
+      // Resolve the printing (rarity) in the background — the lookup shouldn't
+      // hold up the scan loop.
       if (settingsRef.current.detectPrinting && (marks?.setCode || marks?.edition)) {
-        applyScannedPrinting(id, marks.setCode ?? null, marks.edition)
+        applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
+          foil: marks.foil,
+          modelRarity: marks.modelRarity,
+        })
           .then((resolved) => tagSession(id, resolved))
           .catch(() => {});
       }
@@ -166,7 +187,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (!runningRef.current || busyRef.current) return;
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode, setCode, edition } = await withPulse(captureFrameAndMatch);
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
+        await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
       if (!top || top.score < AUTO_SCORE) {
@@ -184,7 +206,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name, matchedByPasscode, { setCode, edition });
+          await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -206,10 +228,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     // Phone is typically in a mount for a scan session — keep the screen from
     // dimming/locking so it doesn't cut the session short (unless disabled).
     if (settingsRef.current.keepAwake) await setScreenAwake(true);
-    // Restore the last-used zoom, then read back what the camera actually has.
+    // Restore the last-used zoom + focus mode, then read back what the camera
+    // actually has.
     if (settingsRef.current.zoomLevel > 0) {
       await setZoomLevel(settingsRef.current.zoomLevel);
     }
+    await setFocusMode(settingsRef.current.focusMode);
     setZoomState(await getZoomState());
     runningRef.current = true;
     setScanning(true);
@@ -257,6 +281,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     }
     const level = settingsRef.current.zoomLevel;
     if (level > 0) await setZoomLevel(level);
+    await setFocusMode(settingsRef.current.focusMode);
     setZoomState(await getZoomState());
   }, []);
 
@@ -272,11 +297,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode, setCode, edition } = await withPulse(captureFrameAndMatch);
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
+        await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name, matchedByPasscode, { setCode, edition });
+        await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
       } else {
         setStatus("No card recognised — try again");
       }

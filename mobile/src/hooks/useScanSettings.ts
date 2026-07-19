@@ -19,6 +19,9 @@ export interface ScanSettings {
   /** Read the set code + edition off each card to tag its printing/rarity.
    *  Costs a per-card printings lookup (cached after first fetch). */
   detectPrinting: boolean;
+  /** Camera focus: continuous autofocus, or macro for sharp close-ups (better
+   *  at resolving a card's foil). Falls back to auto if the lens lacks macro. */
+  focusMode: "auto" | "macro";
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -31,6 +34,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   flashMode: "continuous",
   zoomLevel: 0,
   detectPrinting: true,
+  focusMode: "auto",
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

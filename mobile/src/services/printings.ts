@@ -1,7 +1,9 @@
-import { matchPrinting } from "@shared/scan/setCode";
+import { matchPrintingCandidates, type PrintingRef } from "@shared/scan/setCode";
+import { reconcileRarity, type Agreement, type FoilClass } from "@shared/scan/rarityVision";
 import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
 import { patchCollectionEntry } from "./collection";
+import { lookupRaritiesByCode } from "./rarity";
 import { httpGetJson } from "./http";
 
 // A card's printings (set code / name / rarity / set price), cached locally
@@ -62,28 +64,57 @@ export async function setPrinting(
 export interface ResolvedPrinting {
   rarity?: string;
   edition?: string;
+  agreement?: Agreement; // how the set code and the visual foil pass lined up
+  foil?: FoilClass;
 }
 
-// Given a set code and/or edition read off a card while scanning, resolves the
-// matching printing (fetching the card's set list on demand) and stamps it
-// onto the collection entry. Best-effort: does nothing it can't determine, and
-// only writes when the card is actually in the collection. Returns what it
-// applied so the scan UI can surface it.
+// The rarities a scanned set code could be. Prefers the global offline index
+// (built on sync); falls back to a per-card network fetch if the index isn't
+// built yet.
+async function raritiesForCode(cardId: number, setCode: string): Promise<PrintingRef[]> {
+  const indexed = await lookupRaritiesByCode(setCode);
+  if (indexed.length > 0) return indexed;
+  return matchPrintingCandidates(setCode, await getCardPrintings(cardId));
+}
+
+// Given a set code and/or edition read off a card while scanning — plus the
+// optional visual foil class and any on-device model rarity — resolves the
+// copy's printing and stamps it onto the collection entry. The set code leads;
+// the model (if present) or the foil pass then confirms it, flags a conflict,
+// or breaks a tie when a code maps to two rarities. Best-effort and only writes
+// when the card is in the collection. Returns what it applied for the scan UI.
 export async function applyScannedPrinting(
   cardId: number,
   setCode: string | null,
-  edition: string | undefined
+  edition: string | undefined,
+  opts: { foil?: FoilClass; modelRarity?: string | null } = {}
 ): Promise<ResolvedPrinting> {
   const patch: Partial<{ printing: { code: string; rarity: string }; edition: string }> = {};
   if (edition) patch.edition = edition;
+  let agreement: Agreement | undefined;
+
   if (setCode) {
     try {
-      const match = matchPrinting(setCode, await getCardPrintings(cardId));
-      if (match) patch.printing = { code: match.code, rarity: match.rarity };
+      const candidates = await raritiesForCode(cardId, setCode);
+      if (candidates.length > 0) {
+        const rarities = candidates.map((c) => c.rarity);
+        let chosen: PrintingRef | undefined;
+        if (opts.modelRarity && rarities.includes(opts.modelRarity)) {
+          chosen = candidates.find((c) => c.rarity === opts.modelRarity);
+          agreement = "confirmed";
+        } else if (opts.foil) {
+          const verdict = reconcileRarity(rarities, opts.foil);
+          agreement = verdict.agreement;
+          if (verdict.rarity) chosen = candidates.find((c) => c.rarity === verdict.rarity);
+        }
+        // No visual help (or it abstained): accept an unambiguous single rarity.
+        if (!chosen && new Set(rarities).size === 1) chosen = candidates[0];
+        if (chosen) patch.printing = { code: chosen.code, rarity: chosen.rarity };
+      }
     } catch {
       // Offline / lookup failure — keep whatever edition we read.
     }
   }
   if (Object.keys(patch).length > 0) await patchCollectionEntry(cardId, patch);
-  return { rarity: patch.printing?.rarity, edition: patch.edition };
+  return { rarity: patch.printing?.rarity, edition: patch.edition, agreement, foil: opts.foil };
 }

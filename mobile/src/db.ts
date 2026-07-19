@@ -123,6 +123,18 @@ export interface MWishlistEntry {
   cardId: number;
 }
 
+// Global rarity/foil index, built from the full card dump on sync (which
+// carries every card's set list — the same data the per-card printing cache
+// holds, but for the whole database at once). Lets the scanner resolve a
+// scanned set code to its rarity instantly and offline. One row per
+// (canonical code + rarity); a code with two rarities in a set yields two.
+export interface MPrintingIndex {
+  codeCanon: string; // region- and zero-pad-insensitive key (see canonSetCode)
+  code: string; // the set code as printed, region included
+  rarity: string;
+  cardId: number;
+}
+
 // One price point per tracked card per day, so the card detail sheet can chart
 // a card's price over time. Only cards in the collection or wishlist are
 // tracked — snapshotting all ~13k cards daily would bloat IndexedDB.
@@ -145,6 +157,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   sets: EntityTable<MSet, "name">;
   setCards: EntityTable<MSetCards, "setName">;
   trades: EntityTable<MTrade, "id">;
+  printingIndex: Table<MPrintingIndex, [string, string]>;
 };
 
 db.version(1).stores({
@@ -184,6 +197,13 @@ db.version(6).stores({
   sets: "name, nameLower",
   setCards: "setName",
   trades: "id, date",
+});
+
+// v7 adds the global rarity/foil index (set code -> rarity), populated from the
+// full card dump during a card sync. (The collection entry's scanned `edition`
+// is a non-indexed field addition, so it needs no store change.)
+db.version(7).stores({
+  printingIndex: "[codeCanon+rarity], codeCanon, cardId",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

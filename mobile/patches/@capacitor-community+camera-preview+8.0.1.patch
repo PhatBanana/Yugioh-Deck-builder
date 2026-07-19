@@ -1,8 +1,8 @@
 diff --git a/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java b/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
-index 854aeee..402c822 100644
+index 854aeee..1682eb6 100644
 --- a/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
 +++ b/node_modules/@capacitor-community/camera-preview/android/src/main/java/com/ahm/capacitor/camera/preview/CameraPreview.java
-@@ -68,6 +68,75 @@ public class CameraPreview extends Plugin implements CameraActivity.CameraPrevie
+@@ -68,6 +68,107 @@ public class CameraPreview extends Plugin implements CameraActivity.CameraPrevie
          }
      }
  
@@ -72,6 +72,38 @@ index 854aeee..402c822 100644
 +        } catch (Exception e) {
 +            Logger.debug(getLogTag(), "refocus exception: " + e);
 +            call.reject("failed to refocus");
++        }
++    }
++
++    @PluginMethod
++    public void setFocusMode(PluginCall call) {
++        if (this.hasCamera(call) == false) {
++            call.reject("Camera is not running");
++            return;
++        }
++        try {
++            String mode = call.getString("mode", "auto");
++            Camera camera = fragment.getCamera();
++            Camera.Parameters params = camera.getParameters();
++            java.util.List<String> supported = params.getSupportedFocusModes();
++            if (supported == null) { call.resolve(); return; }
++            String target;
++            if ("macro".equals(mode) && supported.contains(Camera.Parameters.FOCUS_MODE_MACRO)) {
++                target = Camera.Parameters.FOCUS_MODE_MACRO;
++            } else if (supported.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
++                target = Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE;
++            } else if (supported.contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
++                target = Camera.Parameters.FOCUS_MODE_AUTO;
++            } else {
++                call.resolve();
++                return;
++            }
++            params.setFocusMode(target);
++            fragment.setCameraParameters(params);
++            call.resolve();
++        } catch (Exception e) {
++            Logger.debug(getLogTag(), "setFocusMode exception: " + e);
++            call.reject("failed to set focus mode");
 +        }
 +    }
 +

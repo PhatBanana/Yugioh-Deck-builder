@@ -181,8 +181,18 @@ function ScanningOverlay({
                 )}
               </div>
               {e.rarity && (
-                <div className="text-center text-[9px] text-amber-300/90 font-semibold mt-0.5 leading-tight tabular-nums">
+                <div
+                  className={`text-center text-[9px] font-semibold mt-0.5 leading-tight tabular-nums ${
+                    e.agreement === "conflict" ? "text-rose-400" : "text-amber-300/90"
+                  }`}
+                  title={
+                    e.agreement === "conflict"
+                      ? "The card's foil looks different from this set's rarity — tap to check"
+                      : undefined
+                  }
+                >
                   {rarityAbbrev(e.rarity)}
+                  {e.agreement === "conflict" ? "?" : ""}
                 </div>
               )}
             </div>
