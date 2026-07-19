@@ -56,6 +56,14 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
   );
 }
 
+// Steps the zoom ratio by a quarter, snapping to a clean 0.25 grid (1.25×,
+// 1.50×, …) and clamped to the lens's range — finer than the lens buttons.
+function nudgeZoom(zoom: { min: number; max: number; current: number }, delta: number): number {
+  const base = Math.round(zoom.current / 0.25) * 0.25;
+  const next = Number((base + delta).toFixed(2));
+  return Math.min(zoom.max, Math.max(zoom.min, next));
+}
+
 function ScanningOverlay({
   scan,
   onOpenSettings,
@@ -147,22 +155,37 @@ function ScanningOverlay({
             </div>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-white/70 text-sm" aria-hidden>
+            <button
+              type="button"
+              onClick={() => onZoom(nudgeZoom(scan.zoom, -0.25))}
+              disabled={scan.zoom.current <= scan.zoom.min}
+              className="text-white/80 text-sm w-8 h-8 rounded-full bg-black/50 backdrop-blur disabled:opacity-30"
+              aria-label="Zoom out a little"
+            >
               🔍−
-            </span>
+            </button>
             <input
               type="range"
               min={scan.zoom.min}
               max={scan.zoom.max}
-              step={0.1}
+              step={0.05}
               value={scan.zoom.current}
               onChange={(e) => onZoom(Number(e.target.value))}
               className="flex-1 accent-amber-400"
               aria-label="Camera zoom"
             />
-            <span className="text-white/70 text-sm" aria-hidden>
+            <button
+              type="button"
+              onClick={() => onZoom(nudgeZoom(scan.zoom, 0.25))}
+              disabled={scan.zoom.current >= scan.zoom.max}
+              className="text-white/80 text-sm w-8 h-8 rounded-full bg-black/50 backdrop-blur disabled:opacity-30"
+              aria-label="Zoom in a little"
+            >
               🔍＋
-            </span>
+            </button>
+          </div>
+          <div className="text-center text-white/60 text-[11px] tabular-nums -mt-1">
+            {scan.zoom.current.toFixed(2)}×
           </div>
         </div>
       )}
