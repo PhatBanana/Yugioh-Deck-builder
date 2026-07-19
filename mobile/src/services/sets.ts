@@ -74,19 +74,24 @@ async function getSetCardIds(setName: string): Promise<MSetCards | null> {
       `https://db.ygoprodeck.com/api/v7/cardinfo.php?cardset=${encodeURIComponent(setName)}`
     );
     const apiCards = data.data ?? [];
+    // Resolve every card by id first, then fall back to name (alt-artwork ids)
+    // — done in two batch queries rather than a lookup per card.
+    const ids = apiCards.map((c) => c.id).filter((id): id is number => id != null);
+    const byId = new Set((await db.cards.bulkGet(ids)).filter(Boolean).map((c) => c!.id));
+    const names = [...new Set(apiCards.map((c) => c.name?.toLowerCase()).filter(Boolean))];
+    const byNameLower = new Map(
+      (await db.cards.where("nameLower").anyOf(names as string[]).toArray()).map((c) => [
+        c.nameLower,
+        c.id,
+      ])
+    );
     const cardIds: number[] = [];
     let unresolvedCount = 0;
     for (const c of apiCards) {
-      // Resolve by id first, then by name (alt-artwork ids).
-      if (c.id != null && (await db.cards.get(c.id))) {
-        cardIds.push(c.id);
-      } else if (c.name) {
-        const byName = await db.cards.where("nameLower").equals(c.name.toLowerCase()).first();
-        if (byName) cardIds.push(byName.id);
-        else unresolvedCount++;
-      } else {
-        unresolvedCount++;
-      }
+      const named = c.name ? byNameLower.get(c.name.toLowerCase()) : undefined;
+      if (c.id != null && byId.has(c.id)) cardIds.push(c.id);
+      else if (named != null) cardIds.push(named);
+      else unresolvedCount++;
     }
     const record: MSetCards = {
       setName,

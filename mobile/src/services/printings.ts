@@ -1,4 +1,6 @@
+import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
+import { patchCollectionEntry } from "./collection";
 import { httpGetJson } from "./http";
 
 // A card's printings (set code / name / rarity / set price), cached locally
@@ -20,10 +22,8 @@ interface ApiCardSets {
 
 export async function getCardPrintings(cardId: number): Promise<MCardSets["sets"]> {
   const cached = await db.cardSets.get(cardId);
-  const fresh =
-    cached &&
-    Date.now() - new Date(cached.fetchedAt).getTime() < REFRESH_AFTER_DAYS * 86_400_000;
-  if (cached && (fresh || cached.sets.length > 0)) return cached.sets;
+  if (cached && (isFresh(cached.fetchedAt, REFRESH_AFTER_DAYS) || cached.sets.length > 0))
+    return cached.sets;
 
   try {
     const json = await httpGetJson<ApiCardSets>(
@@ -54,7 +54,5 @@ export async function setPrinting(
   cardId: number,
   printing: { code: string; rarity: string } | undefined
 ): Promise<void> {
-  const existing = await db.collection.get(cardId);
-  if (!existing) return;
-  await db.collection.put({ ...existing, printing });
+  await patchCollectionEntry(cardId, { printing });
 }

@@ -1,3 +1,4 @@
+import { uid } from "../lib/util";
 import { db, type MTrade } from "../db";
 import { addOwned } from "./collection";
 
@@ -22,7 +23,7 @@ export async function logTrade(
   options?: { note?: string; applyToCollection?: boolean }
 ): Promise<MTrade> {
   const trade: MTrade = {
-    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    id: uid(),
     date: new Date().toISOString(),
     gave,
     got,

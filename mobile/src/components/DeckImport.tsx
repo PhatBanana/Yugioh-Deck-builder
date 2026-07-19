@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
+import { formatUsd } from "../lib/util";
 import { setOwnedMany } from "../services/collection";
 import {
   getArchetypeCards,
@@ -130,7 +131,7 @@ export default function DeckImport() {
                   <div className="text-sm leading-snug line-clamp-2">{c.name}</div>
                   <div className="text-xs text-neutral-500 mt-0.5">
                     {selected.kind === "deck" ? `deck runs ${c.suggestedQty}` : ""}
-                    {c.price != null ? `${selected.kind === "deck" ? " · " : ""}$${c.price.toFixed(2)}` : ""}
+                    {c.price != null ? `${selected.kind === "deck" ? " · " : ""}${formatUsd(c.price)}` : ""}
                   </div>
                 </div>
               </button>

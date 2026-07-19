@@ -16,6 +16,7 @@ import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
 import { invalidateCandidateCache } from "../services/scanner";
 import { allTags, getCollectionStats } from "../services/collection";
+import { formatUsd } from "../lib/util";
 
 const PAGE = 50;
 
@@ -83,7 +84,7 @@ function CardRow({ card, owned }: { card: MCard; owned: number }) {
                 {card.banlist}
               </span>
             )}
-            {card.price != null && <span className="shrink-0">${card.price.toFixed(2)}</span>}
+            {card.price != null && <span className="shrink-0">{formatUsd(card.price)}</span>}
           </div>
         </div>
       </button>
@@ -160,8 +161,8 @@ export default function CardsPage() {
     return view === "all" ? rows.slice(0, limit + 1) : rows;
   }, [debouncedQuery, view, limit, cardType, sortBy, tagFilter, attr, level, banStatus]);
 
-  // Binder chips shown on the Owned view.
-  const tags = useLiveQuery(() => allTags(), [], []);
+  // Binder chips shown on the Owned view — only queried there.
+  const tags = useLiveQuery(() => (view === "owned" ? allTags() : []), [view], []);
 
   async function runFullSync() {
     setSyncing("Starting…");
@@ -249,6 +250,7 @@ export default function CardsPage() {
 
       {/* Type filter + sort order. */}
       {view !== "sets" && (
+      <>
       <div className="flex gap-1.5">
         <select
           className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
@@ -285,10 +287,8 @@ export default function CardsPage() {
           {layout === "list" ? "▦" : "☰"}
         </button>
       </div>
-      )}
 
       {/* Advanced filters. */}
-      {view !== "sets" && (
         <div className="flex gap-1.5">
           <select
             className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
@@ -334,6 +334,7 @@ export default function CardsPage() {
             <option value="Semi-Limited">Semi-Limited</option>
           </select>
         </div>
+      </>
       )}
 
       {/* Collection hero on Owned; a compact line elsewhere. */}

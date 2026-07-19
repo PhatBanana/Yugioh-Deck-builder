@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getSetCompletion, type SetCompletion } from "../services/sets";
+import { formatUsd } from "../lib/util";
 import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
 import WishlistButton from "./WishlistButton";
@@ -81,7 +82,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                         <span className="text-sm truncate">{c.name}</span>
                       </button>
                       <span className="shrink-0 text-xs text-neutral-500 tabular-nums">
-                        {c.price != null ? `$${c.price.toFixed(2)}` : ""}
+                        {c.price != null ? formatUsd(c.price) : ""}
                       </span>
                       <WishlistButton cardId={c.cardId} />
                     </div>

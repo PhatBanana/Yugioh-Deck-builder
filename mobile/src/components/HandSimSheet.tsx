@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildPile, drawHand } from "@shared/deck/handSim";
 import type { EnrichedDeckCard } from "../services/decks";
 import CardThumb from "./CardThumb";
@@ -21,12 +21,12 @@ export default function HandSimSheet({
   const [hand, setHand] = useState<number[]>(() => drawHand(pile, 5));
   const [draws, setDraws] = useState(1);
 
-  const redraw = useCallback(() => {
+  const redraw = () => {
     setHand(drawHand(pile, 5));
     setDraws((d) => d + 1);
-  }, [pile]);
+  };
 
-  const drawSixth = useCallback(() => {
+  const drawSixth = () => {
     setHand((prev) => {
       if (prev.length >= 6) return prev;
       // Remove the current hand from the pile, then draw 1 more.
@@ -37,7 +37,7 @@ export default function HandSimSheet({
       }
       return [...prev, ...drawHand(rest, 1)];
     });
-  }, [pile]);
+  };
 
   return (
     <div className="sheet-backdrop z-[70] flex items-end justify-center" onClick={onClose}>

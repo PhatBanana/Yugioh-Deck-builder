@@ -6,13 +6,10 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
+import { formatUsd, signedUsd } from "../lib/util";
 
 // Trade tracker: history of logged trades with net value, and a form to log a
 // new one (search cards into "You gave" / "You got" piles).
-
-function money(n: number): string {
-  return `$${n.toFixed(2)}`;
-}
 
 function SideEditor({
   label,
@@ -69,12 +66,12 @@ function TradeRow({ trade }: { trade: MTrade }) {
             net >= 0 ? "text-emerald-400" : "text-red-400"
           }`}
         >
-          {net >= 0 ? "+" : "−"}{money(Math.abs(net))}
+          {signedUsd(net)}
         </span>
       </div>
       <p className="text-sm text-neutral-300 mt-0.5">
-        Gave {summary?.gave ?? "…"} ({money(trade.gaveValueUsd)}) → got {summary?.got ?? "…"} (
-        {money(trade.gotValueUsd)})
+        Gave {summary?.gave ?? "…"} ({formatUsd(trade.gaveValueUsd)}) → got {summary?.got ?? "…"} (
+        {formatUsd(trade.gotValueUsd)})
       </p>
       {trade.note && <p className="text-xs text-neutral-500 mt-0.5">{trade.note}</p>}
       <button
@@ -122,7 +119,7 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
     if (gave.length === 0 && got.length === 0) return;
     const trade = await logTrade(gave, got, { note, applyToCollection: apply });
     const net = trade.gotValueUsd - trade.gaveValueUsd;
-    toast(`Trade logged (${net >= 0 ? "+" : "−"}${money(Math.abs(net))})`, "success");
+    toast(`Trade logged (${signedUsd(net)})`, "success");
     setGave([]);
     setGot([]);
     setNote("");
@@ -195,7 +192,7 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
                     <CardThumb img={c.img} w="w-7" h="h-10" />
                     <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
                     <span className="text-xs text-neutral-500 shrink-0">
-                      {c.price != null ? `$${c.price.toFixed(2)}` : ""}
+                      {c.price != null ? formatUsd(c.price) : ""}
                     </span>
                   </button>
                 ))}

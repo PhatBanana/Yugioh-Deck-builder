@@ -16,6 +16,7 @@ import {
   type LiveSearchOutcome,
 } from "../services/deckSearch";
 import { matchesQuery } from "@shared/search/textMatch";
+import { formatUsd } from "../lib/util";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -56,7 +57,7 @@ function MissingRow({ c }: { c: MissingCard }) {
       </button>
       <span className="shrink-0 flex items-center gap-2">
         <span className="text-neutral-500 text-xs tabular-nums">
-          {c.missingCostUsd != null ? `$${c.missingCostUsd.toFixed(2)} · ` : ""}
+          {c.missingCostUsd != null ? `${formatUsd(c.missingCostUsd)} · ` : ""}
           {c.ownedQuantity}/{c.neededQuantity}
         </span>
         <WishlistButton cardId={c.cardId} />
@@ -80,7 +81,7 @@ function PurchaseRow({ p }: { p: PurchaseSuggestion }) {
           <div className="text-sm leading-snug truncate">{p.cardName}</div>
           <div className="text-xs text-neutral-500">
             helps {p.decksHelped} deck{p.decksHelped === 1 ? "" : "s"}
-            {p.priceUsd != null ? ` · $${p.priceUsd.toFixed(2)}` : ""}
+            {p.priceUsd != null ? ` · ${formatUsd(p.priceUsd)}` : ""}
           </div>
         </div>
       </button>
@@ -150,7 +151,7 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
 
       {rec.missingCards.length > 0 && (
         <div className="mt-1.5 text-xs text-orange-400/90 tabular-nums">
-          ≈ ${rec.missingCostUsd.toFixed(2)} to complete
+          ≈ {formatUsd(rec.missingCostUsd)} to complete
           {rec.missingCostUnpricedCount > 0 && (
             <span className="text-neutral-500"> +{rec.missingCostUnpricedCount} unpriced</span>
           )}
@@ -317,7 +318,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   // the usual top decks. Matching is token-based, so case and word order
   // don't matter ("branded despia" finds "Despia Branded").
   const matching = allRecs
-    .filter((r) => !q || matchesQuery(`${r.deckName} ${r.archetype ?? ""}`, q))
+    .filter((r) => matchesQuery(`${r.deckName} ${r.archetype ?? ""}`, q))
     .filter((r) => budget == null || r.missingCostUsd <= budget)
     .filter((r) => era == null || r.era === era)
     .filter((r) => strategy == null || r.strategy === strategy)

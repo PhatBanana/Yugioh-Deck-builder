@@ -1,7 +1,8 @@
 import { parseImportText } from "@shared/collection/importParser";
 import type { OwnedCollection } from "@shared/recommendation/types";
 import type { CardCondition } from "@shared/grading/analyze";
-import { db } from "../db";
+import { todayISO } from "../lib/util";
+import { db, type MCollectionEntry } from "../db";
 import { httpGetJson } from "./http";
 import { recordPricePoints } from "./priceHistory";
 
@@ -32,23 +33,29 @@ export async function setOwnedQuantity(cardId: number, quantity: number): Promis
   }
 }
 
-// Sets (or clears) the overall condition of the owned copies. No-op when the
-// card isn't in the collection.
+// Merges extra fields (condition/tags/printing) onto an existing collection
+// entry. No-op when the card isn't in the collection.
+export async function patchCollectionEntry(
+  cardId: number,
+  patch: Partial<Omit<MCollectionEntry, "cardId" | "quantity">>
+): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  if (!existing) return;
+  await db.collection.put({ ...existing, ...patch });
+}
+
+// Sets (or clears) the overall condition of the owned copies.
 export async function setCondition(
   cardId: number,
   condition: CardCondition | undefined
 ): Promise<void> {
-  const existing = await db.collection.get(cardId);
-  if (!existing) return;
-  await db.collection.put({ ...existing, condition });
+  await patchCollectionEntry(cardId, { condition });
 }
 
-// Sets which binders/tags the card is filed under. No-op when not owned.
+// Sets which binders/tags the card is filed under.
 export async function setTags(cardId: number, tags: string[]): Promise<void> {
-  const existing = await db.collection.get(cardId);
-  if (!existing) return;
   const cleaned = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
-  await db.collection.put({ ...existing, tags: cleaned.length > 0 ? cleaned : undefined });
+  await patchCollectionEntry(cardId, { tags: cleaned.length > 0 ? cleaned : undefined });
 }
 
 // Every binder/tag name in use, for suggestion chips and filters.
@@ -190,9 +197,8 @@ export async function applyImport(
 export async function recordValueSnapshot(): Promise<void> {
   const stats = await getCollectionStats();
   if (stats.totalCopies === 0) return;
-  const date = new Date().toISOString().slice(0, 10);
   await db.valueHistory.put({
-    date,
+    date: todayISO(),
     valueUsd: stats.estimatedValueUsd,
     uniqueCards: stats.uniqueCards,
     totalCopies: stats.totalCopies,

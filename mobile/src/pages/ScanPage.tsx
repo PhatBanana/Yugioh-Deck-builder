@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import type { NameMatch } from "@shared/scan/nameMatcher";
 import { matchCardName } from "@shared/scan/nameMatcher";
 import { db } from "../db";
+import { formatUsd } from "../lib/util";
 import { addOwned } from "../services/collection";
 import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
@@ -39,7 +40,7 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
           <div className="text-sm font-medium leading-snug">{match.name}</div>
           <div className="text-xs text-neutral-500 mt-0.5">
             {owned ? `own ${owned}` : "not owned"}
-            {card?.price != null ? ` · $${card.price.toFixed(2)}` : ""}
+            {card?.price != null ? ` · ${formatUsd(card.price)}` : ""}
           </div>
         </div>
       </button>

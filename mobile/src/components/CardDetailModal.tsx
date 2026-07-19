@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
 import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
+import { formatUsd } from "../lib/util";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import { allTags, setCondition, setTags } from "../services/collection";
 import { getCardPrintings, setPrinting } from "../services/printings";
@@ -91,7 +92,7 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
         <span className="text-xs font-semibold text-neutral-400">Printing</span>
         {selected?.price != null && (
           <span className="text-xs text-amber-400/90 tabular-nums">
-            this printing ≈ ${selected.price.toFixed(2)}
+            this printing ≈ {formatUsd(selected.price)}
           </span>
         )}
       </div>
@@ -107,7 +108,7 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
         {sets.map((s) => (
           <option key={`${s.code}|${s.rarity}`} value={`${s.code}|${s.rarity}`}>
             {s.code} · {s.rarity}
-            {s.price != null ? ` · $${s.price.toFixed(2)}` : ""}
+            {s.price != null ? ` · ${formatUsd(s.price)}` : ""}
           </option>
         ))}
       </select>
@@ -311,7 +312,7 @@ export default function CardDetailModal({
               )}
               {card.price != null && (
                 <span className="text-sm text-amber-400/90 tabular-nums">
-                  ${card.price.toFixed(2)}
+                  {formatUsd(card.price)}
                 </span>
               )}
             </div>

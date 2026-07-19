@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckSection } from "@shared/deck/types";
 import { parseYdk } from "@shared/deck/ydk";
 import { computeDeckStats } from "@shared/deck/stats";
+import { formatUsd } from "../lib/util";
 import { db, type MCard } from "../db";
 import {
   createDeck,
@@ -388,7 +389,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
                 👹 {s.monsters} · ✨ {s.spells} · ⚡ {s.traps}
               </span>
               <span className="text-amber-400/90">
-                deck ≈ ${s.priceUsd.toFixed(2)}
+                deck ≈ {formatUsd(s.priceUsd)}
                 {s.unpricedCount > 0 && (
                   <span className="text-neutral-600"> +{s.unpricedCount} unpriced</span>
                 )}

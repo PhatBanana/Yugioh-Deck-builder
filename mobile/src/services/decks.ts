@@ -2,11 +2,8 @@ import type { DeckCard, DeckSection } from "@shared/deck/types";
 import { validateDeck, type DeckValidation } from "@shared/deck/validate";
 import { serializeYdk } from "@shared/deck/ydk";
 import { strategyBlurb } from "@shared/metaDecks/strategy";
+import { uid } from "../lib/util";
 import { db, type MCard, type MDeck } from "../db";
-
-function uid(): string {
-  return `deck_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
 
 export interface DeckUsageEntry {
   id: string;

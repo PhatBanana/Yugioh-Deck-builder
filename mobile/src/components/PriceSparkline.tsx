@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { getPriceHistory } from "../services/priceHistory";
+import { formatUsd, signedUsd } from "../lib/util";
 
 const W = 300;
 const H = 48;
@@ -41,7 +42,7 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
   const first = points[0];
   const last = points[points.length - 1];
   const delta = last.priceUsd - first.priceUsd;
-  const deltaText = `${delta >= 0 ? "+" : "−"}$${Math.abs(delta).toFixed(2)}`;
+  const deltaText = signedUsd(delta);
   const hovered = hoverIdx != null ? points[hoverIdx] : null;
 
   // The svg is stretched (preserveAspectRatio="none"), so map the pointer's
@@ -59,7 +60,7 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="text-neutral-500">
           {hovered
-            ? `${hovered.date} · $${hovered.priceUsd.toFixed(2)}`
+            ? `${hovered.date} · ${formatUsd(hovered.priceUsd)}`
             : `Price history · ${points.length} days`}
         </span>
         <span className={delta >= 0 ? "text-emerald-400" : "text-red-400"}>
@@ -96,8 +97,8 @@ export default function PriceSparkline({ cardId }: { cardId: number }) {
         )}
       </svg>
       <div className="flex justify-between text-[10px] text-neutral-600 tabular-nums">
-        <span>low ${min.toFixed(2)}</span>
-        <span>high ${max.toFixed(2)}</span>
+        <span>low {formatUsd(min)}</span>
+        <span>high {formatUsd(max)}</span>
       </div>
     </div>
   );

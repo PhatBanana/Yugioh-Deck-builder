@@ -90,7 +90,7 @@ export async function syncCards(
 
   // A sync is the only time local prices change — refresh today's tracked
   // price points so history reflects the new prices (best-effort).
-  await recordPriceSnapshots().catch(() => {});
+  await recordPriceSnapshots(true).catch(() => {});
 
   return { cardCount: cards.length, skipped: false };
 }
