@@ -2,7 +2,7 @@ import { matchPrintingCandidates, type PrintingRef } from "@shared/scan/setCode"
 import { reconcileRarity, type Agreement, type FoilClass } from "@shared/scan/rarityVision";
 import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
-import { patchCollectionEntry } from "./collection";
+import { addPrintingCopy, patchCollectionEntry } from "./collection";
 import { lookupRaritiesByCode } from "./rarity";
 import { httpGetJson } from "./http";
 
@@ -89,8 +89,7 @@ export async function applyScannedPrinting(
   edition: string | undefined,
   opts: { foil?: FoilClass; modelRarity?: string | null } = {}
 ): Promise<ResolvedPrinting> {
-  const patch: Partial<{ printing: { code: string; rarity: string }; edition: string }> = {};
-  if (edition) patch.edition = edition;
+  let chosen: PrintingRef | undefined;
   let agreement: Agreement | undefined;
 
   if (setCode) {
@@ -98,7 +97,6 @@ export async function applyScannedPrinting(
       const candidates = await raritiesForCode(cardId, setCode);
       if (candidates.length > 0) {
         const rarities = candidates.map((c) => c.rarity);
-        let chosen: PrintingRef | undefined;
         if (opts.modelRarity && rarities.includes(opts.modelRarity)) {
           chosen = candidates.find((c) => c.rarity === opts.modelRarity);
           agreement = "confirmed";
@@ -109,12 +107,20 @@ export async function applyScannedPrinting(
         }
         // No visual help (or it abstained): accept an unambiguous single rarity.
         if (!chosen && new Set(rarities).size === 1) chosen = candidates[0];
-        if (chosen) patch.printing = { code: chosen.code, rarity: chosen.rarity };
       }
     } catch {
       // Offline / lookup failure — keep whatever edition we read.
     }
   }
-  if (Object.keys(patch).length > 0) await patchCollectionEntry(cardId, patch);
-  return { rarity: patch.printing?.rarity, edition: patch.edition, agreement, foil: opts.foil };
+
+  // Attribute this one scanned copy to its printing in the breakdown (the
+  // commit already bumped the card's total quantity).
+  if (chosen || edition) {
+    await addPrintingCopy(
+      cardId,
+      { code: chosen?.code, rarity: chosen?.rarity, edition },
+      1
+    );
+  }
+  return { rarity: chosen?.rarity, edition, agreement, foil: opts.foil };
 }

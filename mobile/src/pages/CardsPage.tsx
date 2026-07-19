@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type MCard } from "../db";
+import { db, type MCard, type PrintingCopy } from "../db";
+import { rarityAbbrev } from "@shared/scan/setCode";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -64,7 +65,17 @@ function GridCell({ card, owned }: { card: MCard; owned: number }) {
   );
 }
 
-function CardRow({ card, owned }: { card: MCard; owned: number }) {
+// Condenses the printing breakdown into "1 ScR · 2 C · 1 unset" for the row.
+function raritySummary(copies: PrintingCopy[]): string {
+  const byRarity = new Map<string, number>();
+  for (const c of copies) {
+    const key = c.rarity ? rarityAbbrev(c.rarity) : "unset";
+    byRarity.set(key, (byRarity.get(key) ?? 0) + c.quantity);
+  }
+  return [...byRarity].map(([r, n]) => `${n} ${r}`).join(" · ");
+}
+
+function CardRow({ card, owned, copies }: { card: MCard; owned: number; copies?: PrintingCopy[] }) {
   const openCard = useCardDetail();
   return (
     <div className="flex items-center gap-3 panel p-2">
@@ -86,6 +97,11 @@ function CardRow({ card, owned }: { card: MCard; owned: number }) {
             )}
             {card.price != null && <span className="shrink-0">{formatUsd(card.price)}</span>}
           </div>
+          {copies && copies.length > 0 && (
+            <div className="text-[11px] text-amber-300/90 font-medium mt-0.5 tabular-nums truncate">
+              {raritySummary(copies)}
+            </div>
+          )}
         </div>
       </button>
       <WishlistButton cardId={card.id} className="text-xl" />
@@ -130,6 +146,13 @@ export default function CardsPage() {
     return map;
   });
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
+  // Printing breakdown per owned card, for the rarity summary on each row.
+  const copiesMap = useLiveQuery(async () => {
+    if (view !== "owned") return undefined;
+    const m = new Map<number, PrintingCopy[]>();
+    for (const e of await db.collection.toArray()) if (e.copies?.length) m.set(e.cardId, e.copies);
+    return m;
+  }, [view]);
 
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -448,7 +471,12 @@ export default function CardsPage() {
           layout === "grid" ? (
             <GridCell key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
           ) : (
-            <CardRow key={card.id} card={card} owned={ownedMap?.get(card.id) ?? 0} />
+            <CardRow
+              key={card.id}
+              card={card}
+              owned={ownedMap?.get(card.id) ?? 0}
+              copies={copiesMap?.get(card.id)}
+            />
           )
         )}
         {visible.length === 0 && (

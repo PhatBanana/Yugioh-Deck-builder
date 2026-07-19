@@ -1,9 +1,11 @@
 import { parseImportText } from "@shared/collection/importParser";
 import type { OwnedCollection } from "@shared/recommendation/types";
 import type { CardCondition } from "@shared/grading/analyze";
+import { valueEntry } from "@shared/collection/value";
 import { todayISO } from "../lib/util";
-import { db, type MCollectionEntry } from "../db";
+import { db, type MCollectionEntry, type PrintingCopy } from "../db";
 import { httpGetJson } from "./http";
+import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import { recordPricePoints } from "./priceHistory";
 
 // Writes a quantity while preserving any extra fields (condition) already on
@@ -101,14 +103,81 @@ export interface CollectionStats {
 export async function getCollectionStats(): Promise<CollectionStats> {
   const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
   const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
+  // Price every attributed printing across the whole collection in one query.
+  const priceMap = await loadPrintingPrices(entries.flatMap((e) => e.copies ?? []));
+  const priceOf = (code?: string, rarity?: string): number | null => {
+    const key = printingPriceKey(code, rarity);
+    return key ? priceMap.get(key) ?? null : null;
+  };
   let totalCopies = 0;
   let value = 0;
   entries.forEach((e, i) => {
     totalCopies += e.quantity;
-    const price = cards[i]?.price;
-    if (price != null) value += price * e.quantity;
+    value += valueEntry(e.quantity, e.copies, cards[i]?.price ?? null, priceOf);
   });
   return { uniqueCards: entries.length, totalCopies, estimatedValueUsd: value };
+}
+
+// Adds (or removes, with a negative delta) one owned copy of a specific
+// printing to a card's breakdown. Matches on code+rarity+edition so repeat
+// scans of the same printing stack. No-op when the card isn't owned.
+export async function addPrintingCopy(
+  cardId: number,
+  printing: { code?: string; rarity?: string; edition?: string },
+  delta = 1
+): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  if (!existing) return;
+  const copies = (existing.copies ?? []).map((c) => ({ ...c }));
+  const same = (c: PrintingCopy) =>
+    (c.code ?? "") === (printing.code ?? "") &&
+    (c.rarity ?? "") === (printing.rarity ?? "") &&
+    (c.edition ?? "") === (printing.edition ?? "");
+  const idx = copies.findIndex(same);
+  if (idx >= 0) {
+    copies[idx].quantity += delta;
+    if (copies[idx].quantity <= 0) copies.splice(idx, 1);
+  } else if (delta > 0) {
+    copies.push({ ...printing, quantity: delta });
+  }
+  await db.collection.put({ ...existing, copies: copies.length > 0 ? copies : undefined });
+}
+
+// Replaces a card's whole printing breakdown (from the card-detail editor).
+export async function setPrintingCopies(cardId: number, copies: PrintingCopy[]): Promise<void> {
+  const cleaned = copies.filter((c) => c.quantity > 0);
+  await patchCollectionEntry(cardId, { copies: cleaned.length > 0 ? cleaned : undefined });
+}
+
+// Adjusts an owned printing by `delta`, moving the card's total *and* the
+// breakdown together — so the card-detail editor's per-printing steppers add
+// or remove real owned copies.
+export async function adjustPrintingCopy(
+  cardId: number,
+  printing: { code?: string; rarity?: string; edition?: string },
+  delta: number
+): Promise<void> {
+  if (delta === 0) return;
+  const current = (await db.collection.get(cardId))?.quantity ?? 0;
+  await setOwnedQuantity(cardId, Math.max(0, Math.min(99, current + delta)));
+  await addPrintingCopy(cardId, printing, delta);
+}
+
+// Keeps the breakdown from claiming more copies than are owned — called after
+// the total drops (e.g. undo), trimming the newest copies first.
+export async function trimCopiesToQuantity(cardId: number): Promise<void> {
+  const e = await db.collection.get(cardId);
+  if (!e?.copies) return;
+  let over = e.copies.reduce((n, c) => n + c.quantity, 0) - e.quantity;
+  if (over <= 0) return;
+  const copies = e.copies.map((c) => ({ ...c }));
+  for (let i = copies.length - 1; i >= 0 && over > 0; i--) {
+    const take = Math.min(copies[i].quantity, over);
+    copies[i].quantity -= take;
+    over -= take;
+  }
+  const kept = copies.filter((c) => c.quantity > 0);
+  await db.collection.put({ ...e, copies: kept.length > 0 ? kept : undefined });
 }
 
 export interface ImportResult {

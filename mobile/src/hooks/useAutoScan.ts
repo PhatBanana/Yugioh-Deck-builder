@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
 import { db } from "../db";
-import { addOwned } from "../services/collection";
+import { addOwned, trimCopiesToQuantity } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
 import {
   captureFrameAndMatch,
@@ -312,6 +312,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     const id = orderRef.current.pop();
     if (id == null) return;
     await addOwned(id, -1);
+    await trimCopiesToQuantity(id); // keep the printing breakdown in step
     setSession((prev) => {
       const entry = prev.find((e) => e.id === id);
       if (!entry) return prev;

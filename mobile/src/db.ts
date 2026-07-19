@@ -24,6 +24,20 @@ export interface MCard {
   img: string | null; // small image URL
 }
 
+// One printing you own of a card: rarity + edition (+ set code) with its own
+// count and condition. Each is valued at that printing's own price, so a
+// Secret Rare copy is worth more than a Common of the same card. The card
+// entry's `quantity` stays the total across all printings (what deck-building
+// counts); the breakdown is a refinement, and any copies not attributed to a
+// printing fall back to the generic card price.
+export interface PrintingCopy {
+  code?: string; // set code as printed, region included, when known
+  rarity?: string; // e.g. "Secret Rare"
+  edition?: string; // "1st Edition" / "Limited Edition"; unset = Unlimited
+  quantity: number;
+  condition?: CardCondition;
+}
+
 export interface MCollectionEntry {
   cardId: number;
   quantity: number;
@@ -32,12 +46,16 @@ export interface MCollectionEntry {
   // have one.
   condition?: CardCondition;
   // Which printing the owned copies are (set code + rarity), picked from the
-  // card's known sets or read off the card while scanning. Optional; one per
-  // entry, like condition.
+  // card's known sets or read off the card while scanning. Legacy single-
+  // printing field, superseded by `copies`; still read for back-compat.
   printing?: { code: string; rarity: string };
   // Edition marking read while scanning ("1st Edition" / "Limited Edition").
-  // Unlimited copies carry no marking, so this stays unset for them.
+  // Legacy single-edition field, superseded by `copies`.
   edition?: string;
+  // Per-printing breakdown of the owned copies (rarity/edition/value). The
+  // sum of copy quantities is at most `quantity`; the remainder is copies
+  // whose printing isn't known.
+  copies?: PrintingCopy[];
   // Binder/tag names this card is filed under (e.g. "trade binder").
   tags?: string[];
 }
@@ -133,6 +151,7 @@ export interface MPrintingIndex {
   code: string; // the set code as printed, region included
   rarity: string;
   cardId: number;
+  priceUsd: number | null; // this printing's own price (set_price), when known
 }
 
 // One price point per tracked card per day, so the card detail sheet can chart

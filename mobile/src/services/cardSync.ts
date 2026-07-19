@@ -20,7 +20,7 @@ interface ApiCard {
   banlist_info?: { ban_tcg?: string; ban_ocg?: string; ban_goat?: string };
   card_images?: { image_url_small?: string }[];
   card_prices?: { tcgplayer_price?: string }[];
-  card_sets?: { set_code?: string; set_rarity?: string }[];
+  card_sets?: { set_code?: string; set_rarity?: string; set_price?: string }[];
 }
 
 // A couple of names arrive from the API HTML-escaped (same quirk the desktop
@@ -94,11 +94,17 @@ export async function syncCards(
   // otherwise discarded by slim()). Best-effort — a failure here shouldn't
   // fail the whole sync.
   onProgress?.("Indexing rarities…");
-  const printingRows: { cardId: number; code: string; rarity: string }[] = [];
+  const printingRows: { cardId: number; code: string; rarity: string; price: number | null }[] = [];
   for (const c of payload.data) {
     for (const s of c.card_sets ?? []) {
       if (s.set_code && s.set_rarity) {
-        printingRows.push({ cardId: c.id, code: s.set_code, rarity: s.set_rarity });
+        const p = Number.parseFloat(s.set_price ?? "");
+        printingRows.push({
+          cardId: c.id,
+          code: s.set_code,
+          rarity: s.set_rarity,
+          price: Number.isFinite(p) && p > 0 ? p : null,
+        });
       }
     }
   }

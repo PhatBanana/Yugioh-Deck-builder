@@ -5,8 +5,8 @@ import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
-import { allTags, setCondition, setEdition, setTags } from "../services/collection";
-import { getCardPrintings, setPrinting } from "../services/printings";
+import { adjustPrintingCopy, allTags, setCondition, setTags } from "../services/collection";
+import { getCardPrintings } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
 import PriceSparkline from "./PriceSparkline";
@@ -62,10 +62,14 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
   );
 }
 
-// Which printing (set + rarity) the owned copies are, chosen from the card's
-// known sets — fetched on demand and cached, since the bulk sync strips them.
+// The per-printing breakdown of the owned copies: each rarity/edition you own
+// as its own line, valued at that printing's own price. Copies are added by
+// scanning (which reads the set code) or here, by picking from the card's known
+// sets — fetched on demand and cached, since the bulk sync strips them.
 function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEntry }) {
   const [sets, setSets] = useState<MCardSets["sets"] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addEdition, setAddEdition] = useState("");
   useEffect(() => {
     let cancelled = false;
     getCardPrintings(cardId).then((s) => !cancelled && setSets(s));
@@ -74,64 +78,127 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
     };
   }, [cardId]);
 
-  const value = entry?.printing ? `${entry.printing.code}|${entry.printing.rarity}` : "";
-  const selected = sets?.find((s) => `${s.code}|${s.rarity}` === value);
+  const owned = entry?.quantity ?? 0;
+  const copies = entry?.copies ?? [];
+  const assigned = copies.reduce((n, c) => n + c.quantity, 0);
+  const unassigned = Math.max(0, owned - assigned);
+  const priceFor = (code?: string, rarity?: string) =>
+    sets?.find((s) => s.code === code && s.rarity === rarity)?.price ?? null;
 
-  if (sets === null)
-    return <p className="mt-3 text-xs text-neutral-600">Loading printings…</p>;
-  if (sets.length === 0)
+  if (owned === 0)
     return (
       <p className="mt-3 text-xs text-neutral-600">
-        No printing data available{navigator.onLine ? "" : " (offline)"}.
+        Add this card to your collection to track its printings and rarity.
       </p>
     );
 
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-semibold text-neutral-400">Printing</span>
-        {selected?.price != null && (
-          <span className="text-xs text-amber-400/90 tabular-nums">
-            this printing ≈ {formatUsd(selected.price)}
-          </span>
+        <span className="text-xs font-semibold text-neutral-400">Printings</span>
+        {sets && sets.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setAdding((a) => !a)}
+            className="text-xs text-amber-300 active:text-amber-200 px-1"
+          >
+            {adding ? "Cancel" : "＋ Add printing"}
+          </button>
         )}
       </div>
-      <select
-        className="input-base w-full rounded-lg px-3 py-2 text-sm"
-        value={value}
-        onChange={(e) => {
-          const next = sets.find((s) => `${s.code}|${s.rarity}` === e.target.value);
-          void setPrinting(cardId, next ? { code: next.code, rarity: next.rarity } : undefined);
-        }}
-      >
-        <option value="">Printing not set</option>
-        {sets.map((s) => (
-          <option key={`${s.code}|${s.rarity}`} value={`${s.code}|${s.rarity}`}>
-            {s.code} · {s.rarity}
-            {s.price != null ? ` · ${formatUsd(s.price)}` : ""}
-          </option>
-        ))}
-      </select>
-      {selected?.name && <p className="text-[11px] text-neutral-600 mt-1">{selected.name}</p>}
 
-      <div className="flex items-center justify-between gap-2 mt-2">
-        <span className="text-xs font-semibold text-neutral-400">Edition</span>
-        <div className="seg text-[11px]">
-          {EDITIONS.map((ed) => {
-            const on = (entry?.edition ?? "") === ed.value;
-            return (
+      <div className="flex flex-col gap-1.5">
+        {copies.map((c, i) => {
+          const each = priceFor(c.code, c.rarity);
+          return (
+            <div key={i} className="flex items-center gap-2 panel px-2.5 py-1.5">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm truncate">
+                  {c.rarity ?? "Unknown rarity"}
+                  {c.edition ? ` · ${c.edition}` : ""}
+                </div>
+                <div className="text-[11px] text-neutral-500 tabular-nums">
+                  {c.code ?? "no set code"}
+                  {each != null ? ` · ${formatUsd(each)} ea` : ""}
+                </div>
+              </div>
+              <CopyStepper
+                qty={c.quantity}
+                onStep={(d) =>
+                  void adjustPrintingCopy(
+                    cardId,
+                    { code: c.code, rarity: c.rarity, edition: c.edition },
+                    d
+                  )
+                }
+              />
+            </div>
+          );
+        })}
+
+        {unassigned > 0 && (
+          <div className="flex items-center justify-between panel px-2.5 py-1.5 text-sm text-neutral-400">
+            <span>{unassigned}× printing not set</span>
+            <span className="text-[11px] text-neutral-600">generic price</span>
+          </div>
+        )}
+      </div>
+
+      {adding && sets && (
+        <div className="mt-2 panel p-2.5">
+          <div className="seg text-[11px] mb-2">
+            {EDITIONS.map((ed) => (
               <button
                 key={ed.label}
                 type="button"
-                onClick={() => void setEdition(cardId, on ? undefined : ed.value)}
-                className={`seg-btn px-2.5 py-1 ${on ? "seg-on" : ""}`}
+                onClick={() => setAddEdition((v) => (v === ed.value ? "" : ed.value))}
+                className={`seg-btn px-2 py-1 ${addEdition === ed.value ? "seg-on" : ""}`}
               >
                 {ed.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
+          <select
+            className="input-base w-full rounded-lg px-3 py-2 text-sm"
+            defaultValue=""
+            onChange={(e) => {
+              const s = sets.find((x) => `${x.code}|${x.rarity}` === e.target.value);
+              if (!s) return;
+              void adjustPrintingCopy(
+                cardId,
+                { code: s.code, rarity: s.rarity, edition: addEdition || undefined },
+                1
+              );
+              setAdding(false);
+              setAddEdition("");
+            }}
+          >
+            <option value="">Choose a printing to add…</option>
+            {sets.map((s) => (
+              <option key={`${s.code}|${s.rarity}`} value={`${s.code}|${s.rarity}`}>
+                {s.code} · {s.rarity}
+                {s.price != null ? ` · ${formatUsd(s.price)}` : ""}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
+
+function CopyStepper({ qty, onStep }: { qty: number; onStep: (delta: number) => void }) {
+  const btn =
+    "pressable w-8 h-8 flex items-center justify-center rounded-lg bg-raised border border-line active:bg-overlay text-base";
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <button type="button" onClick={() => onStep(-1)} className={btn} aria-label="Remove one">
+        −
+      </button>
+      <span className="w-4 text-center tabular-nums text-sm">{qty}</span>
+      <button type="button" onClick={() => onStep(1)} className={btn} aria-label="Add one">
+        +
+      </button>
     </div>
   );
 }
