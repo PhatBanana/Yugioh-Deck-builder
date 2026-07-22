@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # allows the run to delete old build artifacts
 
 jobs:
   test:
@@ -78,11 +79,27 @@ jobs:
           cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
              "ygo-deck-builder-${{ steps.version.outputs.tag }}.apk"
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      # The APK is published to the releases below, so a build artifact would
+      # just be a redundant copy — and those copies are what fill up the
+      # account's Actions storage. Instead of uploading one, purge any left by
+      # earlier builds so storage trends back down.
+      - name: Purge old build artifacts (reclaim Actions storage)
+        uses: actions/github-script@v7
         with:
-          name: ygo-deck-builder-debug-apk
-          path: ygo-deck-builder-${{ steps.version.outputs.tag }}.apk
+          script: |
+            const arts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            for (const a of arts) {
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: a.id,
+              });
+            }
+            core.info(`Deleted ${arts.length} old artifact(s).`);
 
       # Permanent, versioned release — one per build, never overwritten. The
       # rolling apk-latest release below stays as the easy stable download
