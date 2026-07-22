@@ -142,3 +142,36 @@ jobs:
             Older builds live under their own v* releases.
           prerelease: false
           files: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+      # Keep only the 10 most recent versioned build releases (plus the rolling
+      # apk-latest). Deletes older ones and their tags so release storage stays
+      # bounded instead of growing one APK per build forever.
+      - name: Prune old versioned releases (keep last 10)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const KEEP = 10;
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            // Versioned build releases only, newest first (listReleases is
+            // already sorted by created_at desc).
+            const builds = releases.filter((r) => /-build\.\d+$/.test(r.tag_name));
+            const stale = builds.slice(KEEP);
+            for (const r of stale) {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: r.id,
+              });
+              await github.rest.git
+                .deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${r.tag_name}`,
+                })
+                .catch(() => {});
+            }
+            core.info(`Kept ${Math.min(builds.length, KEEP)} release(s), deleted ${stale.length}.`);
