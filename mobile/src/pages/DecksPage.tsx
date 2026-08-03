@@ -29,6 +29,7 @@ import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
 import { useBackClose } from "../hooks/useBackClose";
 import HandSimSheet from "../components/HandSimSheet";
+import DeckOddsSheet from "../components/DeckOddsSheet";
 import DuelToolsSheet from "../components/DuelToolsSheet";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
@@ -330,6 +331,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const [name, setName] = useState("");
   const [nameLoaded, setNameLoaded] = useState(false);
   const [testingHand, setTestingHand] = useState(false);
+  const [showingOdds, setShowingOdds] = useState(false);
   const [format, setFormat] = useState<BanlistFormat>("tcg");
   // Hardware back returns to the deck list.
   useBackClose(onBack);
@@ -531,25 +533,32 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         );
       })}
 
-      <div className="flex gap-2 mt-2">
+      <div className="grid grid-cols-2 gap-2 mt-2">
         <button
           type="button"
           onClick={() => setTestingHand(true)}
-          className="btn-ghost flex-1 py-2.5 text-sm"
+          className="btn-ghost py-2.5 text-sm"
         >
           🎴 Test hand
         </button>
         <button
           type="button"
+          onClick={() => setShowingOdds(true)}
+          className="btn-ghost py-2.5 text-sm"
+        >
+          📊 Odds
+        </button>
+        <button
+          type="button"
           onClick={exportYdk}
-          className="btn-ghost flex-1 py-2.5 text-sm"
+          className="btn-ghost py-2.5 text-sm"
         >
           Export .ydk
         </button>
         <button
           type="button"
           onClick={removeDeck}
-          className="btn-danger px-4 py-2.5 text-sm"
+          className="btn-danger py-2.5 text-sm"
         >
           Delete
         </button>
@@ -557,6 +566,9 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
 
       {testingHand && (
         <HandSimSheet cards={enriched.cards} onClose={() => setTestingHand(false)} />
+      )}
+      {showingOdds && (
+        <DeckOddsSheet cards={enriched.cards} onClose={() => setShowingOdds(false)} />
       )}
     </div>
   );
