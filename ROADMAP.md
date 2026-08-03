@@ -108,6 +108,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - **No per-rarity artwork.** Every printing of a card shares one catalog image;
   rarity is a foil finish, shown via the foil overlay rather than a different
   picture. (Genuinely different artworks are separate card IDs already.)
-- **No historical prices before a card is tracked.** No free source of past
-  prices exists; the app records prices forward from when a card is
-  owned/wishlisted, so charts start from then.
+- **No price history before you first synced.** No free source of past Yu-Gi-Oh
+  prices exists (YGOPRODeck's API only returns current prices), so a card's
+  chart can't go back to its release. The app snapshots every card's price on
+  each card-DB sync, so history builds forward from your first sync — true
+  since-release data would need a paid pricing API (adapter not yet built).

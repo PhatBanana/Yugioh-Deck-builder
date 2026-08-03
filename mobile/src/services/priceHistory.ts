@@ -1,8 +1,9 @@
 import { DAY_MS, todayISO } from "../lib/util";
 import { db, getSyncMeta, setSyncMeta, type MPricePoint } from "../db";
 
-// Points older than this are pruned so the table can't grow unbounded
-// (365 days × a few hundred tracked cards is still well under a megabyte).
+// Points older than this are pruned so the table can't grow unbounded. Every
+// card gets a point per sync (not per day), and syncs are infrequent, so a
+// year of history stays manageable.
 const KEEP_DAYS = 365;
 
 // Records today's price for the given cards — one row per card per day, last
@@ -17,6 +18,24 @@ export async function recordPricePoints(cardIds: number[]): Promise<void> {
     if (c && c.price != null) points.push({ cardId: c.id, date, priceUsd: c.price });
   }
   if (points.length > 0) await db.priceHistory.bulkPut(points);
+}
+
+// Records today's price for *every* card that has one — called on a card
+// sync (the only time prices change), so a card you add later already has
+// history back to your first sync, not just from when you added it. Written
+// in chunks to avoid one giant transaction. The yearly prune in
+// recordPriceSnapshots keeps the table bounded.
+export async function recordAllCardPrices(
+  cards: { id: number; price: number | null }[]
+): Promise<void> {
+  const date = todayISO();
+  const points: MPricePoint[] = [];
+  for (const c of cards) {
+    if (c.price != null) points.push({ cardId: c.id, date, priceUsd: c.price });
+  }
+  for (let i = 0; i < points.length; i += 2000) {
+    await db.priceHistory.bulkPut(points.slice(i, i + 2000));
+  }
 }
 
 // Snapshots every tracked card (owned or wishlisted), then prunes points past
@@ -36,9 +55,9 @@ export async function recordPriceSnapshots(force = false): Promise<void> {
   await recordPricePoints([...ids]);
 
   const cutoff = new Date(Date.now() - KEEP_DAYS * DAY_MS).toISOString().slice(0, 10);
-  // date isn't independently indexed (the PK is [cardId+date]); the full scan
-  // is acceptable because the daily gate above runs this at most once a day.
-  await db.priceHistory.filter((p) => p.date < cutoff).delete();
+  // `date` is indexed (v8), so this prunes via a range query rather than a
+  // full scan — important now that a sync records every card's price.
+  await db.priceHistory.where("date").below(cutoff).delete();
   await setSyncMeta("price_snapshot_date", todayISO());
 }
 

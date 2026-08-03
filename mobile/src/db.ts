@@ -225,6 +225,13 @@ db.version(7).stores({
   printingIndex: "[codeCanon+rarity], codeCanon, cardId",
 });
 
+// v8 indexes price points by date. Now that a sync snapshots *every* card's
+// price (not just tracked ones), the table is large enough that pruning old
+// points needs a range query rather than a full scan.
+db.version(8).stores({
+  priceHistory: "[cardId+date], cardId, date",
+});
+
 export async function getSyncMeta(key: string): Promise<string | null> {
   return (await db.syncMeta.get(key))?.value ?? null;
 }

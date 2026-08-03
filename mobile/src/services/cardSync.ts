@@ -1,6 +1,6 @@
 import { db, setSyncMeta, type MCard } from "../db";
 import { httpGetJson } from "./http";
-import { recordPriceSnapshots } from "./priceHistory";
+import { recordAllCardPrices, recordPriceSnapshots } from "./priceHistory";
 import { rebuildPrintingIndex } from "./rarity";
 
 const CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
@@ -110,8 +110,11 @@ export async function syncCards(
   }
   await rebuildPrintingIndex(printingRows).catch(() => {});
 
-  // A sync is the only time local prices change — refresh today's tracked
-  // price points so history reflects the new prices (best-effort).
+  // A sync is the only time local prices change. Snapshot every card's price
+  // today (so any card added later already has history), then run the tracked
+  // snapshot for its retention prune + launch-gate bookkeeping. Best-effort.
+  onProgress?.("Recording prices…");
+  await recordAllCardPrices(cards).catch(() => {});
   await recordPriceSnapshots(true).catch(() => {});
 
   return { cardCount: cards.length, skipped: false };
