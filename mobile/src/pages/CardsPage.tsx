@@ -154,7 +154,11 @@ export default function CardsPage() {
     return map;
   });
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
-  const valueDelta = useLiveQuery(() => getValueDelta(), [], null);
+  const valueDelta = useLiveQuery(
+    () => (stats ? getValueDelta(stats.estimatedValueUsd) : Promise.resolve(null)),
+    [stats?.estimatedValueUsd],
+    null
+  );
   // Printing breakdown per owned card, for the rarity summary on each row.
   const copiesMap = useLiveQuery(async () => {
     if (view !== "owned") return undefined;
@@ -414,11 +418,22 @@ export default function CardsPage() {
         </div>
       ) : (
         <div className="flex items-center justify-between text-xs text-neutral-500">
-          <span>
-            {stats
-              ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
-                (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
-              : ""}
+          <span className="flex items-center gap-1.5">
+            <span>
+              {stats
+                ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
+                  (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
+                : ""}
+            </span>
+            {valueDelta != null && Math.abs(valueDelta) >= 0.01 && (
+              <span
+                className={`tabular-nums font-medium ${
+                  valueDelta >= 0 ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
+                {valueDelta >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(valueDelta))}
+              </span>
+            )}
           </span>
           <span className="flex gap-3">
             <button type="button" onClick={() => setTradesOpen(true)} className="underline">

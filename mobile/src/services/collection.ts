@@ -3,7 +3,7 @@ import type { OwnedCollection } from "@shared/recommendation/types";
 import type { CardCondition } from "@shared/grading/analyze";
 import { valueEntry } from "@shared/collection/value";
 import { todayISO } from "../lib/util";
-import { db, type MCollectionEntry, type PrintingCopy } from "../db";
+import { db, getSyncMeta, setSyncMeta, type MCollectionEntry, type PrintingCopy } from "../db";
 import { httpGetJson } from "./http";
 import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import { recordPricePoints } from "./priceHistory";
@@ -100,12 +100,38 @@ export interface CollectionStats {
   estimatedValueUsd: number;
 }
 
-// Change in collection value between the two most recent daily snapshots
-// (recorded on launch), for the "▲ +$X today" indicator. Null until there are
-// at least two days of history.
-export async function getValueDelta(): Promise<number | null> {
-  const recent = await db.valueHistory.orderBy("date").reverse().limit(2).toArray();
-  return recent.length < 2 ? null : recent[0].valueUsd - recent[1].valueUsd;
+// Change in collection value since the most recent snapshot from a *previous*
+// day, compared against the live value passed in — so today's adds/removals
+// count, not just what was snapshotted at launch. Null until there's a prior
+// day to compare to.
+export async function getValueDelta(currentValueUsd: number): Promise<number | null> {
+  const today = todayISO();
+  const snaps = await db.valueHistory.orderBy("date").reverse().toArray();
+  const prior = snaps.find((s) => s.date < today);
+  return prior ? currentValueUsd - prior.valueUsd : null;
+}
+
+// One-time migration: fold the old single `printing`/`edition` fields (set
+// before the per-printing breakdown existed) into a `copies` entry so that
+// data still shows and gets valued per printing. Runs once, gated by syncMeta.
+export async function migrateLegacyPrintings(): Promise<void> {
+  if (await getSyncMeta("legacy_printings_migrated")) return;
+  const entries = await db.collection.toArray();
+  const updates = entries
+    .filter((e) => !e.copies?.length && (e.printing || e.edition))
+    .map((e) => ({
+      ...e,
+      copies: [
+        {
+          code: e.printing?.code,
+          rarity: e.printing?.rarity,
+          edition: e.edition,
+          quantity: e.quantity,
+        },
+      ],
+    }));
+  if (updates.length > 0) await db.collection.bulkPut(updates);
+  await setSyncMeta("legacy_printings_migrated", "1");
 }
 
 export async function getCollectionStats(): Promise<CollectionStats> {

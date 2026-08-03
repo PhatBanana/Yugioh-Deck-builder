@@ -5,6 +5,7 @@ import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { foilClass, topRarity } from "../lib/foil";
+import { valueEntry } from "@shared/collection/value";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import { adjustPrintingCopy, allTags, setCondition, setTags } from "../services/collection";
 import { getCardPrintings } from "../services/printings";
@@ -67,7 +68,15 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
 // as its own line, valued at that printing's own price. Copies are added by
 // scanning (which reads the set code) or here, by picking from the card's known
 // sets — fetched on demand and cached, since the bulk sync strips them.
-function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEntry }) {
+function PrintingRow({
+  cardId,
+  entry,
+  genericPrice,
+}: {
+  cardId: number;
+  entry?: MCollectionEntry;
+  genericPrice: number | null;
+}) {
   const [sets, setSets] = useState<MCardSets["sets"] | null>(null);
   const [adding, setAdding] = useState(false);
   const [addEdition, setAddEdition] = useState("");
@@ -96,7 +105,12 @@ function PrintingRow({ cardId, entry }: { cardId: number; entry?: MCollectionEnt
   return (
     <div className="mt-3">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-semibold text-neutral-400">Printings</span>
+        <span className="text-xs font-semibold text-neutral-400">
+          Printings
+          <span className="ml-1.5 font-normal text-amber-400/90 tabular-nums">
+            ≈ {formatUsd(valueEntry(owned, copies, genericPrice, priceFor))}
+          </span>
+        </span>
         {sets && sets.length > 0 && (
           <button
             type="button"
@@ -433,7 +447,9 @@ export default function CardDetailModal({
         </div>
 
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
-        {owned > 0 && <PrintingRow cardId={card.id} entry={entry} />}
+        {owned > 0 && (
+          <PrintingRow cardId={card.id} entry={entry} genericPrice={card.price ?? null} />
+        )}
         {owned > 0 && <BindersRow cardId={card.id} tags={entry?.tags ?? []} />}
 
         <PriceSparkline cardId={card.id} />

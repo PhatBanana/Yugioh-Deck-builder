@@ -451,21 +451,37 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         ))}
       </div>
 
-      {/* Composition + cost at a glance. */}
+      {/* Composition + cost + how much of it you own, at a glance. */}
       {enriched.cards.length > 0 &&
         (() => {
           const s = computeDeckStats(enriched.cards);
+          const uniqueOwned = enriched.cards.filter((c) => c.owned >= c.quantity).length;
+          const missingCost = enriched.cards.reduce(
+            (sum, c) => sum + Math.max(0, c.quantity - c.owned) * (c.price ?? 0),
+            0
+          );
+          const complete = uniqueOwned === enriched.cards.length;
           return (
-            <div className="flex items-center justify-between text-xs text-neutral-400 tabular-nums px-1">
-              <span>
-                👹 {s.monsters} · ✨ {s.spells} · ⚡ {s.traps}
-              </span>
-              <span className="text-amber-400/90">
-                deck ≈ {formatUsd(s.priceUsd)}
-                {s.unpricedCount > 0 && (
-                  <span className="text-neutral-600"> +{s.unpricedCount} unpriced</span>
+            <div className="flex flex-col gap-1 px-1">
+              <div className="flex items-center justify-between text-xs text-neutral-400 tabular-nums">
+                <span>
+                  👹 {s.monsters} · ✨ {s.spells} · ⚡ {s.traps}
+                </span>
+                <span className="text-amber-400/90">
+                  deck ≈ {formatUsd(s.priceUsd)}
+                  {s.unpricedCount > 0 && (
+                    <span className="text-neutral-600"> +{s.unpricedCount} unpriced</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs tabular-nums">
+                <span className={complete ? "text-emerald-400" : "text-neutral-400"}>
+                  {complete ? "✓ You own every card" : `own ${uniqueOwned}/${enriched.cards.length} cards`}
+                </span>
+                {!complete && missingCost > 0 && (
+                  <span className="text-orange-400/90">≈ {formatUsd(missingCost)} to finish</span>
                 )}
-              </span>
+              </div>
             </div>
           );
         })()}

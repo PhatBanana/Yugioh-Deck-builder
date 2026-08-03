@@ -67,8 +67,16 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
 
             {completion.missingCards.length > 0 && (
               <div className="mt-3">
-                <h3 className="text-xs font-semibold text-orange-400 mb-1">
-                  Missing ({completion.missingCards.length})
+                <h3 className="text-xs font-semibold text-orange-400 mb-1 flex items-center justify-between">
+                  <span>Missing ({completion.missingCards.length})</span>
+                  {(() => {
+                    const cost = completion.missingCards.reduce((s, c) => s + (c.price ?? 0), 0);
+                    return cost > 0 ? (
+                      <span className="tabular-nums font-normal text-neutral-400">
+                        ≈ {formatUsd(cost)} to complete
+                      </span>
+                    ) : null;
+                  })()}
                 </h3>
                 <div className="flex flex-col">
                   {completion.missingCards.map((c) => (

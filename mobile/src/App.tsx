@@ -8,7 +8,7 @@ import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
 import { hideBanner, initAds, showBanner } from "./services/ads";
 import { initBackButton } from "./services/backButton";
-import { recordValueSnapshot } from "./services/collection";
+import { migrateLegacyPrintings, recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
 
 type Tab = "cards" | "scan" | "decks" | "meta";
@@ -37,6 +37,8 @@ export default function App() {
     // per-card prices (owned + wishlisted) for the price-history charts.
     recordValueSnapshot().catch(() => {});
     recordPriceSnapshots().catch(() => {});
+    // Fold any pre-breakdown printing/edition data into the copies model.
+    migrateLegacyPrintings().catch(() => {});
   }, []);
 
   // Hide the banner over the fullscreen camera; show it everywhere else.
