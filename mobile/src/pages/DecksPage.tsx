@@ -31,6 +31,8 @@ import { useBackClose } from "../hooks/useBackClose";
 import HandSimSheet from "../components/HandSimSheet";
 import DeckOddsSheet from "../components/DeckOddsSheet";
 import DuelToolsSheet from "../components/DuelToolsSheet";
+import ImportDeckCodeSheet from "../components/ImportDeckCodeSheet";
+import { shareDeck } from "../services/deckShare";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
 
@@ -51,6 +53,7 @@ function suggestSection(type: string): DeckSection {
 function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
   const decks = useLiveQuery(() => listDecks(), [], []);
   const [duelOpen, setDuelOpen] = useState(false);
+  const [importCodeOpen, setImportCodeOpen] = useState(false);
 
   async function newDeck() {
     const d = await createDeck("New Deck");
@@ -84,7 +87,7 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
           + New deck
         </button>
         <label className="btn-ghost px-3 py-3 text-sm cursor-pointer flex items-center">
-          Import .ydk
+          .ydk
           <input
             type="file"
             accept=".ydk,.txt"
@@ -92,6 +95,15 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
             onChange={(e) => e.target.files?.[0] && importYdk(e.target.files[0])}
           />
         </label>
+        <button
+          type="button"
+          onClick={() => setImportCodeOpen(true)}
+          className="btn-ghost px-3 py-3 text-sm"
+          aria-label="Import from deck code"
+          title="Import from a shared deck code"
+        >
+          🔗
+        </button>
         <button
           type="button"
           onClick={() => setDuelOpen(true)}
@@ -103,6 +115,15 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       {duelOpen && <DuelToolsSheet onClose={() => setDuelOpen(false)} />}
+      {importCodeOpen && (
+        <ImportDeckCodeSheet
+          onClose={() => setImportCodeOpen(false)}
+          onImported={(id) => {
+            setImportCodeOpen(false);
+            onOpen(id);
+          }}
+        />
+      )}
 
       {decks.length === 0 && (
         <p className="text-sm text-neutral-500 text-center py-10">
@@ -376,6 +397,18 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
     toast("Exported .ydk", "success");
   }
 
+  async function shareCode() {
+    const deck = await getDeck(deckId);
+    if (!deck) return;
+    if (deck.cards.length === 0) {
+      toast("Add some cards first", "info");
+      return;
+    }
+    const how = await shareDeck(deck);
+    if (how === "copied") toast("Deck code copied to clipboard", "success");
+    else if (how === "failed") toast("Couldn't share the deck", "error");
+  }
+
   async function removeDeck() {
     const snapshot = await getDeck(deckId);
     const ok = await confirmDialog({
@@ -532,6 +565,14 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           </section>
         );
       })}
+
+      <button
+        type="button"
+        onClick={shareCode}
+        className="btn-ghost w-full py-2.5 text-sm mt-2"
+      >
+        🔗 Share deck
+      </button>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
         <button

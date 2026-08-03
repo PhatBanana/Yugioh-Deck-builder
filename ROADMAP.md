@@ -13,9 +13,13 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 ### Collection & Cards
 - Full card database sync from YGOPRODeck (offline after first sync).
 - Owned tracking with quantity steppers; wishlist (♡) with price tracking.
+- **Wishlist budget planner**: total cost of the wishlist, and for a given
+  budget, which cards you can complete (cheapest-first) with spend/left-over.
 - Search + sort (A–Z, price, ATK, level) + filters (type, attribute, level,
   banlist status); list and grid layouts.
 - Binders/tags to file cards, with tag filter chips.
+- **Bulk edit**: multi-select owned cards (grid or list) to file them under a
+  binder, set condition, or remove them all at once (with undo).
 - **Per-printing breakdown**: own a card at multiple rarities/editions as
   separate line items, each valued at its own printing price.
 - **Rarity foil overlay**: art shows a sheen matching its rarity (silver/holo/
@@ -54,6 +58,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   vs. brick reading.
 - "How it plays" strategy notes (auto-seeded when copied from a meta deck).
 - `.ydk` import/export; duplicate a deck; cover art on deck tiles.
+- **Deck sharing**: share a deck as a compact copy-paste code (via the Android
+  share sheet or clipboard) and import one from a pasted code.
 - One-tap "add this deck's missing cards to wishlist."
 - Duel tools (life points, dice/coin, etc.).
 
@@ -98,10 +104,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
       `services/rarityModel.ts`); needs a labelled dataset of card photos.
 - [ ] **Sealed-product / barcode scanning** — the camera plugin supports
       barcode scanning; use it to add sealed products or look up by UPC.
-- [ ] **Wishlist total cost + budget planner** — sum wishlist value; "what can
-      I complete for $X."
-- [ ] **Bulk edit** — multi-select cards to set quantity/tags/condition at once.
-- [ ] **Deck sharing** — export a deck as an image, or a shareable link/code.
+- [ ] **Deck-as-image export** — render a deck to a shareable image (the
+      copy-paste code is shipped; an image is the remaining half).
 
 ## Later / ideas
 
