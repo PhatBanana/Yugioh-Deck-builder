@@ -62,6 +62,7 @@ export async function setPrinting(
 
 // What a scan managed to read off a card, resolved against its printings.
 export interface ResolvedPrinting {
+  code?: string; // the set code of the printing actually filed
   rarity?: string;
   edition?: string;
   agreement?: Agreement; // how the set code and the visual foil pass lined up
@@ -122,5 +123,5 @@ export async function applyScannedPrinting(
       1
     );
   }
-  return { rarity: chosen?.rarity, edition, agreement, foil: opts.foil };
+  return { code: chosen?.code, rarity: chosen?.rarity, edition, agreement, foil: opts.foil };
 }

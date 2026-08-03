@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { setOwnedQuantity } from "../services/collection";
+import { removeOwnedWithSnapshot, restoreEntries, setOwnedQuantity } from "../services/collection";
 import { toast } from "./Toaster";
 
 // The UI copy limit is the same as the deck-legality copy limit.
@@ -19,21 +19,27 @@ export default function QuantityStepper({
   const [value, setValue] = useState(quantity);
   useEffect(() => setValue(quantity), [quantity, cardId]);
 
-  function restore(to: number) {
-    setValue(to);
-    onChange?.(to);
-    void setOwnedQuantity(cardId, to);
-  }
-
   async function persist(next: number) {
     const prev = value;
     setValue(next);
     onChange?.(next);
     try {
-      await setOwnedQuantity(cardId, next);
-      // Removing the last copy is easy to do by accident — offer an undo.
+      // Removing the last copy is easy to do by accident — snapshot the whole
+      // entry first so Undo brings back printings/binders/condition/art, not
+      // just the count.
       if (next === 0 && prev > 0) {
-        toast("Removed from collection", "info", { label: "Undo", onClick: () => restore(prev) });
+        const snapshot = await removeOwnedWithSnapshot(cardId);
+        toast("Removed from collection", "info", {
+          label: "Undo",
+          onClick: () => {
+            setValue(prev);
+            onChange?.(prev);
+            if (snapshot) void restoreEntries([snapshot]);
+            else void setOwnedQuantity(cardId, prev);
+          },
+        });
+      } else {
+        await setOwnedQuantity(cardId, next);
       }
     } catch {
       setValue(prev);
