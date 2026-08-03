@@ -66,7 +66,7 @@ export interface SetCompletion {
   unresolvedCount: number;
 }
 
-async function getSetCardIds(setName: string): Promise<MSetCards | null> {
+export async function getSetCardIds(setName: string): Promise<MSetCards | null> {
   const cached = await db.setCards.get(setName);
   if (cached) return cached;
   try {

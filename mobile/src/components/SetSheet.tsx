@@ -5,11 +5,13 @@ import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
 import WishlistButton from "./WishlistButton";
 import { useCardDetail } from "./CardDetailModal";
+import PackSimSheet from "./PackSimSheet";
 
 // Completion view for one card set: progress bar, what you own, what's
 // missing (with wishlist hearts).
 export default function SetSheet({ setName, onClose }: { setName: string; onClose: () => void }) {
   const [completion, setCompletion] = useState<SetCompletion | null | undefined>(undefined);
+  const [packOpen, setPackOpen] = useState(false);
   const openCard = useCardDetail();
   useBackClose(onClose);
 
@@ -64,6 +66,14 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                 {completion.unresolvedCount} card(s) in this set aren't in the local database.
               </p>
             )}
+
+            <button
+              type="button"
+              onClick={() => setPackOpen(true)}
+              className="btn-ghost w-full py-2 text-sm mt-3"
+            >
+              🎴 Open a pack
+            </button>
 
             {completion.missingCards.length > 0 && (
               <div className="mt-3">
@@ -123,6 +133,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
           </>
         )}
       </div>
+      {packOpen && <PackSimSheet setName={setName} onClose={() => setPackOpen(false)} />}
     </div>
   );
 }
