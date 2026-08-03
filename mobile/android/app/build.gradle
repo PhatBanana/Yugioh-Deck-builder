@@ -1,12 +1,8 @@
 apply plugin: 'com.android.application'
-apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace = "com.phatbanana.ygodeckbuilder"
     compileSdk = rootProject.ext.compileSdkVersion
-    kotlinOptions {
-        jvmTarget = "21"
-    }
     // Override the auto-generated debug keystore (which differs on every CI
     // runner) with one committed keystore, so every build shares a signature
     // and installs as an update instead of forcing an uninstall/reinstall.
@@ -55,9 +51,6 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    // On-device Gemini Nano via ML Kit GenAI (experimental rarity test).
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
-    implementation "com.google.mlkit:genai-prompt:1.0.0-beta4"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
