@@ -19,26 +19,34 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
 
   async function exportFile() {
-    const backup = await createBackup();
-    const name = `ygo-backup-${backup.exportedAt.slice(0, 10)}.json`;
-    const ok = await exportTextFile(name, "application/json", JSON.stringify(backup));
-    if (!ok) toast("Couldn't save a file — use Copy instead", "error");
+    try {
+      const backup = await createBackup();
+      const name = `ygo-backup-${backup.exportedAt.slice(0, 10)}.json`;
+      const ok = await exportTextFile(name, "application/json", JSON.stringify(backup));
+      if (!ok) toast("Couldn't save a file — use Copy instead", "error");
+    } catch {
+      toast("Backup failed — couldn't read your data", "error");
+    }
   }
 
   async function exportCsv() {
-    const csv = await createCollectionCsv();
-    const name = `ygo-collection-${new Date().toISOString().slice(0, 10)}.csv`;
-    const ok = await exportTextFile(name, "text/csv", csv);
-    if (!ok) toast("Couldn't save the CSV", "error");
+    try {
+      const csv = await createCollectionCsv();
+      const name = `ygo-collection-${new Date().toISOString().slice(0, 10)}.csv`;
+      const ok = await exportTextFile(name, "text/csv", csv);
+      if (!ok) toast("Couldn't save the CSV", "error");
+    } catch {
+      toast("CSV export failed", "error");
+    }
   }
 
   async function exportCopy() {
-    const json = JSON.stringify(await createBackup());
     try {
+      const json = JSON.stringify(await createBackup());
       await navigator.clipboard.writeText(json);
       toast("Backup copied — paste it somewhere safe", "success");
     } catch {
-      toast("Couldn't access the clipboard", "error");
+      toast("Couldn't copy the backup", "error");
     }
   }
 
@@ -58,12 +66,16 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
 
   async function applyRestore() {
     if (!pending) return;
-    const summary = await restoreBackup(pending);
-    toast(
-      `Restored ${summary.cards} cards, ${summary.decks} decks, ${summary.wishlist} wishlisted`,
-      "success"
-    );
-    onClose();
+    try {
+      const summary = await restoreBackup(pending);
+      toast(
+        `Restored ${summary.cards} cards, ${summary.decks} decks, ${summary.wishlist} wishlisted`,
+        "success"
+      );
+      onClose();
+    } catch {
+      toast("Restore failed — your current data is unchanged", "error");
+    }
   }
 
   return (

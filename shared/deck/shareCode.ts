@@ -42,7 +42,10 @@ export function decodeDeckCode(code: string): DecodedDeck | null {
     // Leave the default when the name segment is malformed.
   }
 
-  const cards: DeckCard[] = [];
+  // Aggregate per (section, cardId) so duplicate tokens (crafted or mangled
+  // codes) merge into one entry instead of smuggling in extra copies — the
+  // clamp applies to the summed quantity.
+  const counts = new Map<string, DeckCard>();
   for (const seg of parts.slice(2)) {
     const colon = seg.indexOf(":");
     if (colon < 0) continue;
@@ -55,9 +58,13 @@ export function decodeDeckCode(code: string): DecodedDeck | null {
       const id = Number(idS);
       const qty = Number(qtyS);
       if (Number.isInteger(id) && id > 0 && Number.isInteger(qty) && qty > 0) {
-        cards.push({ cardId: id, quantity: Math.min(3, qty), section });
+        const key = `${section}:${id}`;
+        const existing = counts.get(key);
+        if (existing) existing.quantity = Math.min(3, existing.quantity + qty);
+        else counts.set(key, { cardId: id, quantity: Math.min(3, qty), section });
       }
     }
   }
+  const cards = [...counts.values()];
   return cards.length > 0 ? { name, cards } : null;
 }

@@ -18,9 +18,13 @@ export async function getSetPool(setName: string): Promise<PackCard[]> {
   const [set, contents] = await Promise.all([db.sets.get(setName), getSetCardIds(setName)]);
   if (!contents || contents.cardIds.length === 0) return [];
 
-  const prefix = set?.code ? `${set.code.toUpperCase()}-` : null;
+  // Without the set's code prefix there's no way to pick THIS set's printings —
+  // an unfiltered pool would mix in every reprint of every card across all
+  // sets (wrong rarities, wrong prices). Bail to the "no rarity data" state.
+  if (!set?.code) return [];
+  const prefix = `${set.code.toUpperCase()}-`;
   const rows = await db.printingIndex.where("cardId").anyOf(contents.cardIds).toArray();
-  const inSet = rows.filter((r) => !prefix || r.code.toUpperCase().startsWith(prefix));
+  const inSet = rows.filter((r) => r.code.toUpperCase().startsWith(prefix));
   if (inSet.length === 0) return [];
 
   const ids = [...new Set(inSet.map((r) => r.cardId))];
