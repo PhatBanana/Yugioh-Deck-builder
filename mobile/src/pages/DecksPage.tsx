@@ -568,7 +568,12 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         <HandSimSheet cards={enriched.cards} onClose={() => setTestingHand(false)} />
       )}
       {showingOdds && (
-        <DeckOddsSheet cards={enriched.cards} onClose={() => setShowingOdds(false)} />
+        <DeckOddsSheet
+          deckId={deckId}
+          cards={enriched.cards}
+          initialStarters={enriched.deck.starters ?? []}
+          onClose={() => setShowingOdds(false)}
+        />
       )}
     </div>
   );

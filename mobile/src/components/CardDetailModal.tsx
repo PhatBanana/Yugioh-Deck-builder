@@ -390,15 +390,23 @@ function ArtworkPicker({
             type="button"
             onClick={() => {
               onPick(id);
-              if (owned) void setPreferredArt(card.id, id === defaultId ? undefined : id);
+              if (owned) {
+                void setPreferredArt(card.id, id === defaultId ? undefined : id);
+                toast(id === defaultId ? "Default artwork restored" : "Artwork saved", "success");
+              }
             }}
-            className={`shrink-0 rounded-lg overflow-hidden ring-2 transition-colors ${
+            className={`relative shrink-0 rounded-lg overflow-hidden ring-2 transition-colors ${
               id === selected ? "ring-amber-400" : "ring-white/10"
             }`}
             aria-label="Select artwork"
             aria-pressed={id === selected}
           >
             <img src={artSmallUrl(id)} alt="" className="w-16" loading="lazy" />
+            {owned && id === selected && (
+              <span className="absolute bottom-0 inset-x-0 bg-amber-400 text-black text-[9px] font-bold text-center leading-tight py-0.5">
+                ✓ yours
+              </span>
+            )}
           </button>
         ))}
       </div>
