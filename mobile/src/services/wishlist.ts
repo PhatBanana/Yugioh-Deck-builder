@@ -16,6 +16,27 @@ export async function toggleWishlist(cardId: number): Promise<boolean> {
   return true;
 }
 
+export interface WishlistItem {
+  cardId: number;
+  name: string;
+  img: string | null;
+  price: number; // 0 when unknown
+  owned: number;
+}
+
+// Wishlisted cards joined with their price/name/owned, for the budget planner.
+export async function getWishlistItems(): Promise<WishlistItem[]> {
+  const ids = (await db.wishlist.toArray()).map((w) => w.cardId);
+  const [cards, coll] = await Promise.all([db.cards.bulkGet(ids), db.collection.bulkGet(ids)]);
+  return ids.map((id, i) => ({
+    cardId: id,
+    name: cards[i]?.name ?? `#${id}`,
+    img: cards[i]?.img ?? null,
+    price: cards[i]?.price ?? 0,
+    owned: coll[i]?.quantity ?? 0,
+  }));
+}
+
 // Adds many cards to the wishlist, skipping ones already on it. Returns how
 // many were newly added.
 export async function addManyToWishlist(cardIds: number[]): Promise<number> {

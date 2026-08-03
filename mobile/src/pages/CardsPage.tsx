@@ -12,6 +12,8 @@ import ValueSparkline from "../components/ValueSparkline";
 import BackupSheet from "../components/BackupSheet";
 import InsightsSheet from "../components/InsightsSheet";
 import PriceAlertsSheet from "../components/PriceAlertsSheet";
+import WishlistBudgetSheet from "../components/WishlistBudgetSheet";
+import BulkEditBar from "../components/BulkEditBar";
 import { getPriceAlerts } from "../services/priceAlerts";
 import SetSheet from "../components/SetSheet";
 import TradesSheet from "../components/TradesSheet";
@@ -53,17 +55,27 @@ function GridCell({
   owned,
   copies,
   img,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   card: MCard;
   owned: number;
   copies?: PrintingCopy[];
   img?: string | null;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }) {
   const openCard = useCardDetail();
   const foil = foilClass(topRarity(copies));
   const src = img ?? card.img;
   return (
-    <button type="button" onClick={() => openCard(card.id)} className="pressable relative text-left">
+    <button
+      type="button"
+      onClick={() => (selectable ? onToggleSelect?.(card.id) : openCard(card.id))}
+      className={`pressable relative text-left ${selectable && !selected ? "opacity-60" : ""}`}
+    >
       {src ? (
         <span className="relative block">
           <img src={src} alt={card.name} className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
@@ -77,6 +89,15 @@ function GridCell({
       {owned > 0 && (
         <span className="pop-in absolute top-1 right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-xs font-bold flex items-center justify-center">
           {owned}
+        </span>
+      )}
+      {selectable && (
+        <span
+          className={`absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ring-2 ${
+            selected ? "bg-amber-400 text-black ring-amber-400" : "bg-black/50 text-transparent ring-white/60"
+          }`}
+        >
+          ✓
         </span>
       )}
       <span className="block text-[10px] leading-tight text-neutral-400 mt-1 line-clamp-1">
@@ -101,19 +122,34 @@ function CardRow({
   owned,
   copies,
   img,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   card: MCard;
   owned: number;
   copies?: PrintingCopy[];
   img?: string | null;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }) {
   const openCard = useCardDetail();
   return (
-    <div className="flex items-center gap-3 panel p-2">
+    <div className={`flex items-center gap-3 panel p-2 ${selectable && selected ? "ring-1 ring-amber-400" : ""}`}>
+      {selectable && (
+        <span
+          className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ring-2 ${
+            selected ? "bg-amber-400 text-black ring-amber-400" : "text-transparent ring-white/40"
+          }`}
+        >
+          ✓
+        </span>
+      )}
       {/* Tapping the image/name opens the card details; the controls stay separate. */}
       <button
         type="button"
-        onClick={() => openCard(card.id)}
+        onClick={() => (selectable ? onToggleSelect?.(card.id) : openCard(card.id))}
         className="flex items-center gap-3 min-w-0 flex-1 text-left"
       >
         <CardThumb img={img ?? card.img} w="w-11" h="h-16" rarity={topRarity(copies)} />
@@ -135,8 +171,12 @@ function CardRow({
           )}
         </div>
       </button>
-      <WishlistButton cardId={card.id} className="text-xl" />
-      <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
+      {!selectable && (
+        <>
+          <WishlistButton cardId={card.id} className="text-xl" />
+          <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
+        </>
+      )}
     </div>
   );
 }
@@ -159,6 +199,9 @@ export default function CardsPage() {
   const [tradesOpen, setTradesOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [setCount, setSetCount] = useState<number | null>(null);
   const debouncedQuery = useDebouncedValue(query, 250);
@@ -207,6 +250,22 @@ export default function CardsPage() {
     [view],
     0
   );
+
+  const toggleSelect = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+  // Bulk-select is an Owned-view mode; leave it when the view changes.
+  useEffect(() => {
+    if (view !== "owned") exitSelect();
+  }, [view]);
 
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -456,8 +515,8 @@ export default function CardsPage() {
               </button>
             </div>
           </div>
-          {/* Insights + price alerts, drawing on collection value & price history. */}
-          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-2 gap-2">
+          {/* Insights + price alerts + bulk select. */}
+          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setInsightsOpen(true)}
@@ -476,6 +535,13 @@ export default function CardsPage() {
                   {alertCount}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+              className={`btn-ghost py-2 text-xs ${selectMode ? "ring-1 ring-amber-400 text-amber-200" : ""}`}
+            >
+              {selectMode ? "✕ Cancel" : "☑ Select"}
             </button>
           </div>
         </div>
@@ -510,6 +576,17 @@ export default function CardsPage() {
             </button>
           </span>
         </div>
+      )}
+
+      {/* Budget planner entry (wishlist view). */}
+      {view === "wishlist" && (
+        <button
+          type="button"
+          onClick={() => setBudgetOpen(true)}
+          className="btn-ghost w-full py-2 text-xs"
+        >
+          💰 Budget planner
+        </button>
       )}
 
       {/* Binder filter chips (owned view, only when binders exist). */}
@@ -573,6 +650,9 @@ export default function CardsPage() {
               owned={ownedMap?.get(card.id) ?? 0}
               copies={copiesMap?.get(card.id)}
               img={artMap?.get(card.id) != null ? artSmallUrl(artMap.get(card.id)!) : undefined}
+              selectable={selectMode}
+              selected={selected.has(card.id)}
+              onToggleSelect={toggleSelect}
             />
           ) : (
             <CardRow
@@ -581,6 +661,9 @@ export default function CardsPage() {
               owned={ownedMap?.get(card.id) ?? 0}
               copies={copiesMap?.get(card.id)}
               img={artMap?.get(card.id) != null ? artSmallUrl(artMap.get(card.id)!) : undefined}
+              selectable={selectMode}
+              selected={selected.has(card.id)}
+              onToggleSelect={toggleSelect}
             />
           )
         )}
@@ -610,7 +693,9 @@ export default function CardsPage() {
       {tradesOpen && <TradesSheet onClose={() => setTradesOpen(false)} />}
       {insightsOpen && <InsightsSheet onClose={() => setInsightsOpen(false)} />}
       {alertsOpen && <PriceAlertsSheet onClose={() => setAlertsOpen(false)} />}
+      {budgetOpen && <WishlistBudgetSheet onClose={() => setBudgetOpen(false)} />}
       {openSet && <SetSheet setName={openSet} onClose={() => setOpenSet(null)} />}
+      {selectMode && <BulkEditBar ids={[...selected]} onDone={exitSelect} />}
     </div>
   );
 }

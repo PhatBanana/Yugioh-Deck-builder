@@ -71,6 +71,51 @@ export async function setPreferredArt(cardId: number, artId: number | undefined)
   await patchCollectionEntry(cardId, { artId });
 }
 
+// ---- Bulk edit: apply one change across many selected cards at once ----
+
+// Adds a binder/tag to every listed owned card (no-op for ones not owned).
+export async function bulkAddTag(cardIds: number[], tag: string): Promise<void> {
+  const name = tag.trim();
+  if (!name) return;
+  await db.transaction("rw", db.collection, async () => {
+    for (const id of cardIds) {
+      const e = await db.collection.get(id);
+      if (!e) continue;
+      const tags = new Set(e.tags ?? []);
+      tags.add(name);
+      await db.collection.put({ ...e, tags: [...tags] });
+    }
+  });
+}
+
+// Sets (or clears) the condition on every listed owned card.
+export async function bulkSetCondition(
+  cardIds: number[],
+  condition: CardCondition | undefined
+): Promise<void> {
+  await db.transaction("rw", db.collection, async () => {
+    for (const id of cardIds) {
+      const e = await db.collection.get(id);
+      if (e) await db.collection.put({ ...e, condition });
+    }
+  });
+}
+
+// Removes every listed card from the collection. Returns the removed entries so
+// the caller can offer an undo.
+export async function bulkRemove(cardIds: number[]): Promise<MCollectionEntry[]> {
+  const removed = (await db.collection.bulkGet(cardIds)).filter(
+    (e): e is MCollectionEntry => !!e
+  );
+  await db.collection.bulkDelete(cardIds);
+  return removed;
+}
+
+// Re-inserts entries removed by bulkRemove (undo).
+export async function restoreEntries(entries: MCollectionEntry[]): Promise<void> {
+  if (entries.length > 0) await db.collection.bulkPut(entries);
+}
+
 // Every binder/tag name in use, for suggestion chips and filters.
 export async function allTags(): Promise<string[]> {
   const entries = await db.collection.toArray();
