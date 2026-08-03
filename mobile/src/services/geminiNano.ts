@@ -27,11 +27,17 @@ export function nanoSupported(): boolean {
 }
 
 export async function nanoAvailability(): Promise<NanoStatus> {
-  if (!nanoSupported()) return "unsupported";
+  return (await nanoAvailabilityDetail()).status;
+}
+
+// Full detail incl. any native error message, so the lab can show *why* the
+// model is unavailable (missing AICore, unsupported device, etc.).
+export async function nanoAvailabilityDetail(): Promise<{ status: NanoStatus; error?: string }> {
+  if (!nanoSupported()) return { status: "unsupported" };
   try {
-    return (await GeminiNano.checkAvailability()).status;
-  } catch {
-    return "unavailable";
+    return await GeminiNano.checkAvailability();
+  } catch (e) {
+    return { status: "unavailable", error: e instanceof Error ? e.message : String(e) };
   }
 }
 

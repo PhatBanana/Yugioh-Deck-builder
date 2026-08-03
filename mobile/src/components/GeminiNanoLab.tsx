@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBackClose } from "../hooks/useBackClose";
 import {
   nanoAsk,
-  nanoAvailability,
+  nanoAvailabilityDetail,
   nanoDownload,
   nanoSupported,
   type NanoStatus,
@@ -18,6 +18,7 @@ const DEFAULT_PROMPT =
 export default function GeminiNanoLab({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
   const [status, setStatus] = useState<NanoStatus | null>(null);
+  const [reason, setReason] = useState<string | null>(null);
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [preview, setPreview] = useState<string | null>(null);
   const b64Ref = useRef<string | null>(null);
@@ -25,8 +26,15 @@ export default function GeminiNanoLab({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  async function refreshStatus() {
+    setStatus(null);
+    const detail = await nanoAvailabilityDetail();
+    setStatus(detail.status);
+    setReason(detail.error ?? null);
+  }
+
   useEffect(() => {
-    nanoAvailability().then(setStatus);
+    void refreshStatus();
   }, []);
 
   function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -49,7 +57,7 @@ export default function GeminiNanoLab({ onClose }: { onClose: () => void }) {
     } catch {
       /* surfaced via status refresh */
     }
-    setStatus(await nanoAvailability());
+    await refreshStatus();
     setBusy(null);
   }
 
@@ -97,26 +105,37 @@ export default function GeminiNanoLab({ onClose }: { onClose: () => void }) {
         </p>
 
         <div className="text-xs mb-3">
-          <span
-            className={
-              status === "available"
-                ? "text-emerald-400"
-                : status === "unavailable" || status === "unsupported"
-                  ? "text-red-400"
-                  : "text-amber-300"
-            }
-          >
-            {status ? STATUS_LABEL[status] : "Checking availability…"}
-          </span>
-          {status === "downloadable" && nanoSupported() && (
-            <button
-              type="button"
-              onClick={download}
-              disabled={!!busy}
-              className="btn-ghost ml-2 px-2 py-1 text-xs"
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={
+                status === "available"
+                  ? "text-emerald-400"
+                  : status === "unavailable" || status === "unsupported"
+                    ? "text-red-400"
+                    : "text-amber-300"
+              }
             >
-              Download model
+              {status ? STATUS_LABEL[status] : "Checking availability…"}
+            </span>
+            {status === "downloadable" && nanoSupported() && (
+              <button type="button" onClick={download} disabled={!!busy} className="btn-ghost px-2 py-1 text-xs">
+                Download model
+              </button>
+            )}
+            <button type="button" onClick={() => void refreshStatus()} disabled={!!busy} className="btn-ghost px-2 py-1 text-xs">
+              Recheck
             </button>
+          </div>
+          {reason && (
+            <p className="mt-1 text-[11px] text-neutral-500 break-words">reason: {reason}</p>
+          )}
+          {status === "unavailable" && (
+            <p className="mt-1.5 text-[11px] text-neutral-500 leading-relaxed">
+              Gemini Nano runs through the system apps <b>Android AICore</b> and{" "}
+              <b>Private Compute Services</b>. Update both in the Play Store, make sure the
+              system language includes English (US), then reboot and tap Recheck. It may still
+              be unavailable if this device/region isn't in Google's on-device GenAI rollout.
+            </p>
           )}
         </div>
 
