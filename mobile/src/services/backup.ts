@@ -74,14 +74,29 @@ export async function createCollectionCsv(): Promise<string> {
   return collectionToCsv(rows);
 }
 
+// The backup keeps price history only for cards the user actually tracks
+// (collection/wishlist) and only the recent window — since every sync
+// snapshots all ~13k cards, the full table quickly grows to hundreds of
+// thousands of rows and serializing it in one string can OOM the export.
+const BACKUP_PRICE_DAYS = 90;
+
 export async function createBackup(): Promise<BackupFile> {
-  const [collection, wishlist, decks, valueHistory, priceHistory] = await Promise.all([
+  const [collection, wishlist, decks, valueHistory] = await Promise.all([
     db.collection.toArray(),
     db.wishlist.toArray(),
     db.decks.toArray(),
     db.valueHistory.toArray(),
-    db.priceHistory.toArray(),
   ]);
+  const tracked = new Set<number>([
+    ...collection.map((e) => e.cardId),
+    ...wishlist.map((w) => w.cardId),
+  ]);
+  const cutoff = new Date(Date.now() - BACKUP_PRICE_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const priceHistory = (
+    await db.priceHistory.where("date").aboveOrEqual(cutoff).toArray()
+  ).filter((p) => tracked.has(p.cardId));
   return {
     app: "ygo-deck-builder",
     version: 1,

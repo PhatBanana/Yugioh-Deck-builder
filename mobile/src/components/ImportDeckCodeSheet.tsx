@@ -17,14 +17,19 @@ export default function ImportDeckCodeSheet({
 
   async function doImport() {
     setBusy(true);
-    const deck = await importDeckCode(code);
-    setBusy(false);
-    if (!deck) {
-      toast("That doesn't look like a valid deck code", "error");
-      return;
+    try {
+      const deck = await importDeckCode(code);
+      if (!deck) {
+        toast("That doesn't look like a valid deck code", "error");
+        return;
+      }
+      toast(`Imported "${deck.name}"`, "success");
+      onImported(deck.id);
+    } catch {
+      toast("Import failed — try again", "error");
+    } finally {
+      setBusy(false);
     }
-    toast(`Imported "${deck.name}"`, "success");
-    onImported(deck.id);
   }
 
   return (

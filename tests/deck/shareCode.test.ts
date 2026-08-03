@@ -36,6 +36,19 @@ describe("encode/decode deck code", () => {
     ]);
   });
 
+  it("merges duplicate cardId tokens within a section, clamping the sum", () => {
+    const decoded = decodeDeckCode("YGO1|X|M:111*3,111*3,222*1")!;
+    expect(decoded.cards).toEqual([
+      { cardId: 111, quantity: 3, section: "main" }, // 3+3 clamped to 3, one entry
+      { cardId: 222, quantity: 1, section: "main" },
+    ]);
+  });
+
+  it("merges repeated section segments", () => {
+    const decoded = decodeDeckCode("YGO1|X|M:111*1|M:111*1")!;
+    expect(decoded.cards).toEqual([{ cardId: 111, quantity: 2, section: "main" }]);
+  });
+
   it("handles empty sections", () => {
     const code = encodeDeckCode("Solo", [{ cardId: 1, quantity: 1, section: "main" }]);
     const decoded = decodeDeckCode(code)!;
