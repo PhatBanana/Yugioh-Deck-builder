@@ -65,6 +65,12 @@ export async function setEdition(cardId: number, edition: string | undefined): P
   await patchCollectionEntry(cardId, { edition: edition || undefined });
 }
 
+// Picks which artwork the owned copies display (an alternate-art image id), or
+// clears back to the card's default art.
+export async function setPreferredArt(cardId: number, artId: number | undefined): Promise<void> {
+  await patchCollectionEntry(cardId, { artId });
+}
+
 // Every binder/tag name in use, for suggestion chips and filters.
 export async function allTags(): Promise<string[]> {
   const entries = await db.collection.toArray();

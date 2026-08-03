@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type MCard, type PrintingCopy } from "../db";
 import { rarityAbbrev } from "@shared/scan/setCode";
 import { foilClass, topRarity } from "../lib/foil";
+import { artSmallUrl } from "../lib/art";
 import QuantityStepper, { stepperMax } from "../components/QuantityStepper";
 import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -44,14 +45,25 @@ const SORTERS: Record<SortBy, (a: MCard, b: MCard) => number> = {
 };
 
 // Grid-view cell: image with owned-count badge, tiny name caption.
-function GridCell({ card, owned, copies }: { card: MCard; owned: number; copies?: PrintingCopy[] }) {
+function GridCell({
+  card,
+  owned,
+  copies,
+  img,
+}: {
+  card: MCard;
+  owned: number;
+  copies?: PrintingCopy[];
+  img?: string | null;
+}) {
   const openCard = useCardDetail();
   const foil = foilClass(topRarity(copies));
+  const src = img ?? card.img;
   return (
     <button type="button" onClick={() => openCard(card.id)} className="pressable relative text-left">
-      {card.img ? (
+      {src ? (
         <span className="relative block">
-          <img src={card.img} alt={card.name} className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
+          <img src={src} alt={card.name} className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
           {foil && <span aria-hidden className={`foil ${foil}`} />}
         </span>
       ) : (
@@ -81,7 +93,17 @@ function raritySummary(copies: PrintingCopy[]): string {
   return [...byRarity].map(([r, n]) => `${n} ${r}`).join(" · ");
 }
 
-function CardRow({ card, owned, copies }: { card: MCard; owned: number; copies?: PrintingCopy[] }) {
+function CardRow({
+  card,
+  owned,
+  copies,
+  img,
+}: {
+  card: MCard;
+  owned: number;
+  copies?: PrintingCopy[];
+  img?: string | null;
+}) {
   const openCard = useCardDetail();
   return (
     <div className="flex items-center gap-3 panel p-2">
@@ -91,7 +113,7 @@ function CardRow({ card, owned, copies }: { card: MCard; owned: number; copies?:
         onClick={() => openCard(card.id)}
         className="flex items-center gap-3 min-w-0 flex-1 text-left"
       >
-        <CardThumb img={card.img} w="w-11" h="h-16" rarity={topRarity(copies)} />
+        <CardThumb img={img ?? card.img} w="w-11" h="h-16" rarity={topRarity(copies)} />
         <div className="min-w-0 flex-1">
           <div className="text-sm leading-snug line-clamp-2">{card.name}</div>
           <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1.5">
@@ -164,6 +186,14 @@ export default function CardsPage() {
     if (view !== "owned") return undefined;
     const m = new Map<number, PrintingCopy[]>();
     for (const e of await db.collection.toArray()) if (e.copies?.length) m.set(e.cardId, e.copies);
+    return m;
+  }, [view]);
+  // Chosen alternate artwork per owned card, so grid/list thumbnails match the
+  // art the owner picked.
+  const artMap = useLiveQuery(async () => {
+    if (view !== "owned") return undefined;
+    const m = new Map<number, number>();
+    for (const e of await db.collection.toArray()) if (e.artId != null) m.set(e.cardId, e.artId);
     return m;
   }, [view]);
 
@@ -509,6 +539,7 @@ export default function CardsPage() {
               card={card}
               owned={ownedMap?.get(card.id) ?? 0}
               copies={copiesMap?.get(card.id)}
+              img={artMap?.get(card.id) != null ? artSmallUrl(artMap.get(card.id)!) : undefined}
             />
           ) : (
             <CardRow
@@ -516,6 +547,7 @@ export default function CardsPage() {
               card={card}
               owned={ownedMap?.get(card.id) ?? 0}
               copies={copiesMap?.get(card.id)}
+              img={artMap?.get(card.id) != null ? artSmallUrl(artMap.get(card.id)!) : undefined}
             />
           )
         )}

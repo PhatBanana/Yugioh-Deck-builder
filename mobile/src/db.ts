@@ -21,7 +21,11 @@ export interface MCard {
   banOcg?: string | null; // OCG banlist (null until the next full card sync)
   banGoat?: string | null; // Goat-format banlist (same)
   price: number | null; // lowest TCGPlayer USD
-  img: string | null; // small image URL
+  img: string | null; // small image URL (the default/first artwork)
+  // Image ids of every artwork this card has, when it has more than one
+  // (most cards have a single artwork and leave this unset). URLs are built
+  // from an id via lib/art. The first id corresponds to `img`.
+  arts?: number[];
 }
 
 // One printing you own of a card: rarity + edition (+ set code) with its own
@@ -58,6 +62,9 @@ export interface MCollectionEntry {
   copies?: PrintingCopy[];
   // Binder/tag names this card is filed under (e.g. "trade binder").
   tags?: string[];
+  // Preferred artwork image id, when the owner picked an alternate art for a
+  // card that has several. Unset = the card's default artwork.
+  artId?: number;
 }
 
 // Cached list of a card's printings (sets), fetched on demand when the user

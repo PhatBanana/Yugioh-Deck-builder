@@ -20,6 +20,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   separate line items, each valued at its own printing price.
 - **Rarity foil overlay**: art shows a sheen matching its rarity (silver/holo/
   gold/rainbow), since every printing shares the same catalog image.
+- **Alternate artworks**: cards with multiple official arts show an artwork
+  picker in the detail view; the chosen art becomes your collection thumbnail
+  (grid/list) and full-screen view. Captured during card sync.
 - Collection value hero with today's value change (▲/▼) and a value-over-time
   sparkline.
 - Set completion browser (owned vs missing per set).
@@ -46,6 +49,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - Deck builder with Main / Extra / Side sections and divider UI.
 - Multi-format legality (TCG / OCG / Goat) validation.
 - Deck stats (monster/spell/trap split, price) and opening-hand simulator.
+- **Deck odds**: exact opening-hand probabilities (hypergeometric) per card,
+  going first (5) or second (6); tap cards as starters for a live consistency
+  vs. brick reading.
 - "How it plays" strategy notes (auto-seeded when copied from a meta deck).
 - `.ydk` import/export; duplicate a deck; cover art on deck tiles.
 - One-tap "add this deck's missing cards to wishlist."
@@ -99,11 +105,10 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 ## Later / ideas
 
 - [ ] Cloud sync / multi-device (currently local-only IndexedDB).
-- [ ] Advanced deck analytics — opening-hand consistency %, combo probability,
-      "bricks" analysis.
+- [ ] Multi-card combo probability — odds of opening card A *and* card B (the
+      deck-odds sheet already does per-card and starter-group consistency).
 - [ ] Pack/box opening simulator using set contents + rarity odds.
 - [ ] Trade suggestions (match your haves against others' wants).
-- [ ] Alternate-artwork variants where they exist as distinct card IDs.
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).
 - [ ] Localization / non-English card data.
 
