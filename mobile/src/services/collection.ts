@@ -28,11 +28,24 @@ export async function setOwnedQuantity(cardId: number, quantity: number): Promis
   if (quantity <= 0) {
     await db.collection.delete(cardId);
   } else {
+    const prev = (await db.collection.get(cardId))?.quantity ?? 0;
     await putQuantity(cardId, quantity);
+    // A drop in the total can leave the printing breakdown claiming more
+    // copies than are owned — keep it in step.
+    if (quantity < prev) await trimCopiesToQuantity(cardId);
     // Start the card's price history at add time (best-effort) rather than
     // waiting for the next launch snapshot.
     recordPricePoints([cardId]).catch(() => {});
   }
+}
+
+// Deletes a card's entry but returns the full record (printings, binders,
+// condition, chosen art) so the caller can offer a true undo — restoring the
+// quantity alone would silently drop everything else.
+export async function removeOwnedWithSnapshot(cardId: number): Promise<MCollectionEntry | null> {
+  const entry = await db.collection.get(cardId);
+  await db.collection.delete(cardId);
+  return entry ?? null;
 }
 
 // Merges extra fields (condition/tags/printing) onto an existing collection
@@ -203,6 +216,18 @@ export async function getCollectionStats(): Promise<CollectionStats> {
   return { uniqueCards: entries.length, totalCopies, estimatedValueUsd: value };
 }
 
+// Whether a breakdown row is the given printing (code+rarity+edition match).
+function samePrinting(
+  c: PrintingCopy,
+  printing: { code?: string; rarity?: string; edition?: string }
+): boolean {
+  return (
+    (c.code ?? "") === (printing.code ?? "") &&
+    (c.rarity ?? "") === (printing.rarity ?? "") &&
+    (c.edition ?? "") === (printing.edition ?? "")
+  );
+}
+
 // Adds (or removes, with a negative delta) one owned copy of a specific
 // printing to a card's breakdown. Matches on code+rarity+edition so repeat
 // scans of the same printing stack. No-op when the card isn't owned.
@@ -214,11 +239,7 @@ export async function addPrintingCopy(
   const existing = await db.collection.get(cardId);
   if (!existing) return;
   const copies = (existing.copies ?? []).map((c) => ({ ...c }));
-  const same = (c: PrintingCopy) =>
-    (c.code ?? "") === (printing.code ?? "") &&
-    (c.rarity ?? "") === (printing.rarity ?? "") &&
-    (c.edition ?? "") === (printing.edition ?? "");
-  const idx = copies.findIndex(same);
+  const idx = copies.findIndex((c) => samePrinting(c, printing));
   if (idx >= 0) {
     copies[idx].quantity += delta;
     if (copies[idx].quantity <= 0) copies.splice(idx, 1);
@@ -244,18 +265,38 @@ export async function adjustPrintingCopy(
 ): Promise<void> {
   if (delta === 0) return;
   const current = (await db.collection.get(cardId))?.quantity ?? 0;
-  await setOwnedQuantity(cardId, Math.max(0, Math.min(99, current + delta)));
-  await addPrintingCopy(cardId, printing, delta);
+  if (delta < 0) {
+    // Shrink the exact printing first, so the quantity-drop reconcile inside
+    // setOwnedQuantity finds the breakdown already in step and trims nothing.
+    await addPrintingCopy(cardId, printing, delta);
+    await setOwnedQuantity(cardId, Math.max(0, current + delta));
+  } else {
+    await setOwnedQuantity(cardId, Math.min(99, current + delta));
+    await addPrintingCopy(cardId, printing, delta);
+  }
 }
 
 // Keeps the breakdown from claiming more copies than are owned — called after
-// the total drops (e.g. undo), trimming the newest copies first.
-export async function trimCopiesToQuantity(cardId: number): Promise<void> {
+// the total drops. When the caller knows which printing was removed, that row
+// shrinks first; only the remainder falls back to trimming newest-last (the
+// old behavior, which could delete the wrong printing).
+export async function trimCopiesToQuantity(
+  cardId: number,
+  removed?: { code?: string; rarity?: string; edition?: string }
+): Promise<void> {
   const e = await db.collection.get(cardId);
   if (!e?.copies) return;
   let over = e.copies.reduce((n, c) => n + c.quantity, 0) - e.quantity;
   if (over <= 0) return;
   const copies = e.copies.map((c) => ({ ...c }));
+  if (removed) {
+    const idx = copies.findIndex((c) => samePrinting(c, removed));
+    if (idx >= 0) {
+      const take = Math.min(copies[idx].quantity, over);
+      copies[idx].quantity -= take;
+      over -= take;
+    }
+  }
   for (let i = copies.length - 1; i >= 0 && over > 0; i--) {
     const take = Math.min(copies[i].quantity, over);
     copies[i].quantity -= take;

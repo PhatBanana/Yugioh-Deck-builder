@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
 import { db } from "../db";
-import { addOwned, trimCopiesToQuantity } from "../services/collection";
+import { addOwned, addPrintingCopy } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
 import { buzz } from "../lib/haptics";
 import { formatUsd } from "../lib/util";
@@ -104,7 +104,11 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const busyRef = useRef(false);
   const pendingIdRef = useRef<number | null>(null); // top match from previous frame
   const lockedIdRef = useRef<number | null>(null); // added; wait until it leaves frame
-  const orderRef = useRef<number[]>([]); // commit order, for undo
+  // Commit order for undo. Each entry later learns which printing was filed
+  // for it, so undo can remove that exact printing (not just any copy).
+  const orderRef = useRef<
+    { id: number; printing?: { code?: string; rarity?: string; edition?: string } }[]
+  >([]);
   const torchWantedRef = useRef(false); // 🔦 toggle state, readable inside the loop
 
   // Keep the latest settings in a ref so the async scan loop reads current
@@ -139,7 +143,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     async (id: number, name: string, byPasscode = false, marks?: CardMarks) => {
       const nextCount = await addOwned(id, 1);
       const card = await db.cards.get(id);
-      orderRef.current.push(id);
+      const order: (typeof orderRef.current)[number] = { id };
+      orderRef.current.push(order);
       setSession((prev) => {
         const existing = prev.find((e) => e.id === id);
         const entry: ScannedEntry = {
@@ -165,7 +170,17 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
           foil: marks.foil,
           modelRarity: marks.modelRarity,
         })
-          .then((resolved) => tagSession(id, resolved))
+          .then((resolved) => {
+            // Remember what was filed for this commit so undo removes exactly it.
+            if (resolved.rarity !== undefined || resolved.edition !== undefined) {
+              order.printing = {
+                code: resolved.code,
+                rarity: resolved.rarity,
+                edition: resolved.edition,
+              };
+            }
+            tagSession(id, resolved);
+          })
           .catch(() => {});
       }
     },
@@ -258,7 +273,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     await stopPreview();
     setScanning(false);
     // End-of-session recap: how many cards and roughly how much value added.
-    const ids = orderRef.current;
+    const ids = orderRef.current.map((o) => o.id);
     if (ids.length > 0) {
       const cards = await db.cards.bulkGet(ids);
       const value = cards.reduce((sum, c) => sum + (c?.price ?? 0), 0);
@@ -326,10 +341,13 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   }, [commit, withPulse]);
 
   const undoLast = useCallback(async () => {
-    const id = orderRef.current.pop();
-    if (id == null) return;
+    const last = orderRef.current.pop();
+    if (last == null) return;
+    const id = last.id;
+    // Remove the exact printing this commit filed *before* dropping the
+    // quantity — the drop's reconcile would otherwise trim some other row.
+    if (last.printing) await addPrintingCopy(id, last.printing, -1);
     await addOwned(id, -1);
-    await trimCopiesToQuantity(id); // keep the printing breakdown in step
     setSession((prev) => {
       const entry = prev.find((e) => e.id === id);
       if (!entry) return prev;
