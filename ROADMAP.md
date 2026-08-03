@@ -60,7 +60,11 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ### Trades & prices
 - Trade log: what you gave/got, valued at log time, with net value + undo.
-- Per-card price history + sparkline; daily collection-value snapshots.
+- **Real market price history** per printing (TCGplayer + Cardmarket), from
+  YGOPRODeck's trend data — months of history, not just since you added the
+  card. Falls back to the app's own recorded points when a card has no trend
+  data. Daily collection-value snapshots; every card's price snapshotted on
+  each sync.
 
 ### Platform & UX
 - Android back button closes popups/sheets instead of minimizing.
@@ -108,8 +112,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - **No per-rarity artwork.** Every printing of a card shares one catalog image;
   rarity is a foil finish, shown via the foil overlay rather than a different
   picture. (Genuinely different artworks are separate card IDs already.)
-- **No price history before you first synced.** No free source of past Yu-Gi-Oh
-  prices exists (YGOPRODeck's API only returns current prices), so a card's
-  chart can't go back to its release. The app snapshots every card's price on
-  each card-DB sync, so history builds forward from your first sync — true
-  since-release data would need a paid pricing API (adapter not yet built).
+- **Market history depth varies by card.** The card chart now pulls YGOPRODeck's
+  real trend data (the same source its website graph uses), which goes back
+  months per printing — but not always to a card's original release, and some
+  older/less-traded cards have no trend data at all (there the app falls back to
+  its own recorded points, which start when the card was first tracked). No free
+  source has complete since-release history for every card.

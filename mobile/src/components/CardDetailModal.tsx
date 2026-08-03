@@ -11,7 +11,7 @@ import { adjustPrintingCopy, allTags, setCondition, setTags } from "../services/
 import { getCardPrintings } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
-import PriceSparkline from "./PriceSparkline";
+import PriceHistory from "./PriceHistory";
 import { useBackClose } from "../hooks/useBackClose";
 import GradeCardSheet from "./GradeCardSheet";
 import { toast } from "./Toaster";
@@ -452,7 +452,7 @@ export default function CardDetailModal({
         )}
         {owned > 0 && <BindersRow cardId={card.id} tags={entry?.tags ?? []} />}
 
-        <PriceSparkline cardId={card.id} />
+        <PriceHistory cardId={card.id} cardName={card.name} />
 
         <DeckUsage cardId={card.id} />
 
