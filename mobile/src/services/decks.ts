@@ -71,6 +71,37 @@ export async function deleteDeck(id: string): Promise<void> {
   await db.decks.delete(id);
 }
 
+// Re-inserts a whole deck record (for undo after a delete).
+export async function restoreDeck(deck: MDeck): Promise<void> {
+  await db.decks.put(deck);
+}
+
+// Copies a deck into a new one named "… (copy)".
+export async function duplicateDeck(id: string): Promise<MDeck | null> {
+  const src = await db.decks.get(id);
+  if (!src) return null;
+  const copy: MDeck = {
+    ...src,
+    id: uid(),
+    name: `${src.name} (copy)`,
+    updatedAt: new Date().toISOString(),
+  };
+  await db.decks.put(copy);
+  return copy;
+}
+
+// Card ids the deck runs more copies of than you own (summed across sections,
+// which the 3-per-card limit keeps at ≤3). Powers "add missing to wishlist".
+export async function deckMissingCardIds(deckId: string): Promise<number[]> {
+  const deck = await db.decks.get(deckId);
+  if (!deck) return [];
+  const need = new Map<number, number>();
+  for (const c of deck.cards) need.set(c.cardId, (need.get(c.cardId) ?? 0) + c.quantity);
+  const ids = [...need.keys()];
+  const owned = await db.collection.bulkGet(ids);
+  return ids.filter((id, i) => (owned[i]?.quantity ?? 0) < (need.get(id) ?? 0));
+}
+
 export async function saveDeckFromYdk(name: string, cards: DeckCard[]): Promise<MDeck> {
   const deck: MDeck = {
     id: uid(),

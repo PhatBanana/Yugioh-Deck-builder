@@ -12,6 +12,8 @@ export interface ScanSettings {
   scanDelayMs: number;
   /** Play a short beep when a card is added (hands-free confirmation). */
   beepOnAdd: boolean;
+  /** Vibrate briefly when a card is added. */
+  hapticOnAdd: boolean;
   /** Torch style when the 🔦 toggle is on. */
   flashMode: FlashMode;
   /** Last-used camera zoom ratio (1 = main lens; >1 reaches the telephoto,
@@ -29,6 +31,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   keepAwake: true,
   scanDelayMs: 2000,
   beepOnAdd: false,
+  hapticOnAdd: true,
   flashMode: "continuous",
   zoomRatio: 1,
   detectPrinting: true,

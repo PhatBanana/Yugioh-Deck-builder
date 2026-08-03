@@ -16,7 +16,8 @@ import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
 import { invalidateCandidateCache } from "../services/scanner";
-import { allTags, getCollectionStats } from "../services/collection";
+import { allTags, getCollectionStats, getValueDelta } from "../services/collection";
+import { usePersistentState } from "../hooks/usePersistentState";
 import { formatUsd } from "../lib/util";
 
 const PAGE = 50;
@@ -112,16 +113,18 @@ function CardRow({ card, owned, copies }: { card: MCard; owned: number; copies?:
 
 export default function CardsPage() {
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<View>("all");
+  // View, sort, layout and filters persist across launches so the tab reopens
+  // the way you left it.
+  const [view, setView] = usePersistentState<View>("ygo-cards-view", "all");
   const [limit, setLimit] = useState(PAGE);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [backupOpen, setBackupOpen] = useState(false);
-  const [cardType, setCardType] = useState<TypeFilter>("");
-  const [sortBy, setSortBy] = useState<SortBy>("name");
-  const [layout, setLayout] = useState<"list" | "grid">("list");
-  const [attr, setAttr] = useState("");
-  const [level, setLevel] = useState("");
-  const [banStatus, setBanStatus] = useState("");
+  const [cardType, setCardType] = usePersistentState<TypeFilter>("ygo-cards-type", "");
+  const [sortBy, setSortBy] = usePersistentState<SortBy>("ygo-cards-sort", "name");
+  const [layout, setLayout] = usePersistentState<"list" | "grid">("ygo-cards-layout", "list");
+  const [attr, setAttr] = usePersistentState("ygo-cards-attr", "");
+  const [level, setLevel] = usePersistentState("ygo-cards-level", "");
+  const [banStatus, setBanStatus] = usePersistentState("ygo-cards-ban", "");
   const [openSet, setOpenSet] = useState<string | null>(null);
   const [tradesOpen, setTradesOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -146,6 +149,7 @@ export default function CardsPage() {
     return map;
   });
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
+  const valueDelta = useLiveQuery(() => getValueDelta(), [], null);
   // Printing breakdown per owned card, for the rarity summary on each row.
   const copiesMap = useLiveQuery(async () => {
     if (view !== "owned") return undefined;
@@ -375,8 +379,19 @@ export default function CardsPage() {
               <div className="text-3xl font-bold tabular-nums bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
                 ${stats.estimatedValueUsd.toFixed(0)}
               </div>
-              <div className="text-xs text-neutral-500 mt-0.5">
-                {stats.totalCopies} cards · {stats.uniqueCards} unique
+              <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1.5">
+                <span>
+                  {stats.totalCopies} cards · {stats.uniqueCards} unique
+                </span>
+                {valueDelta != null && Math.abs(valueDelta) >= 0.01 && (
+                  <span
+                    className={`tabular-nums font-medium ${
+                      valueDelta >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {valueDelta >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(valueDelta))} today
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 text-xs text-neutral-500">

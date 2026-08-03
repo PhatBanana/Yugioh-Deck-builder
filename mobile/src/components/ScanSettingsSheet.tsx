@@ -95,6 +95,12 @@ export default function ScanSettingsSheet({
             onChange={(v) => update({ beepOnAdd: v })}
           />
           <Toggle
+            label="Vibrate when a card is added"
+            hint="A short buzz on each add."
+            on={settings.hapticOnAdd}
+            onChange={(v) => update({ hapticOnAdd: v })}
+          />
+          <Toggle
             label="Detect edition & rarity"
             hint="Reads the set code (e.g. LOB-EN001) and 1st Edition mark to tag each copy's printing."
             on={settings.detectPrinting}

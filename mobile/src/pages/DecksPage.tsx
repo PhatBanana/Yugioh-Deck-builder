@@ -4,21 +4,25 @@ import type { DeckSection } from "@shared/deck/types";
 import { parseYdk } from "@shared/deck/ydk";
 import { computeDeckStats } from "@shared/deck/stats";
 import { formatUsd } from "../lib/util";
-import { db, type MCard } from "../db";
+import { db, type MCard, type MDeck } from "../db";
 import {
   createDeck,
+  deckMissingCardIds,
   deleteDeck,
   deckToYdk,
+  duplicateDeck,
   enrichDeck,
   getDeck,
   listDecks,
   renameDeck,
+  restoreDeck,
   saveDeckFromYdk,
   setDeckCard,
   setDeckNotes,
   type BanlistFormat,
   type EnrichedDeck,
 } from "../services/decks";
+import { addManyToWishlist } from "../services/wishlist";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -27,6 +31,7 @@ import { useBackClose } from "../hooks/useBackClose";
 import HandSimSheet from "../components/HandSimSheet";
 import DuelToolsSheet from "../components/DuelToolsSheet";
 import { toast } from "../components/Toaster";
+import { confirmDialog } from "../components/Confirm";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
   main: "Main Deck",
@@ -105,23 +110,78 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
       )}
 
       <div className="flex flex-col gap-2">
-        {decks.map((d) => {
-          const total = d.cards
-            .filter((c) => c.section === "main")
-            .reduce((n, c) => n + c.quantity, 0);
-          return (
-            <button
-              key={d.id}
-              type="button"
-              onClick={() => onOpen(d.id)}
-              className="pressable flex items-center justify-between panel px-4 py-3 text-left"
-            >
-              <span className="font-medium">{d.name}</span>
-              <span className="text-xs text-neutral-500">{total} main →</span>
-            </button>
-          );
-        })}
+        {decks.map((d) => (
+          <DeckTile key={d.id} deck={d} onOpen={onOpen} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function DeckTile({ deck, onOpen }: { deck: MDeck; onOpen: (id: string) => void }) {
+  const total = deck.cards
+    .filter((c) => c.section === "main")
+    .reduce((n, c) => n + c.quantity, 0);
+  const coverId = deck.cards.find((c) => c.section === "main")?.cardId ?? deck.cards[0]?.cardId;
+  const cover = useLiveQuery(
+    () => (coverId != null ? db.cards.get(coverId) : undefined),
+    [coverId]
+  );
+
+  async function duplicate() {
+    const copy = await duplicateDeck(deck.id);
+    if (copy) toast(`Duplicated "${deck.name}"`, "success");
+  }
+
+  async function wishlistMissing() {
+    const missing = await deckMissingCardIds(deck.id);
+    if (missing.length === 0) {
+      toast("You already own everything in this deck", "info");
+      return;
+    }
+    const added = await addManyToWishlist(missing);
+    toast(
+      added > 0
+        ? `Added ${added} missing card${added === 1 ? "" : "s"} to your wishlist`
+        : "Those are already on your wishlist",
+      "success"
+    );
+  }
+
+  const iconBtn =
+    "pressable shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-raised active:bg-overlay text-neutral-300";
+
+  return (
+    <div className="panel flex items-center gap-2 p-2">
+      <button
+        type="button"
+        onClick={() => onOpen(deck.id)}
+        className="flex items-center gap-3 min-w-0 flex-1 text-left"
+      >
+        <CardThumb img={cover?.img} w="w-10" h="h-14" />
+        <div className="min-w-0">
+          <div className="font-medium truncate">{deck.name}</div>
+          <div className="text-xs text-neutral-500">{total} main →</div>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={wishlistMissing}
+        className={iconBtn}
+        aria-label="Add missing cards to wishlist"
+        title="Add missing cards to wishlist"
+      >
+        ♡+
+      </button>
+      <button
+        type="button"
+        onClick={duplicate}
+        className={iconBtn}
+        aria-label="Duplicate deck"
+        title="Duplicate deck"
+      >
+        ⧉
+      </button>
     </div>
   );
 }
@@ -315,8 +375,20 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   }
 
   async function removeDeck() {
+    const snapshot = await getDeck(deckId);
+    const ok = await confirmDialog({
+      title: "Delete this deck?",
+      message: enriched ? `"${enriched.deck.name}" will be removed.` : undefined,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     await deleteDeck(deckId);
-    toast("Deck deleted", "info");
+    toast(
+      "Deck deleted",
+      "info",
+      snapshot ? { label: "Undo", onClick: () => void restoreDeck(snapshot) } : undefined
+    );
     onBack();
   }
 

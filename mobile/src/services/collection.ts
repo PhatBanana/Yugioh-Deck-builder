@@ -100,6 +100,14 @@ export interface CollectionStats {
   estimatedValueUsd: number;
 }
 
+// Change in collection value between the two most recent daily snapshots
+// (recorded on launch), for the "▲ +$X today" indicator. Null until there are
+// at least two days of history.
+export async function getValueDelta(): Promise<number | null> {
+  const recent = await db.valueHistory.orderBy("date").reverse().limit(2).toArray();
+  return recent.length < 2 ? null : recent[0].valueUsd - recent[1].valueUsd;
+}
+
 export async function getCollectionStats(): Promise<CollectionStats> {
   const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
   const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));

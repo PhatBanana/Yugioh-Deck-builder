@@ -14,6 +14,7 @@ import SyncFirstNotice from "../components/SyncFirstNotice";
 import PasteImport from "../components/PasteImport";
 import DeckImport from "../components/DeckImport";
 import { useBackClose } from "../hooks/useBackClose";
+import { usePersistentState } from "../hooks/usePersistentState";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import { toast } from "../components/Toaster";
@@ -292,7 +293,7 @@ export default function ScanPage({
   const { settings, update } = useScanSettings();
   const scan = useAutoScan(settings);
   const cardCount = useLiveQuery(() => db.cards.count());
-  const [mode, setMode] = useState<AddMode>("scan");
+  const [mode, setMode] = usePersistentState<AddMode>("ygo-add-mode", "scan");
   const [manualQuery, setManualQuery] = useState("");
   const [manualMatches, setManualMatches] = useState<NameMatch[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);

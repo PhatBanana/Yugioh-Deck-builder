@@ -19,12 +19,22 @@ export default function QuantityStepper({
   const [value, setValue] = useState(quantity);
   useEffect(() => setValue(quantity), [quantity, cardId]);
 
+  function restore(to: number) {
+    setValue(to);
+    onChange?.(to);
+    void setOwnedQuantity(cardId, to);
+  }
+
   async function persist(next: number) {
     const prev = value;
     setValue(next);
     onChange?.(next);
     try {
       await setOwnedQuantity(cardId, next);
+      // Removing the last copy is easy to do by accident — offer an undo.
+      if (next === 0 && prev > 0) {
+        toast("Removed from collection", "info", { label: "Undo", onClick: () => restore(prev) });
+      }
     } catch {
       setValue(prev);
       onChange?.(prev);

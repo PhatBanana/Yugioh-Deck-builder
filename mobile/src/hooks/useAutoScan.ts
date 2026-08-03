@@ -3,6 +3,9 @@ import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
 import { db } from "../db";
 import { addOwned, trimCopiesToQuantity } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
+import { buzz } from "../lib/haptics";
+import { formatUsd } from "../lib/util";
+import { toast } from "../components/Toaster";
 import {
   captureFrameAndMatch,
   flipCamera,
@@ -150,6 +153,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         return [entry, ...prev.filter((e) => e.id !== id)];
       });
       if (settingsRef.current.beepOnAdd) playBeep();
+      if (settingsRef.current.hapticOnAdd) buzz();
       setFlash({ name, count: nextCount });
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
@@ -224,6 +228,9 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
+    // Fresh session each time, so the end-of-session recap counts only this run.
+    orderRef.current = [];
+    setSession([]);
     await startPreview();
     // Phone is typically in a mount for a scan session — keep the screen from
     // dimming/locking so it doesn't cut the session short (unless disabled).
@@ -250,6 +257,16 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     await setScreenAwake(false);
     await stopPreview();
     setScanning(false);
+    // End-of-session recap: how many cards and roughly how much value added.
+    const ids = orderRef.current;
+    if (ids.length > 0) {
+      const cards = await db.cards.bulkGet(ids);
+      const value = cards.reduce((sum, c) => sum + (c?.price ?? 0), 0);
+      toast(
+        `Session: ${ids.length} card${ids.length === 1 ? "" : "s"} added · ~${formatUsd(value)}`,
+        "success"
+      );
+    }
   }, []);
 
   const toggleTorch = useCallback(async () => {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import Toaster from "./components/Toaster";
+import { ConfirmHost } from "./components/Confirm";
+import { usePersistentState } from "./hooks/usePersistentState";
 import ScanPage from "./pages/ScanPage";
 import CardsPage from "./pages/CardsPage";
 import DecksPage from "./pages/DecksPage";
@@ -22,7 +24,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("cards");
+  const [tab, setTab] = usePersistentState<Tab>("ygo-active-tab", "cards");
   // Immersive = live camera scanning; hide app chrome so the preview (rendered
   // behind the webview) shows through.
   const [immersive, setImmersive] = useState(false);
@@ -109,6 +111,7 @@ export default function App() {
       )}
 
       <Toaster />
+      <ConfirmHost />
     </div>
   );
 }

@@ -15,3 +15,19 @@ export async function toggleWishlist(cardId: number): Promise<boolean> {
   recordPricePoints([cardId]).catch(() => {});
   return true;
 }
+
+// Adds many cards to the wishlist, skipping ones already on it. Returns how
+// many were newly added.
+export async function addManyToWishlist(cardIds: number[]): Promise<number> {
+  let added = 0;
+  await db.transaction("rw", db.wishlist, async () => {
+    for (const id of cardIds) {
+      if (!(await db.wishlist.get(id))) {
+        await db.wishlist.put({ cardId: id });
+        added++;
+      }
+    }
+  });
+  if (added > 0) recordPricePoints(cardIds).catch(() => {});
+  return added;
+}
