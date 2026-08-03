@@ -30,6 +30,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - Collection value hero with today's value change (▲/▼) and a value-over-time
   sparkline.
 - Set completion browser (owned vs missing per set).
+- **Pack simulator**: rip a virtual booster of any set from its real card pool
+  and rarity mix (a fun approximation), with foils and pack value.
 - CSV export; full JSON backup & restore (via the Android share sheet).
 - Sticky preferences (view/sort/filters/tab persist across launches).
 
@@ -55,7 +57,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - Deck stats (monster/spell/trap split, price) and opening-hand simulator.
 - **Deck odds**: exact opening-hand probabilities (hypergeometric) per card,
   going first (5) or second (6); tap cards as starters for a live consistency
-  vs. brick reading.
+  vs. brick reading, and pick 2+ for combo odds (opening the whole combo
+  together, via inclusion–exclusion).
 - "How it plays" strategy notes (auto-seeded when copied from a meta deck).
 - `.ydk` import/export; duplicate a deck; cover art on deck tiles.
 - **Deck sharing**: share a deck as a compact copy-paste code (via the Android
@@ -110,9 +113,6 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 ## Later / ideas
 
 - [ ] Cloud sync / multi-device (currently local-only IndexedDB).
-- [ ] Multi-card combo probability — odds of opening card A *and* card B (the
-      deck-odds sheet already does per-card and starter-group consistency).
-- [ ] Pack/box opening simulator using set contents + rarity odds.
 - [ ] Trade suggestions (match your haves against others' wants).
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).
 - [ ] Localization / non-English card data.

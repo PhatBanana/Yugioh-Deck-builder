@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chanceOfNone,
   chanceToDraw,
+  chanceToOpenAll,
   chanceToOpenAny,
   combination,
   hypergeometricPmf,
@@ -57,6 +58,23 @@ describe("chanceToDraw", () => {
 describe("chanceOfNone", () => {
   it("is the complement of drawing at least one", () => {
     expect(chanceOfNone(40, 3, 5)).toBeCloseTo(1 - chanceToDraw(40, 3, 5, 1), 10);
+  });
+});
+
+describe("chanceToOpenAll", () => {
+  it("matches inclusion-exclusion for two 3-ofs (deck 40, hand 5)", () => {
+    // 1 - 2·C(37,5)/C(40,5) + C(34,5)/C(40,5)
+    const expected = 1 - (2 * 435897) / 658008 + 278256 / 658008;
+    expect(chanceToOpenAll(40, [3, 3], 5)).toBeCloseTo(expected, 10);
+  });
+
+  it("opening the whole combo is rarer than opening any one piece", () => {
+    expect(chanceToOpenAll(40, [3, 3], 5)).toBeLessThan(chanceToDraw(40, 3, 5, 1));
+  });
+
+  it("a single piece reduces to its own draw odds; empty combo is certain", () => {
+    expect(chanceToOpenAll(40, [3], 5)).toBeCloseTo(chanceToDraw(40, 3, 5, 1), 10);
+    expect(chanceToOpenAll(40, [], 5)).toBe(1);
   });
 });
 

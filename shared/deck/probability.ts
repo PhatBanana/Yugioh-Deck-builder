@@ -71,6 +71,35 @@ export function chanceToOpenAny(
   return clamp01(1 - chanceOfNone(deck, groupCopies, handSize));
 }
 
+// P(opening at least one of EVERY listed card together) — a combo. Each entry
+// in `copiesEach` is the copy count of one required (distinct) card. Uses
+// inclusion–exclusion over which required cards are entirely missing, so it's
+// exact. Exponential in the number of pieces, but combos are only a handful.
+export function chanceToOpenAll(
+  deck: number,
+  copiesEach: number[],
+  handSize: number
+): number {
+  const m = copiesEach.length;
+  if (m === 0) return 1;
+  const denom = combination(deck, handSize);
+  if (denom === 0) return 0;
+  let sum = 0;
+  for (let mask = 0; mask < 1 << m; mask++) {
+    let removed = 0;
+    let bits = 0;
+    for (let i = 0; i < m; i++) {
+      if (mask & (1 << i)) {
+        removed += copiesEach[i];
+        bits++;
+      }
+    }
+    // Subsets of "these cards are all absent"; sign alternates with size.
+    sum += (bits % 2 === 0 ? 1 : -1) * combination(deck - removed, handSize);
+  }
+  return clamp01(sum / denom);
+}
+
 function clamp01(x: number): number {
   return x < 0 ? 0 : x > 1 ? 1 : x;
 }

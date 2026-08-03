@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { chanceToDraw, chanceToOpenAny } from "@shared/deck/probability";
+import { chanceToDraw, chanceToOpenAll, chanceToOpenAny } from "@shared/deck/probability";
 import { setDeckStarters, type EnrichedDeckCard } from "../services/decks";
 import CardThumb from "./CardThumb";
 import { useBackClose } from "../hooks/useBackClose";
@@ -33,11 +33,11 @@ export default function DeckOddsSheet({
   );
   const deckSize = useMemo(() => main.reduce((n, c) => n + c.quantity, 0), [main]);
 
-  const starterCopies = useMemo(
-    () => main.filter((c) => starters.has(c.cardId)).reduce((n, c) => n + c.quantity, 0),
-    [main, starters]
-  );
+  const selected = useMemo(() => main.filter((c) => starters.has(c.cardId)), [main, starters]);
+  const starterCopies = useMemo(() => selected.reduce((n, c) => n + c.quantity, 0), [selected]);
   const consistency = chanceToOpenAny(deckSize, starterCopies, handSize);
+  // "Open all of them together" — a combo line, meaningful once ≥2 are picked.
+  const combo = chanceToOpenAll(deckSize, selected.map((c) => c.quantity), handSize);
 
   const toggleStarter = (id: number) =>
     setStarters((prev) => {
@@ -73,7 +73,8 @@ export default function DeckOddsSheet({
             <p className="text-xs text-neutral-500 mb-3">
               Exact odds from a {deckSize}-card main deck. Tap the{" "}
               <span className="text-amber-300">☆</span> to mark starters (saved
-              with the deck) — the bar shows how often you open at least one.
+              with the deck) — the bar shows how often you open at least one, and
+              pick 2+ to see the odds of opening the whole combo together.
             </p>
 
             {/* Going first / second toggle. */}
@@ -100,15 +101,17 @@ export default function DeckOddsSheet({
                 <div className="flex items-center justify-around text-center tabular-nums">
                   <div>
                     <div className="text-2xl font-semibold text-emerald-400">{pct(consistency)}</div>
-                    <div className="text-[11px] text-neutral-500">open a starter</div>
+                    <div className="text-[11px] text-neutral-500">open ≥1</div>
                   </div>
+                  {selected.length >= 2 && (
+                    <div>
+                      <div className="text-2xl font-semibold text-amber-300">{pct(combo)}</div>
+                      <div className="text-[11px] text-neutral-500">open all {selected.length}</div>
+                    </div>
+                  )}
                   <div>
                     <div className="text-2xl font-semibold text-red-400/90">{pct(1 - consistency)}</div>
                     <div className="text-[11px] text-neutral-500">brick (none)</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold text-amber-300">{starterCopies}</div>
-                    <div className="text-[11px] text-neutral-500">starter copies</div>
                   </div>
                 </div>
               )}
