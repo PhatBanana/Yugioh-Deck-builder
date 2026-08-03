@@ -67,6 +67,12 @@ export async function setDeckNotes(id: string, notes: string): Promise<void> {
   });
 }
 
+// Persists the "starter" cards picked in the deck-odds analyzer. Not a deck
+// edit, so it deliberately leaves `updatedAt` alone.
+export async function setDeckStarters(id: string, starters: number[]): Promise<void> {
+  await db.decks.update(id, { starters: starters.length > 0 ? starters : undefined });
+}
+
 export async function deleteDeck(id: string): Promise<void> {
   await db.decks.delete(id);
 }

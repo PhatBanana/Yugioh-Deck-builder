@@ -1,23 +1,27 @@
 import { useMemo, useState } from "react";
 import { chanceToDraw, chanceToOpenAny } from "@shared/deck/probability";
-import type { EnrichedDeckCard } from "../services/decks";
+import { setDeckStarters, type EnrichedDeckCard } from "../services/decks";
 import CardThumb from "./CardThumb";
 import { useBackClose } from "../hooks/useBackClose";
 
 // Advanced deck analytics: exact opening-hand odds (hypergeometric) for every
 // main-deck card, plus a "consistency" reading — tap the cards you consider
 // starters and see how often you open at least one of them (and how often you
-// brick with none).
+// brick with none). Starter picks persist on the deck.
 export default function DeckOddsSheet({
+  deckId,
   cards,
+  initialStarters,
   onClose,
 }: {
+  deckId: string;
   cards: EnrichedDeckCard[];
+  initialStarters: number[];
   onClose: () => void;
 }) {
   useBackClose(onClose);
   const [handSize, setHandSize] = useState(5);
-  const [starters, setStarters] = useState<Set<number>>(new Set());
+  const [starters, setStarters] = useState<Set<number>>(() => new Set(initialStarters));
 
   const main = useMemo(
     () =>
@@ -40,6 +44,7 @@ export default function DeckOddsSheet({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      void setDeckStarters(deckId, [...next]);
       return next;
     });
 
@@ -66,9 +71,9 @@ export default function DeckOddsSheet({
         ) : (
           <>
             <p className="text-xs text-neutral-500 mb-3">
-              Exact odds from a {deckSize}-card main deck. Tap cards to mark them
-              as <span className="text-amber-300">starters</span> — the bar shows
-              how often you open at least one.
+              Exact odds from a {deckSize}-card main deck. Tap the{" "}
+              <span className="text-amber-300">☆</span> to mark starters (saved
+              with the deck) — the bar shows how often you open at least one.
             </p>
 
             {/* Going first / second toggle. */}
@@ -120,12 +125,20 @@ export default function DeckOddsSheet({
                     type="button"
                     onClick={() => toggleStarter(c.cardId)}
                     className="flex items-center gap-2.5 w-full text-left py-1.5"
+                    aria-pressed={isStarter}
                   >
+                    <span
+                      className={`text-base leading-none shrink-0 ${
+                        isStarter ? "text-amber-300" : "text-neutral-600"
+                      }`}
+                      aria-hidden
+                    >
+                      {isStarter ? "★" : "☆"}
+                    </span>
                     <CardThumb img={c.img} w="w-7" h="h-10" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm truncate flex items-center gap-1">
-                        {isStarter && <span className="text-amber-300">★</span>}
-                        <span className={isStarter ? "text-amber-100" : ""}>{c.name}</span>
+                      <div className={`text-sm truncate ${isStarter ? "text-amber-100" : ""}`}>
+                        {c.name}
                       </div>
                       <div className="text-[11px] text-neutral-500 tabular-nums">×{c.quantity}</div>
                     </div>

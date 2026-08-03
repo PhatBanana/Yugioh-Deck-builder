@@ -142,6 +142,9 @@ export interface MDeck {
   // Strategy notes: turn order, combo lines, tech choices. Seeded with a
   // generated game-plan blurb when copied from a meta deck.
   notes?: string;
+  // Card ids the owner marked as "starters" in the deck-odds analyzer, so the
+  // consistency reading persists between visits.
+  starters?: number[];
 }
 
 export interface MWishlistEntry {
