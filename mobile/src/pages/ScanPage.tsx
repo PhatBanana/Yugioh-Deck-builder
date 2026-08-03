@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import type { NameMatch } from "@shared/scan/nameMatcher";
 import { matchCardName } from "@shared/scan/nameMatcher";
 import { rarityAbbrev } from "@shared/scan/setCode";
+import { foilClass } from "../lib/foil";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { addOwned } from "../services/collection";
@@ -211,7 +212,12 @@ function ScanningOverlay({
             <div key={e.id} className="shrink-0 w-12">
               <div className="relative">
                 {e.img ? (
-                  <img src={e.img} alt={e.name} className="w-12 rounded" />
+                  <span className="relative block">
+                    <img src={e.img} alt={e.name} className="w-12 rounded" />
+                    {foilClass(e.rarity) && (
+                      <span aria-hidden className={`foil ${foilClass(e.rarity)}`} />
+                    )}
+                  </span>
                 ) : (
                   <div className="w-12 h-[70px] rounded bg-neutral-700" />
                 )}

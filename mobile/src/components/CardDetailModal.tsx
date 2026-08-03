@@ -4,6 +4,7 @@ import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
 import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
+import { foilClass, topRarity } from "../lib/foil";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
 import { adjustPrintingCopy, allTags, setCondition, setTags } from "../services/collection";
 import { getCardPrintings } from "../services/printings";
@@ -387,10 +388,13 @@ export default function CardDetailModal({
             <button
               type="button"
               onClick={() => setArtOpen(true)}
-              className="shrink-0 self-start"
+              className="shrink-0 self-start relative"
               aria-label="Show full card art"
             >
               <img src={card.img} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10" />
+              {foilClass(topRarity(entry?.copies)) && (
+                <span aria-hidden className={`foil ${foilClass(topRarity(entry?.copies))}`} />
+              )}
             </button>
           ) : (
             <div className="w-32 h-44 rounded-lg bg-raised ring-1 ring-white/5 shrink-0" />

@@ -105,6 +105,16 @@ body {
     background-size: 200% 100%;
     animation: wordmark-shimmer 6s ease-in-out infinite;
   }
+
+  /* Rainbow foil sweeps its hues; other finishes stay static. */
+  @keyframes foil-shimmer {
+    to {
+      background-position: 300% 50%;
+    }
+  }
+  .foil-rainbow {
+    animation: foil-shimmer 3.5s linear infinite;
+  }
 }
 
 /* While live scanning, the camera preview renders behind the webview
@@ -114,6 +124,61 @@ html.camera-scanning,
 html.camera-scanning body,
 html.camera-scanning #root {
   background: transparent !important;
+}
+
+/* Rarity foil overlays — a sheen matching a card's real-world finish, laid
+   over the catalog art (which is identical for every printing of a card, so
+   the foil is the only way rarity can read visually). */
+.foil {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.375rem; /* match the image's rounded-md */
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+.foil-silver {
+  background: linear-gradient(
+    135deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 65%
+  );
+}
+.foil-holo {
+  background: linear-gradient(
+    115deg,
+    rgba(56, 189, 248, 0.4),
+    rgba(232, 121, 249, 0.4),
+    rgba(56, 189, 248, 0.4)
+  );
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+}
+.foil-gold {
+  background: linear-gradient(
+    135deg,
+    transparent 25%,
+    rgba(250, 204, 21, 0.6) 50%,
+    transparent 75%
+  );
+  mix-blend-mode: color-dodge;
+}
+.foil-rainbow {
+  background: linear-gradient(
+    115deg,
+    #ff0040,
+    #ff8a00,
+    #ffee00,
+    #20e070,
+    #00c2ff,
+    #7a5cff,
+    #ff40d0,
+    #ff0040
+  );
+  background-size: 300% 300%;
+  background-position: 0% 50%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.5;
 }
 
 @layer components {
