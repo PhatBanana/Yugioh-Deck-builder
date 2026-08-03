@@ -6,6 +6,11 @@ import { rebuildPrintingIndex } from "./rarity";
 const CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
 const DBVER_URL = "https://db.ygoprodeck.com/api/v7/checkDBVer.php";
 
+// Bumped whenever `slim()` starts keeping a new field, so an app update forces
+// one full re-pull to backfill it even when the remote DB version is unchanged.
+// (v2 added per-card artwork ids.)
+const CARDS_SHAPE = "2";
+
 interface ApiCard {
   id: number;
   name: string;
@@ -18,7 +23,7 @@ interface ApiCard {
   def?: number;
   level?: number;
   banlist_info?: { ban_tcg?: string; ban_ocg?: string; ban_goat?: string };
-  card_images?: { image_url_small?: string }[];
+  card_images?: { id?: number; image_url_small?: string }[];
   card_prices?: { tcgplayer_price?: string }[];
   card_sets?: { set_code?: string; set_rarity?: string; set_price?: string }[];
 }
@@ -38,6 +43,11 @@ function slim(c: ApiCard): MCard {
   const name = decodeHtmlEntities(c.name);
   const rawPrice = c.card_prices?.[0]?.tcgplayer_price;
   const price = rawPrice ? Number.parseFloat(rawPrice) : NaN;
+  // Artwork image ids — kept only when a card has more than one, so the vast
+  // majority of single-art cards add no extra data.
+  const artIds = (c.card_images ?? [])
+    .map((im) => im.id)
+    .filter((id): id is number => typeof id === "number");
   return {
     id: c.id,
     name,
@@ -55,6 +65,7 @@ function slim(c: ApiCard): MCard {
     banGoat: c.banlist_info?.ban_goat ?? null,
     price: Number.isFinite(price) && price > 0 ? price : null,
     img: c.card_images?.[0]?.image_url_small ?? null,
+    ...(artIds.length > 1 ? { arts: artIds } : {}),
   };
 }
 
@@ -76,8 +87,14 @@ export async function syncCards(
   }
 
   const localVersion = (await db.syncMeta.get("cards_db_version"))?.value ?? null;
+  const localShape = (await db.syncMeta.get("cards_shape"))?.value ?? null;
   const cardCount = await db.cards.count();
-  if (remoteVersion && localVersion === remoteVersion && cardCount > 0) {
+  if (
+    remoteVersion &&
+    localVersion === remoteVersion &&
+    localShape === CARDS_SHAPE &&
+    cardCount > 0
+  ) {
     return { cardCount, skipped: true };
   }
 
@@ -88,6 +105,7 @@ export async function syncCards(
   onProgress?.(`Saving ${cards.length.toLocaleString()} cards…`);
   await db.cards.bulkPut(cards);
   await setSyncMeta("cards_last_synced_at", new Date().toISOString());
+  await setSyncMeta("cards_shape", CARDS_SHAPE);
   if (remoteVersion) await setSyncMeta("cards_db_version", remoteVersion);
 
   // Build the global rarity/foil index from the same dump (its set lists are

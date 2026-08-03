@@ -5,9 +5,10 @@ import type { MCard, MCardSets, MCollectionEntry } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { foilClass, topRarity } from "../lib/foil";
+import { artFullUrl, artSmallUrl, hasAltArts } from "../lib/art";
 import { valueEntry } from "@shared/collection/value";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
-import { adjustPrintingCopy, allTags, setCondition, setTags } from "../services/collection";
+import { adjustPrintingCopy, allTags, setCondition, setPreferredArt, setTags } from "../services/collection";
 import { getCardPrintings } from "../services/printings";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
@@ -291,9 +292,10 @@ function BindersRow({ cardId, tags }: { cardId: number; tags: string[] }) {
 
 // Fullscreen card art, opened by tapping the card image in the detail sheet.
 // The card DB only stores thumbnail URLs, but YGOPRODeck serves the full-size
-// scan at a predictable URL per card id; fall back to the thumb if it 404s.
-function CardArtViewer({ card, onClose }: { card: MCard; onClose: () => void }) {
-  const [src, setSrc] = useState(`https://images.ygoprodeck.com/images/cards/${card.id}.jpg`);
+// scan at a predictable URL per image id; fall back to the thumb if it 404s.
+// `artId` shows a specific artwork; without it, the card's default art.
+function CardArtViewer({ card, artId, onClose }: { card: MCard; artId?: number; onClose: () => void }) {
+  const [src, setSrc] = useState(artFullUrl(artId ?? card.id));
   useBackClose(onClose);
   return (
     <div
@@ -360,6 +362,50 @@ function DeckUsage({ cardId }: { cardId: number }) {
   );
 }
 
+// Horizontal strip of a card's alternate artworks. Tapping one previews it as
+// the hero image; for an owned card it's also saved as the preferred art (so
+// the collection thumbnails use it). Picking the default clears the override.
+function ArtworkPicker({
+  card,
+  owned,
+  selected,
+  onPick,
+}: {
+  card: MCard;
+  owned: boolean;
+  selected: number;
+  onPick: (artId: number) => void;
+}) {
+  const arts = card.arts ?? [];
+  const defaultId = arts[0];
+  return (
+    <div className="mt-3">
+      <span className="block text-xs font-semibold text-neutral-400 mb-1.5">
+        Artwork{owned ? " — tap to choose yours" : `s (${arts.length})`}
+      </span>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {arts.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              onPick(id);
+              if (owned) void setPreferredArt(card.id, id === defaultId ? undefined : id);
+            }}
+            className={`shrink-0 rounded-lg overflow-hidden ring-2 transition-colors ${
+              id === selected ? "ring-amber-400" : "ring-white/10"
+            }`}
+            aria-label="Select artwork"
+            aria-pressed={id === selected}
+          >
+            <img src={artSmallUrl(id)} alt="" className="w-16" loading="lazy" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CardDetailModal({
   card,
   onClose,
@@ -370,7 +416,15 @@ export default function CardDetailModal({
   const entry = useLiveQuery(() => db.collection.get(card.id), [card.id]);
   const owned = entry?.quantity ?? 0;
   const [artOpen, setArtOpen] = useState(false);
+  // Which artwork is showing. `undefined` means "follow the saved preference /
+  // default"; a tap in the picker sets an explicit choice for this session.
+  const [picked, setPicked] = useState<number | undefined>(undefined);
   useBackClose(onClose);
+
+  const arts = card.arts ?? [];
+  const effectiveArtId = picked ?? entry?.artId ?? arts[0];
+  const heroImg =
+    effectiveArtId != null && effectiveArtId !== card.id ? artSmallUrl(effectiveArtId) : card.img;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -405,7 +459,7 @@ export default function CardDetailModal({
               className="shrink-0 self-start relative"
               aria-label="Show full card art"
             >
-              <img src={card.img} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10" />
+              <img src={heroImg ?? card.img ?? ""} alt={card.name} className="w-32 rounded-lg ring-1 ring-white/10" />
               {foilClass(topRarity(entry?.copies)) && (
                 <span aria-hidden className={`foil ${foilClass(topRarity(entry?.copies))}`} />
               )}
@@ -438,6 +492,15 @@ export default function CardDetailModal({
           </div>
         </div>
 
+        {hasAltArts(card) && (
+          <ArtworkPicker
+            card={card}
+            owned={owned > 0}
+            selected={effectiveArtId ?? card.id}
+            onPick={setPicked}
+          />
+        )}
+
         <div className="flex items-center justify-between gap-3 mt-3">
           <div className="flex items-center gap-2 text-sm text-neutral-400">
             <span>Owned</span>
@@ -463,7 +526,9 @@ export default function CardDetailModal({
         )}
       </div>
 
-      {artOpen && <CardArtViewer card={card} onClose={() => setArtOpen(false)} />}
+      {artOpen && (
+        <CardArtViewer card={card} artId={effectiveArtId} onClose={() => setArtOpen(false)} />
+      )}
     </div>
   );
 }
