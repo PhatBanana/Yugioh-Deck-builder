@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   SCAN_DELAY_MAX,
   SCAN_DELAY_MIN,
@@ -5,6 +6,7 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { useBackClose } from "../hooks/useBackClose";
+import GeminiNanoLab from "./GeminiNanoLab";
 
 const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "continuous", label: "Steady" },
@@ -59,6 +61,7 @@ export default function ScanSettingsSheet({
   onClose: () => void;
 }) {
   useBackClose(onClose);
+  const [labOpen, setLabOpen] = useState(false);
   return (
     <div
       className="sheet-backdrop z-[70] flex items-end"
@@ -149,7 +152,16 @@ export default function ScanSettingsSheet({
             </div>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setLabOpen(true)}
+          className="btn-ghost w-full py-2.5 text-sm mt-4"
+        >
+          🧪 Test Gemini Nano (experimental)
+        </button>
       </div>
+      {labOpen && <GeminiNanoLab onClose={() => setLabOpen(false)} />}
     </div>
   );
 }
