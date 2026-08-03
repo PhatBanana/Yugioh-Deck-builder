@@ -71,6 +71,11 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   card. Falls back to the app's own recorded points when a card has no trend
   data. Daily collection-value snapshots; every card's price snapshotted on
   each sync.
+- **Price alerts**: notable recent moves (≥15% and ≥$0.50) on owned &
+  wishlisted cards over 1w/1m/3m, from the recorded price history; badge on the
+  Owned view's Alerts button.
+- **Collection insights**: most valuable cards, value split by card type and by
+  archetype, total/avg value — from the Owned view's Insights button.
 
 ### Platform & UX
 - Android back button closes popups/sheets instead of minimizing.
@@ -95,10 +100,6 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
       barcode scanning; use it to add sealed products or look up by UPC.
 - [ ] **Wishlist total cost + budget planner** — sum wishlist value; "what can
       I complete for $X."
-- [ ] **Price alerts** — flag notable price moves on owned/wishlisted cards
-      (data already recorded in price history).
-- [ ] **Collection insights** — most valuable cards, biggest movers, value by
-      set/archetype.
 - [ ] **Bulk edit** — multi-select cards to set quantity/tags/condition at once.
 - [ ] **Deck sharing** — export a deck as an image, or a shareable link/code.
 

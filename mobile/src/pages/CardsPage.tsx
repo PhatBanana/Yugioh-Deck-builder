@@ -10,6 +10,9 @@ import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import ValueSparkline from "../components/ValueSparkline";
 import BackupSheet from "../components/BackupSheet";
+import InsightsSheet from "../components/InsightsSheet";
+import PriceAlertsSheet from "../components/PriceAlertsSheet";
+import { getPriceAlerts } from "../services/priceAlerts";
 import SetSheet from "../components/SetSheet";
 import TradesSheet from "../components/TradesSheet";
 import { ensureSetList, searchSets } from "../services/sets";
@@ -154,6 +157,8 @@ export default function CardsPage() {
   const [banStatus, setBanStatus] = usePersistentState("ygo-cards-ban", "");
   const [openSet, setOpenSet] = useState<string | null>(null);
   const [tradesOpen, setTradesOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [setCount, setSetCount] = useState<number | null>(null);
   const debouncedQuery = useDebouncedValue(query, 250);
@@ -196,6 +201,12 @@ export default function CardsPage() {
     for (const e of await db.collection.toArray()) if (e.artId != null) m.set(e.cardId, e.artId);
     return m;
   }, [view]);
+  // Count of notable price moves (last month), for the Alerts button badge.
+  const alertCount = useLiveQuery(
+    async () => (view === "owned" ? (await getPriceAlerts(30)).alerts.length : 0),
+    [view],
+    0
+  );
 
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -445,6 +456,28 @@ export default function CardsPage() {
               </button>
             </div>
           </div>
+          {/* Insights + price alerts, drawing on collection value & price history. */}
+          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setInsightsOpen(true)}
+              className="btn-ghost py-2 text-xs"
+            >
+              📊 Insights
+            </button>
+            <button
+              type="button"
+              onClick={() => setAlertsOpen(true)}
+              className="btn-ghost py-2 text-xs relative"
+            >
+              🔔 Alerts
+              {alertCount > 0 && (
+                <span className="pop-in absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-black text-[11px] font-bold flex items-center justify-center">
+                  {alertCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between text-xs text-neutral-500">
@@ -575,6 +608,8 @@ export default function CardsPage() {
 
       {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
       {tradesOpen && <TradesSheet onClose={() => setTradesOpen(false)} />}
+      {insightsOpen && <InsightsSheet onClose={() => setInsightsOpen(false)} />}
+      {alertsOpen && <PriceAlertsSheet onClose={() => setAlertsOpen(false)} />}
       {openSet && <SetSheet setName={openSet} onClose={() => setOpenSet(null)} />}
     </div>
   );
