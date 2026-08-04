@@ -1,6 +1,6 @@
 import { topMovers, type Mover, type MoverInput } from "@shared/collection/insights";
 import { DAY_MS } from "../lib/util";
-import { db } from "../db";
+import { db, getSyncMeta, setSyncMeta } from "../db";
 
 // Notable recent price moves on the cards you care about (owned or wishlisted),
 // from the recorded price history. "Notable" = past both a percentage and a
@@ -18,12 +18,28 @@ export interface PriceAlertResult {
   alerts: PriceAlert[];
 }
 
+// The Alerts button badge reads this cached count — computing real alerts
+// scans every tracked card's price history, far too heavy to re-run on every
+// collection write. Refreshed when the alerts sheet computes or a sync runs.
+const ALERT_COUNT_KEY = "price_alert_count";
+
+export async function cachedAlertCount(): Promise<number> {
+  return Number(await getSyncMeta(ALERT_COUNT_KEY)) || 0;
+}
+
+export async function refreshAlertCount(): Promise<number> {
+  return (await getPriceAlerts(30)).alerts.length; // write-through caches it
+}
+
 export async function getPriceAlerts(windowDays = 30): Promise<PriceAlertResult> {
   const [owned, wished] = await Promise.all([db.collection.toArray(), db.wishlist.toArray()]);
   const ownedIds = new Set(owned.filter((e) => e.quantity > 0).map((e) => e.cardId));
   const wishIds = new Set(wished.map((w) => w.cardId));
   const ids = [...new Set([...ownedIds, ...wishIds])];
-  if (ids.length === 0) return { windowDays, alerts: [] };
+  if (ids.length === 0) {
+    if (windowDays === 30) setSyncMeta(ALERT_COUNT_KEY, "0").catch(() => {});
+    return { windowDays, alerts: [] };
+  }
 
   // One indexed query for every tracked card's points, then group per card.
   const points = await db.priceHistory.where("cardId").anyOf(ids).toArray();
@@ -47,5 +63,7 @@ export async function getPriceAlerts(windowDays = 30): Promise<PriceAlertResult>
     owned: ownedIds.has(m.cardId),
     wishlisted: wishIds.has(m.cardId),
   }));
+  // Write-through for the badge's cached count (the default window only).
+  if (windowDays === 30) setSyncMeta(ALERT_COUNT_KEY, String(alerts.length)).catch(() => {});
   return { windowDays, alerts };
 }

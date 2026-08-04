@@ -14,7 +14,7 @@ import InsightsSheet from "../components/InsightsSheet";
 import PriceAlertsSheet from "../components/PriceAlertsSheet";
 import WishlistBudgetSheet from "../components/WishlistBudgetSheet";
 import BulkEditBar from "../components/BulkEditBar";
-import { getPriceAlerts } from "../services/priceAlerts";
+import { cachedAlertCount, refreshAlertCount } from "../services/priceAlerts";
 import SetSheet from "../components/SetSheet";
 import TradesSheet from "../components/TradesSheet";
 import { ensureSetList, searchSets } from "../services/sets";
@@ -23,7 +23,7 @@ import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
 import { invalidateCandidateCache } from "../services/scanner";
-import { allTags, getCollectionStats, getValueDelta } from "../services/collection";
+import { getCollectionStats, getValueDelta } from "../services/collection";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { formatUsd } from "../lib/util";
 
@@ -219,45 +219,46 @@ export default function CardsPage() {
   );
 
   const cardCount = useLiveQuery(() => db.cards.count());
-  const ownedMap = useLiveQuery(async () => {
-    const map = new Map<number, number>();
-    for (const e of await db.collection.toArray()) map.set(e.cardId, e.quantity);
-    return map;
+  // One pass over the collection for everything the page derives from it —
+  // owned counts, printing breakdowns (rarity summaries + ambiguous count),
+  // chosen artworks and binder names. Previously five separate live queries
+  // each re-scanned the whole table on every single write.
+  const coll = useLiveQuery(async () => {
+    const ownedMap = new Map<number, number>();
+    const copiesMap = new Map<number, PrintingCopy[]>();
+    const artMap = new Map<number, number>();
+    const tagSet = new Set<string>();
+    let ambiguousCount = 0;
+    for (const e of await db.collection.toArray()) {
+      ownedMap.set(e.cardId, e.quantity);
+      if (e.copies?.length) {
+        copiesMap.set(e.cardId, e.copies);
+        for (const c of e.copies) if (c.ambiguous) ambiguousCount += c.quantity;
+      }
+      if (e.artId != null) artMap.set(e.cardId, e.artId);
+      for (const t of e.tags ?? []) tagSet.add(t);
+    }
+    return {
+      ownedMap,
+      copiesMap,
+      artMap,
+      tags: [...tagSet].sort((a, b) => a.localeCompare(b)),
+      ambiguousCount,
+    };
   });
+  const ownedMap = coll?.ownedMap;
+  const copiesMap = view === "owned" ? coll?.copiesMap : undefined;
+  const artMap = view === "owned" ? coll?.artMap : undefined;
+  const ambiguousCount = coll?.ambiguousCount ?? 0;
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
   const valueDelta = useLiveQuery(
     () => (stats ? getValueDelta(stats.estimatedValueUsd) : Promise.resolve(null)),
     [stats?.estimatedValueUsd],
     null
   );
-  // Printing breakdown per owned card, for the rarity summary on each row.
-  const copiesMap = useLiveQuery(async () => {
-    if (view !== "owned") return undefined;
-    const m = new Map<number, PrintingCopy[]>();
-    for (const e of await db.collection.toArray()) if (e.copies?.length) m.set(e.cardId, e.copies);
-    return m;
-  }, [view]);
-  // Scanned copies whose rarity is still a guess — derived from the same query.
-  const ambiguousCount = (() => {
-    let n = 0;
-    for (const copies of copiesMap?.values() ?? [])
-      for (const c of copies) if (c.ambiguous) n += c.quantity;
-    return n;
-  })();
-  // Chosen alternate artwork per owned card, so grid/list thumbnails match the
-  // art the owner picked.
-  const artMap = useLiveQuery(async () => {
-    if (view !== "owned") return undefined;
-    const m = new Map<number, number>();
-    for (const e of await db.collection.toArray()) if (e.artId != null) m.set(e.cardId, e.artId);
-    return m;
-  }, [view]);
-  // Count of notable price moves (last month), for the Alerts button badge.
-  const alertCount = useLiveQuery(
-    async () => (view === "owned" ? (await getPriceAlerts(30)).alerts.length : 0),
-    [view],
-    0
-  );
+  // Alerts badge: reads the cached count (refreshed by the sheet / a sync)
+  // instead of recomputing every card's price history on each write.
+  const alertCount = useLiveQuery(() => cachedAlertCount(), [], 0);
 
   const toggleSelect = (id: number) =>
     setSelected((prev) => {
@@ -305,17 +306,20 @@ export default function CardsPage() {
     if (level) rows = rows.filter((c) => c.level === Number(level));
     if (banStatus) rows = rows.filter((c) => c.banlist === banStatus);
     rows.sort(SORTERS[sortBy]);
-    return view === "all" ? rows.slice(0, limit + 1) : rows;
+    // Every card view paginates — a 3,000-card collection otherwise renders
+    // 3,000 rows (each with its own wishlist live query) in one go.
+    return rows.slice(0, limit + 1);
   }, [debouncedQuery, view, limit, cardType, sortBy, tagFilter, ambigFilter, attr, level, banStatus]);
 
-  // Binder chips shown on the Owned view — only queried there.
-  const tags = useLiveQuery(() => (view === "owned" ? allTags() : []), [view], []);
+  // Binder chips shown on the Owned view — derived from the collection pass.
+  const tags = coll?.tags ?? [];
 
   async function runFullSync() {
     setSyncing("Starting…");
     try {
       const cards = await syncCards(setSyncing);
       invalidateCandidateCache();
+      refreshAlertCount().catch(() => {}); // prices changed — refresh the badge
       setSyncing("Updating meta decks…");
       const decks = await syncMetaDecks(setSyncing);
       toast(
@@ -363,7 +367,7 @@ export default function CardsPage() {
     );
   }
 
-  const hasMore = view === "all" && (results?.length ?? 0) > limit;
+  const hasMore = view !== "sets" && (results?.length ?? 0) > limit;
   const visible = hasMore ? results!.slice(0, limit) : (results ?? []);
 
   return (
@@ -387,7 +391,10 @@ export default function CardsPage() {
           <button
             key={v.id}
             type="button"
-            onClick={() => setView(v.id)}
+            onClick={() => {
+              setView(v.id);
+              setLimit(PAGE);
+            }}
             className={`seg-btn py-1.5 ${view === v.id ? "seg-on" : ""}`}
           >
             {v.label}
