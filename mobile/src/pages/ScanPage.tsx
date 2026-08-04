@@ -99,7 +99,7 @@ function ScanningOverlay({
           className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-xl leading-none"
           aria-label="Stop scanning"
         >
-          ✕
+          ×
         </button>
         <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
           {sessionTotal} added

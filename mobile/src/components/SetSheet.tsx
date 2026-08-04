@@ -42,7 +42,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
 
         {completion === undefined && <p className="text-sm text-neutral-500 py-6">Loading set…</p>}
         {completion === null && (
-          <p className="text-sm text-neutral-400 py-6">
+          <p className="empty-state">
             Couldn't load this set's card list — check your connection and try again.
           </p>
         )}
@@ -72,7 +72,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
               onClick={() => setPackOpen(true)}
               className="btn-ghost w-full py-2 text-sm mt-3"
             >
-              🎴 Open a pack
+              📦 Open a pack
             </button>
 
             {completion.missingCards.length > 0 && (

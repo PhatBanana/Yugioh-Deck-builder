@@ -126,7 +126,7 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
       )}
 
       {decks.length === 0 && (
-        <p className="text-sm text-neutral-500 text-center py-10">
+        <p className="empty-state">
           No decks yet. Create one, or import a .ydk from Master Duel / EDOPro / YGOPRODeck.
         </p>
       )}
@@ -587,7 +587,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           onClick={() => setShowingOdds(true)}
           className="btn-ghost py-2.5 text-sm"
         >
-          📊 Odds
+          🎯 Odds
         </button>
         <button
           type="button"

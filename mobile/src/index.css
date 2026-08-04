@@ -227,10 +227,24 @@ html.camera-scanning #root {
   opacity: 0.5;
 }
 
+/* Z-index ladder — every overlay layer in one place so new surfaces slot in
+   instead of guessing (guessing is how the bulk bar ended up over sheets):
+     z-[60]  fullscreen scan overlay
+     z-[70]  bottom sheets (settings, detail, trades, …)
+     z-[75]  bulk-edit action bar (over page, hidden while a sheet is open)
+     z-[80]  sheets stacked over other sheets/scan (rarity picker, labs)
+     z-[90]  fullscreen art lightbox
+   Toasts/confirm sit above everything via their own portal styles. */
+
 @layer components {
   /* Elevated card/panel container, lit faintly from above. */
   .panel {
     @apply rounded-2xl border border-line bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.03)];
+  }
+
+  /* The one way to say "nothing here": quiet, centered, breathing room. */
+  .empty-state {
+    @apply text-sm text-neutral-500 text-center py-10;
   }
 
   /* Tap feedback shared by every button-like element. */

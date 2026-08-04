@@ -115,7 +115,7 @@ export default function BulkEditBar({
             Remove
           </button>
           <button type="button" onClick={onDone} className={chip} aria-label="Done selecting">
-            ✕
+            ×
           </button>
         </div>
       </div>

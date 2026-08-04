@@ -49,9 +49,9 @@ export default function PriceAlertsSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         {!result ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">Checking prices…</p>
+          <p className="empty-state">Checking prices…</p>
         ) : result.alerts.length === 0 ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">
+          <p className="empty-state">
             No notable moves in this window. Prices update when you re-sync the card
             database.
           </p>

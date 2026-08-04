@@ -68,14 +68,14 @@ export default function DeckOddsSheet({
       >
         <div className="sheet-handle" />
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold">📊 Deck odds</h2>
+          <h2 className="text-lg font-semibold">🎯 Deck odds</h2>
           <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
             ×
           </button>
         </div>
 
         {deckSize < 1 ? (
-          <p className="text-sm text-neutral-400 py-6 text-center">
+          <p className="empty-state">
             Add main-deck cards to see opening-hand odds.
           </p>
         ) : (

@@ -12,8 +12,18 @@ import { checkForUpdate, installedBuild, openUpdate } from "../services/appUpdat
 import { toast } from "./Toaster";
 
 // Bottom sheet for exporting the collection/decks as a JSON file and
-// restoring from one (file pick or paste).
-export default function BackupSheet({ onClose }: { onClose: () => void }) {
+// restoring from one (file pick or paste) — plus app/data upkeep (card
+// re-sync, update check) so those live in one predictable place.
+export default function BackupSheet({
+  onClose,
+  syncing,
+  onSync,
+}: {
+  onClose: () => void;
+  // Card-database re-sync, provided by the page that owns the sync state.
+  syncing?: string | null;
+  onSync?: () => void;
+}) {
   const [pasted, setPasted] = useState("");
   const [pending, setPending] = useState<BackupFile | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,7 +137,7 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
           onClick={() => void exportCsv()}
           className="btn-ghost w-full py-2.5 text-sm mt-2"
         >
-          📊 Export collection as CSV (spreadsheet)
+          🧾 Export collection as CSV (spreadsheet)
         </button>
         <button
           type="button"
@@ -136,6 +146,16 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
         >
           🔄 Check for app updates
         </button>
+        {onSync && (
+          <button
+            type="button"
+            disabled={!!syncing}
+            onClick={onSync}
+            className="btn-ghost w-full py-2.5 text-sm mt-2 disabled:opacity-60"
+          >
+            {syncing ? `⏳ ${syncing}` : "🔃 Re-sync card database & prices"}
+          </button>
+        )}
 
         <div className="mt-4 pt-3 border-t border-line">
           <h3 className="text-sm font-semibold mb-1.5">Restore</h3>

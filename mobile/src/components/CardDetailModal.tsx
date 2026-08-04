@@ -340,7 +340,7 @@ function BindersRow({ cardId, tags }: { cardId: number; tags: string[] }) {
               onClick={() => void setTags(cardId, tags.filter((x) => x !== t))}
               className="text-amber-200/70"
             >
-              ✕
+              ×
             </button>
           </span>
         ))}

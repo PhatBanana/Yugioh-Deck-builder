@@ -38,7 +38,7 @@ function SideEditor({
             aria-label={`Remove from ${label}`}
             onClick={() => onChange(side.filter((x) => x.cardId !== s.cardId))}
           >
-            ✕
+            ×
           </button>
         </div>
       ))}
@@ -151,7 +151,7 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
                 <TradeRow key={t.id} trade={t} />
               ))}
               {trades.length === 0 && (
-                <p className="text-sm text-neutral-500 text-center py-6">
+                <p className="empty-state">
                   No trades logged yet. Each entry stores both sides valued at the prices on that day.
                 </p>
               )}
