@@ -48,6 +48,20 @@ describe("openPack", () => {
     expect(foils).toHaveLength(1);
   });
 
+  it("never repeats a card when the pool is big enough (no replacement)", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const pack = openPack(pool, seeded(seed));
+      const ids = pack.map((c) => c.cardId);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it("tolerates pools smaller than the pack size", () => {
+    const tiny = [common(1), common(2), foil(101, "Rare")];
+    const pack = openPack(tiny, seeded(3));
+    expect(pack).toHaveLength(9); // repeats allowed only once the pool runs dry
+  });
+
   it("is all commons when the pool has no foils", () => {
     const pack = openPack(pool.filter((c) => isCommon(c.rarity)), seeded(2));
     expect(pack.every((c) => isCommon(c.rarity))).toBe(true);

@@ -72,7 +72,12 @@ function slim(c: ApiCard): MCard {
 export interface CardSyncResult {
   cardCount: number;
   skipped: boolean;
+  // True when the rarity/foil index couldn't be rebuilt — scanning falls back
+  // to per-card network lookups until the next successful sync.
+  rarityIndexFailed?: boolean;
 }
+
+const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 
 export async function syncCards(
   onProgress?: (message: string) => void
@@ -83,23 +88,35 @@ export async function syncCards(
     const ver = await httpGetJson<{ database_version?: string }[]>(DBVER_URL);
     remoteVersion = ver?.[0]?.database_version ?? null;
   } catch {
-    // Version check is best-effort; fall through to a full pull.
+    // Version check is best-effort; the freshness fallback below decides.
   }
 
   const localVersion = (await db.syncMeta.get("cards_db_version"))?.value ?? null;
   const localShape = (await db.syncMeta.get("cards_shape"))?.value ?? null;
+  const lastSynced = (await db.syncMeta.get("cards_last_synced_at"))?.value ?? null;
   const cardCount = await db.cards.count();
+  const shapeOk = localShape === CARDS_SHAPE && cardCount > 0;
+  if (remoteVersion && localVersion === remoteVersion && shapeOk) {
+    return { cardCount, skipped: true };
+  }
+  // Version endpoint down/flaky but data is complete and recent: don't burn a
+  // 50 MB download that would almost certainly fetch identical data.
   if (
-    remoteVersion &&
-    localVersion === remoteVersion &&
-    localShape === CARDS_SHAPE &&
-    cardCount > 0
+    !remoteVersion &&
+    shapeOk &&
+    lastSynced &&
+    Date.now() - Date.parse(lastSynced) < DAY_MS_LOCAL
   ) {
     return { cardCount, skipped: true };
   }
 
   onProgress?.("Downloading card database (~50 MB, Wi-Fi recommended)…");
   const payload = await httpGetJson<{ data: ApiCard[] }>(CARDINFO_URL);
+  // The API returns {"error": "..."} on failures — surface that readably
+  // instead of a raw TypeError from .map on undefined.
+  if (!Array.isArray(payload?.data) || payload.data.length === 0) {
+    throw new Error("Card database unavailable right now — try again later");
+  }
   const cards = payload.data.map(slim);
 
   onProgress?.(`Saving ${cards.length.toLocaleString()} cards…`);
@@ -126,7 +143,13 @@ export async function syncCards(
       }
     }
   }
-  await rebuildPrintingIndex(printingRows).catch(() => {});
+  // A failure here shouldn't fail the whole sync, but it must not be silent
+  // either — the scanner's rarity lookups depend on this index, and the old
+  // swallow meant the UI would advise "re-sync" after a sync that "worked".
+  const rarityIndexFailed = await rebuildPrintingIndex(printingRows).then(
+    () => false,
+    () => true
+  );
 
   // A sync is the only time local prices change. Snapshot every card's price
   // today (so any card added later already has history), then run the tracked
@@ -135,5 +158,5 @@ export async function syncCards(
   await recordAllCardPrices(cards).catch(() => {});
   await recordPriceSnapshots(true).catch(() => {});
 
-  return { cardCount: cards.length, skipped: false };
+  return { cardCount: cards.length, skipped: false, rarityIndexFailed: rarityIndexFailed || undefined };
 }

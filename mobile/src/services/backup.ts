@@ -1,7 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { collectionToCsv } from "@shared/collection/csv";
+import { collectionToCsv, type CsvRow } from "@shared/collection/csv";
+import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import {
   db,
   type MCollectionEntry,
@@ -57,19 +58,52 @@ export async function exportTextFile(name: string, mime: string, content: string
   }
 }
 
-// Collection as a spreadsheet-friendly CSV (one row per owned card).
+// Collection as a spreadsheet-friendly CSV — one row per owned *printing*
+// (set code + rarity, priced at that printing's own value), plus a row for
+// any copies with no printing attribution (priced at the generic card price).
+// This mirrors the per-printing model the app values the collection with, so
+// the CSV's totals agree with the numbers on screen.
 export async function createCollectionCsv(): Promise<string> {
   const entries = (await db.collection.toArray()).filter((e) => e.quantity > 0);
   const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
-  const rows = entries.map((e, i) => ({
-    name: cards[i]?.name ?? `#${e.cardId}`,
-    quantity: e.quantity,
-    condition: e.condition ?? null,
-    printingCode: e.printing?.code ?? null,
-    rarity: e.printing?.rarity ?? null,
-    priceUsd: cards[i]?.price ?? null,
-    tags: e.tags ?? null,
-  }));
+  const priceMap = await loadPrintingPrices(entries.flatMap((e) => e.copies ?? []));
+  const priceOf = (code?: string, rarity?: string): number | null => {
+    const key = printingPriceKey(code, rarity);
+    return key ? priceMap.get(key) ?? null : null;
+  };
+
+  const rows: CsvRow[] = [];
+  entries.forEach((e, i) => {
+    const name = cards[i]?.name ?? `#${e.cardId}`;
+    const generic = cards[i]?.price ?? null;
+    let attributed = 0;
+    for (const c of e.copies ?? []) {
+      const qty = Math.min(c.quantity, e.quantity - attributed);
+      if (qty <= 0) continue;
+      attributed += qty;
+      rows.push({
+        name,
+        quantity: qty,
+        condition: c.condition ?? e.condition ?? null,
+        printingCode: c.code ?? null,
+        rarity: c.rarity ?? null,
+        priceUsd: priceOf(c.code, c.rarity) ?? generic,
+        tags: e.tags ?? null,
+      });
+    }
+    const rest = e.quantity - attributed;
+    if (rest > 0) {
+      rows.push({
+        name,
+        quantity: rest,
+        condition: e.condition ?? null,
+        printingCode: e.printing?.code ?? null,
+        rarity: e.printing?.rarity ?? null,
+        priceUsd: generic,
+        tags: e.tags ?? null,
+      });
+    }
+  });
   rows.sort((a, b) => a.name.localeCompare(b.name));
   return collectionToCsv(rows);
 }

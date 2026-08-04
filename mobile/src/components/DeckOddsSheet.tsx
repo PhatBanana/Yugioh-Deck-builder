@@ -48,14 +48,15 @@ export default function DeckOddsSheet({
     [selected, deckSize, handSize]
   );
 
-  const toggleStarter = (id: number) =>
-    setStarters((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      void setDeckStarters(deckId, [...next]);
-      return next;
-    });
+  const toggleStarter = (id: number) => {
+    // Compute outside the state updater — persisting from inside it would run
+    // twice under StrictMode's double-invoke.
+    const next = new Set(starters);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setStarters(next);
+    void setDeckStarters(deckId, [...next]);
+  };
 
   const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
 
