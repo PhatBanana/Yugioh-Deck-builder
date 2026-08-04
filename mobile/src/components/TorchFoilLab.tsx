@@ -127,8 +127,10 @@ export default function TorchFoilLab({
         </div>
         <p className="text-xs text-neutral-500 mb-3">
           Point the camera at a card, hold still, and Measure — the torch
-          flashes once and the lab shows where the light bounced back. Tag each
-          sample with the card's real rarity, then share the log.
+          flashes once and the lab shows where the light bounced back. The
+          "Torch rarity check" toggle in scan settings uses these readings live
+          during scanning; this lab is for eyeballing the raw numbers (tag +
+          share samples only if the toggle keeps guessing wrong).
         </p>
 
         <button type="button" onClick={measure} disabled={!!busy} className="btn-primary w-full py-3 text-sm">

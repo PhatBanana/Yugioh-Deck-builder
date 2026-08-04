@@ -113,6 +113,14 @@ export default function ScanSettingsSheet({
             on={settings.detectPrinting}
             onChange={(v) => update({ detectPrinting: v })}
           />
+          {settings.detectPrinting && (
+            <Toggle
+              label="Torch rarity check (experimental)"
+              hint="After each card is added, the torch flashes once — where the light reflects helps pick which rarity you're holding. Keep the card still until the flash."
+              on={settings.torchRarity}
+              onChange={(v) => update({ torchRarity: v })}
+            />
+          )}
 
           <div className="py-3">
             <span className="block text-sm">Flash style</span>

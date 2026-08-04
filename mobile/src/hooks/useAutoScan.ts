@@ -19,7 +19,9 @@ import {
   stopPreview,
   type ZoomState,
 } from "../services/scanner";
+import { captureTorchDiff } from "../services/torchFoil";
 import { DEFAULT_SCAN_SETTINGS, type ScanSettings } from "./useScanSettings";
+import type { TorchVerdict } from "@shared/scan/torchFoil";
 
 export interface ScannedEntry {
   id: number;
@@ -190,12 +192,30 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
 
+      // Experimental torch rarity check: the card is still under the camera
+      // right after a commit, so flash an exposure-locked off/on pair and read
+      // where the light reflects. Runs inside the busy tick, so the loop
+      // naturally waits (~1s); any failure just falls through.
+      let torchVerdict: TorchVerdict | undefined;
+      if (settingsRef.current.detectPrinting && settingsRef.current.torchRarity && marks?.setCode) {
+        setStatus("💡 Checking foil — hold still…");
+        // A continuously-lit torch would contaminate the "off" frame.
+        const continuousTorch =
+          torchWantedRef.current && settingsRef.current.flashMode === "continuous";
+        if (continuousTorch) await setTorchNative(false);
+        const diff = await captureTorchDiff();
+        if (continuousTorch) await setTorchNative(true);
+        torchVerdict = diff?.verdict;
+        setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
+      }
+
       // Resolve the printing (rarity) in the background — the lookup shouldn't
       // hold up the scan loop.
       if (settingsRef.current.detectPrinting && (marks?.setCode || marks?.edition)) {
         applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
           foil: marks.foil,
           modelRarity: marks.modelRarity,
+          torchVerdict,
         })
           .then((resolved) => {
             // Remember what was filed for this commit so undo removes exactly it.

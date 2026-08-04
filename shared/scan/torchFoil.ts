@@ -1,4 +1,5 @@
-import type { FoilStats } from "./rarityVision";
+import { rarityBucket, type FoilStats } from "./rarityVision";
+import type { RarityCandidate } from "./rarityPrior";
 
 // Torch-differential foil classification (experimental).
 //
@@ -122,4 +123,49 @@ export function classifyTorchDelta(
 function conf(slack: number, span: number): number {
   const x = Math.max(0, Math.min(1, span > 0 ? slack / span : 0));
   return 0.5 + 0.45 * x;
+}
+
+// Below this the verdict is treated as "no opinion" and the caller falls
+// through to the single-frame foil pass / prior ranking.
+export const TORCH_MIN_CONFIDENCE = 0.6;
+
+export interface NarrowResult {
+  // Exactly one candidate matched the verdict — a confirmed pick.
+  pick?: RarityCandidate;
+  // The verdict narrowed the field (family verdicts): prior order preserved,
+  // first entry is the new best guess. Equals `candidates` when the verdict
+  // had no opinion.
+  narrowed: RarityCandidate[];
+  confident: boolean;
+}
+
+// Applies a torch verdict to a set code's (prior-ranked) candidate rarities.
+// Exact tiers match by name; the secret family and embossed verdicts filter
+// by bucket, since the flash can't separate e.g. Secret from Starlight.
+export function narrowByVerdict(
+  candidates: RarityCandidate[],
+  verdict: TorchVerdict
+): NarrowResult {
+  const confident = verdict.confidence >= TORCH_MIN_CONFIDENCE && verdict.tier !== "unknown";
+  if (!confident || candidates.length === 0) {
+    return { narrowed: candidates, confident: false };
+  }
+
+  let matches: RarityCandidate[];
+  if (verdict.tier === "secret+") {
+    matches = candidates.filter((c) => rarityBucket(c.rarity) === "rainbow");
+  } else if (verdict.tier === "embossed?") {
+    matches = candidates.filter((c) => /ultimate/i.test(c.rarity));
+  } else if (verdict.rarity) {
+    matches = candidates.filter(
+      (c) => c.rarity.toLowerCase() === verdict.rarity!.toLowerCase()
+    );
+  } else {
+    matches = [];
+  }
+
+  if (matches.length === 1) return { pick: matches[0], narrowed: matches, confident };
+  if (matches.length > 1) return { narrowed: matches, confident };
+  // The verdict names a tier this code was never printed at — no opinion.
+  return { narrowed: candidates, confident: false };
 }
