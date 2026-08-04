@@ -1,7 +1,11 @@
 // Pure pack-opening simulation: given a set's card pool (each card tagged with
 // its rarity in that set), draw a booster pack. A classic Yu-Gi-Oh! pack is 9
 // cards — 8 commons and 1 "foil" slot whose rarity is weighted toward the
-// lower tiers. This is a fun approximation, not the exact per-set print odds.
+// lower tiers. With a PackProfile the foil slot instead follows era-accurate
+// pull ratios (see profiles.ts); either way it's an approximation, not the
+// exact per-set print odds.
+
+import { rarityTier, rollFoilTier, TIER_ORDER, type PackProfile, type RarityTier } from "./profiles";
 
 export interface PoolCard {
   cardId: number;
@@ -9,8 +13,9 @@ export interface PoolCard {
 }
 
 export interface PackConfig {
-  size?: number; // cards per pack (default 9)
+  size?: number; // cards per pack (default 9, or the profile's size)
   foilSlots?: number; // guaranteed rare-or-better slots (default 1)
+  profile?: PackProfile; // era odds for the foil slot (default: legacy weights)
 }
 
 export function isCommon(rarity: string): boolean {
@@ -67,13 +72,40 @@ function pickFoil(foils: PoolCard[], rand: () => number): PoolCard {
   return pick(entries[entries.length - 1][1], rand);
 }
 
+// Picks a foil of the rolled tier. When the set has no cards of that tier,
+// falls to the nearest tier below it that exists (then above), so odd pools
+// (all-foil side sets, sets with no Secrets) still produce a sensible pull.
+function pickFoilByTier(
+  foils: PoolCard[],
+  tier: RarityTier,
+  rand: () => number
+): PoolCard {
+  const byTier = new Map<RarityTier, PoolCard[]>();
+  for (const c of foils) {
+    const t = rarityTier(c.rarity);
+    const arr = byTier.get(t) ?? [];
+    arr.push(c);
+    byTier.set(t, arr);
+  }
+  const want = TIER_ORDER.indexOf(tier);
+  for (let i = want; i >= 0; i--) {
+    const arr = byTier.get(TIER_ORDER[i]);
+    if (arr && TIER_ORDER[i] !== "common") return pick(arr, rand);
+  }
+  for (let i = want + 1; i < TIER_ORDER.length; i++) {
+    const arr = byTier.get(TIER_ORDER[i]);
+    if (arr) return pick(arr, rand);
+  }
+  return pick(foils, rand);
+}
+
 // Draws a pack from the pool. `rand` is injectable for deterministic tests.
 export function openPack(
   pool: PoolCard[],
   rand: () => number = Math.random,
   cfg: PackConfig = {}
 ): PoolCard[] {
-  const size = cfg.size ?? 9;
+  const size = cfg.size ?? cfg.profile?.size ?? 9;
   const foilSlots = cfg.foilSlots ?? 1;
   if (pool.length === 0) return [];
 
@@ -82,8 +114,13 @@ export function openPack(
   const result: PoolCard[] = [];
 
   for (let i = 0; i < foilSlots; i++) {
-    const src = foils.length > 0 ? foils : pool;
-    result.push(foils.length > 0 ? pickFoil(src, rand) : pick(src, rand));
+    if (foils.length === 0) {
+      result.push(pick(pool, rand));
+    } else if (cfg.profile) {
+      result.push(pickFoilByTier(foils, rollFoilTier(cfg.profile, rand), rand));
+    } else {
+      result.push(pickFoil(foils, rand));
+    }
   }
   const commonSrc = commons.length > 0 ? commons : pool;
   result.push(...drawUnique(commonSrc, size - result.length, rand));

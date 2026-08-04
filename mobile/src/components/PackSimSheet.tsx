@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { drawPack, getSetPool, type PackCard } from "../services/packSim";
+import { drawPack, getSetPool, type PackCard, type SetPool } from "../services/packSim";
 import { foilClass } from "../lib/foil";
 import { rarityBucket } from "@shared/scan/rarityVision";
 import { formatUsd } from "../lib/util";
@@ -8,11 +8,11 @@ import { useCardDetail } from "./CardDetailModal";
 import { buzz } from "../lib/haptics";
 
 // A fun gimmick: rip a virtual booster of a set, using its real card pool and
-// rarity mix. Not exact print odds — just a satisfying pull.
+// era-accurate pull ratios (approximate — picked from the set's release date).
 export default function PackSimSheet({ setName, onClose }: { setName: string; onClose: () => void }) {
   useBackClose(onClose);
   const openCard = useCardDetail();
-  const [pool, setPool] = useState<PackCard[] | null>(null);
+  const [pool, setPool] = useState<SetPool | null>(null);
   const [pack, setPack] = useState<PackCard[] | null>(null);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
   }, [setName]);
 
   function rip() {
-    if (!pool || pool.length === 0) return;
+    if (!pool || pool.cards.length === 0) return;
     buzz();
     setPack(drawPack(pool));
   }
@@ -66,7 +66,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
 
         {pool === null ? (
           <p className="empty-state">Loading set…</p>
-        ) : pool.length === 0 ? (
+        ) : pool.cards.length === 0 ? (
           <p className="empty-state">
             No rarity data for this set — re-sync the card database and try again.
           </p>
@@ -117,7 +117,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
               {pack ? "📦 Open another pack" : "📦 Open a pack"}
             </button>
             <p className="text-[11px] text-neutral-600 text-center mt-2">
-              Simulated odds for fun — not the exact print run.
+              {pool.profile.label} odds, era-accurate but approximate.
             </p>
           </>
         )}
