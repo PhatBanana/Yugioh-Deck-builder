@@ -357,8 +357,8 @@ const FORMAT_NAMES: Record<BanlistFormat, string> = {
   tcg: "TCG banlist",
   ocg: "OCG banlist",
   goat: "Goat banlist",
-  master: "Master Duel",
-  speed: "Speed Duel",
+  master: "Master Duel card pool",
+  speed: "Speed Duel card pool",
 };
 
 function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) {
@@ -488,7 +488,15 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       )}
       {format === "speed" && !enriched.formatDataMissing && (
         <p className="text-[11px] text-neutral-500 -mt-1">
-          Skill cards aren't tracked — build the 20–30 card deck here and add your Skill separately.
+          Checks the 20–30 card Speed Duel deck and its card pool. Skill cards
+          aren't tracked — add your Skill separately.
+        </p>
+      )}
+      {format === "master" && !enriched.formatDataMissing && (
+        <p className="text-[11px] text-neutral-500 -mt-1">
+          Checks which cards exist in Master Duel. Its Forbidden/Limited list
+          isn't published in machine-readable form, so copy limits aren't
+          checked here.
         </p>
       )}
 

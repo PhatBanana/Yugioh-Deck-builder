@@ -170,8 +170,12 @@ export interface EnrichedDeckCard extends DeckCard {
 }
 
 // Which format validates the deck. OCG/Goat data arrives with a card re-sync;
-// Master Duel and Speed Duel regulations come from the data-pack fetch. Until
-// the data exists the fields are undefined and treated as unlimited.
+// Master Duel and Speed Duel data come from the data-pack fetch. Until the
+// data exists the fields are undefined and treated as unlimited.
+//
+// Master Duel checks card-pool membership only: the upstream data says which
+// cards are in the game, but carries no MD Forbidden/Limited list, so copy
+// limits aren't enforced for it (the UI says as much).
 export type BanlistFormat = "tcg" | "ocg" | "goat" | "master" | "speed";
 
 export interface EnrichedDeck {
@@ -235,16 +239,20 @@ export async function enrichDeck(
     })),
     format === "speed" ? SPEED_SIZES : STANDARD_SIZES
   );
-  // Speed Duel has a small card pool: any card without a Speed regulation
-  // entry isn't printed for the format at all. (Skill cards are out of scope
-  // — they aren't in the card database.)
-  if (format === "speed" && !formatDataMissing) {
+  // Master Duel and Speed Duel are pool-limited formats: a card with no entry
+  // for the format simply doesn't exist there. Speed Duel's pool is ~1,200
+  // cards; Master Duel omits a few hundred. (Speed Skill cards are out of
+  // scope — they aren't in the card database at all.)
+  if ((format === "speed" || format === "master") && !formatDataMissing) {
+    const poolName = format === "speed" ? "the Speed Duel card pool" : "Master Duel";
     const seen = new Set<number>();
     deck.cards.forEach((_c, i) => {
       const card = cards[i];
-      if (card && card.speedLimit === undefined && !seen.has(card.id)) {
+      if (!card || seen.has(card.id)) return;
+      const inPool = format === "speed" ? card.speedLimit !== undefined : card.banMd !== undefined;
+      if (!inPool) {
         seen.add(card.id);
-        validation.errors.push(`${card.name} isn't in the Speed Duel card pool.`);
+        validation.errors.push(`${card.name} isn't in ${poolName}.`);
       }
     });
     validation.legal = validation.errors.length === 0;
