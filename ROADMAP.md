@@ -42,8 +42,14 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   `SDCB-EN001`) and 1st-Edition mark; resolves rarity from an **offline rarity
   index** built during card sync.
 - **Visual foil second-pass**: classifies the card's foil from the frame to
-  confirm / flag / disambiguate the set-code rarity. (On-device ML classifier
+  confirm / flag / disambiguate the set-code rarity — sampling regions track
+  the detected card (not fixed screen areas). (On-device ML classifier
   scaffolded — see Next.)
+- **Rarity disambiguation**: when a set code maps to several rarities, the
+  filed rarity is the statistically likely one (pull-rate + price prior) and
+  is marked ambiguous — the session chip shows "?" and taps open a one-tap
+  picker (foil previews, prices, pull odds); unconfirmed copies stay findable
+  via the card sheet's confirm pill and an Owned-view filter chip.
 - Camera controls: real **optical zoom** with physical-lens buttons
   (0.5/1/2/3×) + quarter-step fine tuning, front/back flip, tap-to-refocus,
   torch (steady or glare-reducing pulse).
@@ -116,6 +122,56 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - [ ] Trade suggestions (match your haves against others' wants).
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).
 - [ ] Localization / non-English card data.
+
+## Known cleanup backlog
+
+Findings from a full code review (2026-08). Critical/high items were fixed;
+these medium/low ones are real but deferred — pick them up opportunistically.
+
+**Error handling / offline**
+- [ ] A failed `checkDBVer` check forces a full ~50 MB card re-download even
+      when the local data is fresh (`cardSync.ts`) — skip when synced recently.
+- [ ] A failed printing-index rebuild is swallowed and the UI then advises the
+      exact re-sync that just failed — surface it (`cardSync.ts`).
+- [ ] `payload.data.map` throws a raw TypeError when the card API returns an
+      error object — guard and message it (`cardSync.ts`).
+- [ ] Market-price fetch failure is indistinguishable from "no trend data";
+      offline users see a permanent "no data" (`marketPrices.ts`).
+- [ ] Trade logging writes the trade row then each card outside a transaction —
+      a mid-way failure half-applies the trade (`trades.ts`).
+
+**Stale caches**
+- [ ] Per-card printings cache never refreshes once populated
+      (`printings.ts` — the freshness check is bypassed by `sets.length > 0`),
+      so per-printing prices drift forever.
+- [ ] Set contents cache (`setCards`) has no TTL — completion percentages
+      stay wrong for sets fetched before the card DB was complete (`sets.ts`).
+
+**Perf / pagination**
+- [ ] Sets browser hard-caps at 30 results with no "show more" (`sets.ts`,
+      `CardsPage`).
+- [ ] Budget planner and set sheets render unbounded lists; each missing-card
+      row mounts its own wishlist live query (`WishlistBudgetSheet`,
+      `SetSheet`).
+- [ ] Card search full-scans all ~13k rows per keystroke; `nameLower` is
+      indexed and could serve prefix matches (`CardsPage`).
+
+**Correctness (minor)**
+- [ ] CSV export still reads the legacy single-printing field, so per-printing
+      breakdowns export blank set/rarity columns and mismatched totals
+      (`backup.ts`).
+- [ ] Pack simulator draws with replacement — one pack can contain duplicate
+      cards (`shared/packs/openPack.ts`).
+- [ ] Price-alert windows mislabel cards whose history is shorter than the
+      window ("1m" move may be two days) — mark "since tracking started"
+      (`shared/collection/insights.ts`).
+- [ ] CSV quoting misses `\r` (`shared/collection/csv.ts`).
+- [ ] `DeckOddsSheet` persists starters from inside a React state updater
+      (double-write under StrictMode).
+
+**Test gaps**
+- [ ] `shared/deck/handSim.ts` (drawHand bias) and
+      `shared/recommendation/recommend.ts` have no tests at all.
 
 ## Known limitations (by design / data)
 
