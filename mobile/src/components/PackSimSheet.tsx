@@ -42,7 +42,15 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
   }, [pack]);
 
   return (
-    <div className="sheet-backdrop z-[80] flex items-end justify-center" onClick={onClose}>
+    <div
+      className="sheet-backdrop z-[80] flex items-end justify-center"
+      onClick={(e) => {
+        // Don't let the close-tap bubble to the set sheet's backdrop below —
+        // dismissing the pack sim would close the whole set view with it.
+        e.stopPropagation();
+        onClose();
+      }}
+    >
       <div
         className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         onClick={(e) => e.stopPropagation()}
