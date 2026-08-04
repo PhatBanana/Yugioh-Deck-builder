@@ -1,5 +1,10 @@
 import type { DeckCard, DeckSection } from "@shared/deck/types";
-import { validateDeck, type DeckValidation } from "@shared/deck/validate";
+import {
+  SPEED_SIZES,
+  STANDARD_SIZES,
+  validateDeck,
+  type DeckValidation,
+} from "@shared/deck/validate";
 import { serializeYdk } from "@shared/deck/ydk";
 import { strategyBlurb } from "@shared/metaDecks/strategy";
 import { uid } from "../lib/util";
@@ -164,9 +169,10 @@ export interface EnrichedDeckCard extends DeckCard {
   type: string;
 }
 
-// Which banlist validates the deck. OCG/Goat data arrives with a card re-sync;
-// before that the fields are undefined and treated as unlimited.
-export type BanlistFormat = "tcg" | "ocg" | "goat";
+// Which format validates the deck. OCG/Goat data arrives with a card re-sync;
+// Master Duel and Speed Duel regulations come from the data-pack fetch. Until
+// the data exists the fields are undefined and treated as unlimited.
+export type BanlistFormat = "tcg" | "ocg" | "goat" | "master" | "speed";
 
 export interface EnrichedDeck {
   deck: MDeck;
@@ -181,7 +187,24 @@ function banFor(card: MCard | undefined, format: BanlistFormat): string | null {
   if (!card) return null;
   if (format === "ocg") return card.banOcg ?? null;
   if (format === "goat") return card.banGoat ?? null;
+  if (format === "master") return card.banMd ?? null;
+  if (format === "speed") return card.speedLimit ?? null;
   return card.banlist;
+}
+
+// Whether the chosen format's data simply hasn't been fetched yet (distinct
+// from "every card is unlimited").
+function formatDataAbsent(format: BanlistFormat, present: MCard[]): boolean {
+  if (format === "tcg" || present.length === 0) return false;
+  const field = (c: MCard) =>
+    format === "ocg"
+      ? c.banOcg
+      : format === "goat"
+        ? c.banGoat
+        : format === "master"
+          ? c.banMd
+          : c.speedLimit;
+  return present.every((c) => field(c) === undefined);
 }
 
 export async function enrichDeck(
@@ -200,10 +223,7 @@ export async function enrichDeck(
     type: cards[i]?.type ?? "",
   }));
   const present = cards.filter((c): c is MCard => !!c);
-  const formatDataMissing =
-    format !== "tcg" &&
-    present.length > 0 &&
-    present.every((c) => (format === "ocg" ? c.banOcg === undefined : c.banGoat === undefined));
+  const formatDataMissing = formatDataAbsent(format, present);
   enriched.sort((a, b) => a.name.localeCompare(b.name));
   const validation = validateDeck(
     enriched.map((c) => ({
@@ -212,8 +232,23 @@ export async function enrichDeck(
       quantity: c.quantity,
       section: c.section,
       banlist: c.banlist,
-    }))
+    })),
+    format === "speed" ? SPEED_SIZES : STANDARD_SIZES
   );
+  // Speed Duel has a small card pool: any card without a Speed regulation
+  // entry isn't printed for the format at all. (Skill cards are out of scope
+  // — they aren't in the card database.)
+  if (format === "speed" && !formatDataMissing) {
+    const seen = new Set<number>();
+    deck.cards.forEach((_c, i) => {
+      const card = cards[i];
+      if (card && card.speedLimit === undefined && !seen.has(card.id)) {
+        seen.add(card.id);
+        validation.errors.push(`${card.name} isn't in the Speed Duel card pool.`);
+      }
+    });
+    validation.legal = validation.errors.length === 0;
+  }
   const ydkName = deck.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   return { deck, cards: enriched, validation, ydkName, formatDataMissing };
 }

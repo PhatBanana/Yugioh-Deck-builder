@@ -20,6 +20,13 @@ export interface MCard {
   banlist: string | null; // TCG: 'Banned' | 'Limited' | 'Semi-Limited'
   banOcg?: string | null; // OCG banlist (null until the next full card sync)
   banGoat?: string | null; // Goat-format banlist (same)
+  // Master Duel regulation (from the data-pack sync): null = in the game and
+  // unlimited; undefined = no data yet OR not in Master Duel.
+  banMd?: string | null;
+  // Speed Duel: PRESENT (even as null) = the card is in the Speed pool, with
+  // its limit; undefined = not in the pool (or no data yet — the deck editor
+  // distinguishes via the pack-fetched flag).
+  speedLimit?: string | null;
   price: number | null; // lowest TCGPlayer USD
   img: string | null; // small image URL (the default/first artwork)
   // Image ids of every artwork this card has, when it has more than one

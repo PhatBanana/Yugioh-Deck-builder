@@ -347,6 +347,14 @@ function DeckNotes({ deckId, initial }: { deckId: string; initial: string }) {
   );
 }
 
+const FORMAT_NAMES: Record<BanlistFormat, string> = {
+  tcg: "TCG banlist",
+  ocg: "OCG banlist",
+  goat: "Goat banlist",
+  master: "Master Duel",
+  speed: "Speed Duel",
+};
+
 function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) {
   const [target, setTarget] = useState<DeckSection>("main");
   const [name, setName] = useState("");
@@ -447,21 +455,34 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       <div className="flex items-center gap-2">
         <span className="text-xs text-neutral-500 shrink-0">Format</span>
         <div className="seg rounded-lg bg-raised p-0.5 text-xs flex-1">
-          {(["tcg", "ocg", "goat"] as const).map((f) => (
+          {(
+            [
+              ["tcg", "TCG"],
+              ["ocg", "OCG"],
+              ["goat", "Goat"],
+              ["master", "MD"],
+              ["speed", "Speed"],
+            ] as const
+          ).map(([f, label]) => (
             <button
               key={f}
               type="button"
               onClick={() => setFormat(f)}
               className={`seg-btn rounded-md py-1 ${format === f ? "seg-on" : ""}`}
             >
-              {f.toUpperCase()}
+              {label}
             </button>
           ))}
         </div>
       </div>
       {enriched.formatDataMissing && (
         <p className="text-[11px] text-orange-300 -mt-1">
-          No {format.toUpperCase()} banlist data yet — re-sync cards on the Cards tab to load it.
+          No {FORMAT_NAMES[format]} data yet — re-sync cards on the Cards tab to load it.
+        </p>
+      )}
+      {format === "speed" && !enriched.formatDataMissing && (
+        <p className="text-[11px] text-neutral-500 -mt-1">
+          Skill cards aren't tracked — build the 20–30 card deck here and add your Skill separately.
         </p>
       )}
 
