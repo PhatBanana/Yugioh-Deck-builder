@@ -1,0 +1,47 @@
+name: Data packs
+
+# Distills yaml-yugi's aggregate card dump into the tiny indices the app
+# downloads (Master Duel / Speed Duel regulations, Yugipedia ids, language
+# name packs), published on the rolling `data-latest` release. Weekly —
+# banlists and new sets move on that timescale — plus manual dispatch.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # No npm install needed — the script only uses global fetch and imports
+      # the dependency-free shared transform (Node strips the types natively).
+      - name: Build packs
+        run: node scripts/build-data-packs.mjs
+
+      - name: Point data-latest tag at this commit
+        run: |
+          git tag -f data-latest "${GITHUB_SHA}"
+          git push -f origin "refs/tags/data-latest"
+
+      - name: Publish to rolling data-latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: data-latest
+          target_commitish: ${{ github.sha }}
+          name: Data packs (latest)
+          body: >
+            App data packs distilled from yaml-yugi
+            (https://github.com/DawnbrandBots/yaml-yugi): Master Duel & Speed
+            Duel limit regulations, Yugipedia page ids, and language name
+            packs. Refreshed weekly; the app downloads these on demand.
+          files: dist-data/*
