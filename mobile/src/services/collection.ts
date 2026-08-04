@@ -231,10 +231,14 @@ function samePrinting(
 // Adds (or removes, with a negative delta) one owned copy of a specific
 // printing to a card's breakdown. Matches on code+rarity+edition so repeat
 // scans of the same printing stack. No-op when the card isn't owned.
+// `ambiguous` marks the added copy's rarity as a best guess; merging into an
+// existing row keeps the flag only if BOTH sides are guesses (one confident
+// attribution of a printing confirms the whole row).
 export async function addPrintingCopy(
   cardId: number,
   printing: { code?: string; rarity?: string; edition?: string },
-  delta = 1
+  delta = 1,
+  ambiguous?: boolean
 ): Promise<void> {
   const existing = await db.collection.get(cardId);
   if (!existing) return;
@@ -243,10 +247,44 @@ export async function addPrintingCopy(
   if (idx >= 0) {
     copies[idx].quantity += delta;
     if (copies[idx].quantity <= 0) copies.splice(idx, 1);
+    else if (delta > 0) {
+      if (copies[idx].ambiguous && ambiguous) copies[idx].ambiguous = true;
+      else delete copies[idx].ambiguous;
+    }
   } else if (delta > 0) {
-    copies.push({ ...printing, quantity: delta });
+    copies.push({ ...printing, quantity: delta, ...(ambiguous ? { ambiguous: true as const } : {}) });
   }
   await db.collection.put({ ...existing, copies: copies.length > 0 ? copies : undefined });
+}
+
+// Marks an ambiguous breakdown row as confirmed — the user says "yes, this IS
+// that rarity" without moving any copies.
+export async function confirmPrintingCopy(
+  cardId: number,
+  printing: { code?: string; rarity?: string; edition?: string }
+): Promise<void> {
+  const existing = await db.collection.get(cardId);
+  if (!existing?.copies) return;
+  const copies = existing.copies.map((c) => {
+    if (!samePrinting(c, printing)) return c;
+    const { ambiguous: _cleared, ...rest } = c;
+    return rest as PrintingCopy;
+  });
+  await db.collection.put({ ...existing, copies });
+}
+
+// Moves one copy from a (mis-)guessed printing row to the rarity the user
+// actually holds, atomically — the card's total quantity is untouched, and the
+// destination row comes out confirmed.
+export async function refilePrintingCopy(
+  cardId: number,
+  from: { code?: string; rarity?: string; edition?: string },
+  to: { code?: string; rarity?: string; edition?: string }
+): Promise<void> {
+  await db.transaction("rw", db.collection, async () => {
+    await addPrintingCopy(cardId, from, -1);
+    await addPrintingCopy(cardId, to, 1, false);
+  });
 }
 
 // Replaces a card's whole printing breakdown (from the card-detail editor).
