@@ -24,6 +24,7 @@ import {
 } from "../services/decks";
 import { addManyToWishlist } from "../services/wishlist";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { searchAltNameIds } from "../services/langPacks";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -224,7 +225,12 @@ function AddCardSearch({
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
     if (q.length < 2) return [] as MCard[];
-    const rows = await db.cards.filter((c) => c.nameLower.includes(q)).limit(20).toArray();
+    // Installed language packs let the search match localized names too.
+    const altIds = await searchAltNameIds(q, 20);
+    const rows = await db.cards
+      .filter((c) => c.nameLower.includes(q) || altIds.has(c.id))
+      .limit(20)
+      .toArray();
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }, [debouncedQuery], []);
 

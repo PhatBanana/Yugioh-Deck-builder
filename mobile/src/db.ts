@@ -143,6 +143,16 @@ export interface MMetaDeck {
   cards: Omit<DeckCardRequirement, "priceUsd">[];
 }
 
+// A card's localized name from an installed language pack (ja/ko/de/…), so
+// search and OCR matching can work in that language. One row per (card,
+// language); installing a pack replaces that language's rows wholesale.
+export interface MAltName {
+  cardId: number;
+  lang: string; // ISO 639-1 code, e.g. "ja"
+  name: string;
+  nameLower: string;
+}
+
 export interface MSyncMeta {
   key: string;
   value: string;
@@ -202,6 +212,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   setCards: EntityTable<MSetCards, "setName">;
   trades: EntityTable<MTrade, "id">;
   printingIndex: Table<MPrintingIndex, [string, string]>;
+  altNames: Table<MAltName, [number, string]>;
 };
 
 db.version(1).stores({
@@ -255,6 +266,12 @@ db.version(7).stores({
 // points needs a range query rather than a full scan.
 db.version(8).stores({
   priceHistory: "[cardId+date], cardId, date",
+});
+
+// v9 adds localized card names from downloadable language packs. (banMd /
+// speedLimit / ypId from the data-pack sync are non-indexed field additions.)
+db.version(9).stores({
+  altNames: "[cardId+lang], lang, nameLower",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

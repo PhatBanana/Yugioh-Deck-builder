@@ -35,7 +35,11 @@ let candidateCache: NameCandidate[] | null = null;
 
 export async function getNameCandidates(): Promise<NameCandidate[]> {
   if (!candidateCache) {
-    candidateCache = (await db.cards.toArray()).map((c) => ({ id: c.id, name: c.name }));
+    const cards = (await db.cards.toArray()).map((c) => ({ id: c.id, name: c.name }));
+    // Localized names from installed language packs join the pool — the same
+    // fuzzy matcher then resolves e.g. a German-print card to its card id.
+    const alts = (await db.altNames.toArray()).map((a) => ({ id: a.cardId, name: a.name }));
+    candidateCache = cards.concat(alts);
   }
   return candidateCache;
 }
