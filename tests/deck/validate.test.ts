@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateDeck, type ValidatableCard } from "../../shared/deck/validate";
+import { validateDeck, SPEED_SIZES, type ValidatableCard } from "../../shared/deck/validate";
 
 function card(over: Partial<ValidatableCard>): ValidatableCard {
   return { cardId: 1, name: "Card", quantity: 1, section: "main", banlist: null, ...over };
@@ -65,5 +65,26 @@ describe("validateDeck", () => {
     ];
     const v = validateDeck(cards);
     expect(v.errors.some((e) => /Banned Guy is Forbidden/.test(e))).toBe(true);
+  });
+});
+
+describe("Speed Duel size profile", () => {
+  const speedCard = (cardId: number, quantity: number, section: "main" | "extra" | "side" = "main") =>
+    card({ cardId, name: `Card ${cardId}`, quantity, section });
+
+  it("accepts a 20-card main under Speed sizes (illegal in standard)", () => {
+    const cards = Array.from({ length: 10 }, (_, i) => speedCard(i + 1, 2));
+    expect(validateDeck(cards).legal).toBe(false);
+    expect(validateDeck(cards, SPEED_SIZES).legal).toBe(true);
+  });
+
+  it("rejects a 40-card main and a 7-card extra under Speed sizes", () => {
+    const big = Array.from({ length: 20 }, (_, i) => speedCard(i + 1, 2));
+    expect(validateDeck(big, SPEED_SIZES).legal).toBe(false);
+    const extras = [
+      ...Array.from({ length: 10 }, (_, i) => speedCard(i + 1, 2)),
+      ...Array.from({ length: 7 }, (_, i) => speedCard(100 + i, 1, "extra")),
+    ];
+    expect(validateDeck(extras, SPEED_SIZES).errors.some((e) => e.includes("Extra"))).toBe(true);
   });
 });

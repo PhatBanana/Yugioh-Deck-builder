@@ -22,6 +22,9 @@ export interface ScanSettings {
   /** Read the set code + edition off each card to tag its printing/rarity.
    *  Costs a per-card printings lookup (cached after first fetch). */
   detectPrinting: boolean;
+  /** Experimental: after each add, flash the torch once and read where the
+   *  light reflects (foil signature) to pick between a code's rarities. */
+  torchRarity: boolean;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -35,6 +38,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   flashMode: "continuous",
   zoomRatio: 1,
   detectPrinting: true,
+  torchRarity: false,
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

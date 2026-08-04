@@ -66,17 +66,20 @@ jobs:
           npm run build
           npx cap sync android
 
+      # Release variant: R8-minified + resource-shrunk, arm-only ABIs —
+      # several MB smaller and faster than the debug builds shipped before.
+      # Signed with the same committed keystore, so it upgrades in place.
       - name: Build APK
         working-directory: mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon \
+          ./gradlew assembleRelease --no-daemon \
             -PappVersionCode=${{ steps.version.outputs.code }} \
             -PappVersionName=${{ steps.version.outputs.name }}
 
       - name: Rename APK to versioned filename
         run: |
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk \
              "ygo-deck-builder-${{ steps.version.outputs.tag }}.apk"
 
       # The APK is published to the releases below, so a build artifact would
@@ -111,7 +114,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: ${{ steps.version.outputs.tag }}
           body: >
-            Android debug build ${{ steps.version.outputs.name }}
+            Android build ${{ steps.version.outputs.name }}
             (commit ${{ github.sha }}).
           files: ygo-deck-builder-${{ steps.version.outputs.tag }}.apk
 
@@ -126,8 +129,31 @@ jobs:
           git tag -f apk-latest "${GITHUB_SHA}"
           git push -f origin "refs/tags/apk-latest"
 
+      # The upload below only overwrites same-named assets, so any old
+      # app-debug.apk from the pre-release-build era would linger next to
+      # app-release.apk forever — drop stale assets first.
+      - name: Remove stale apk-latest assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const rel = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: "apk-latest",
+            }).catch(() => null);
+            for (const a of rel?.data.assets ?? []) {
+              if (a.name !== "app-release.apk") {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: a.id,
+                });
+                core.info(`Deleted stale asset ${a.name}`);
+              }
+            }
+
       # Rolling "latest" release so the APK is easy to download on a phone:
-      # repo page -> Releases -> APK latest -> app-debug.apk
+      # repo page -> Releases -> APK latest -> app-release.apk
       - name: Update latest release
         uses: softprops/action-gh-release@v2
         with:
@@ -135,13 +161,13 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: APK latest
           body: >
-            Latest Android debug build from main —
+            Latest Android build from main —
             version ${{ steps.version.outputs.name }}
             (commit ${{ github.sha }}).
-            Download app-debug.apk below and open it on your phone to install.
+            Download app-release.apk below and open it on your phone to install.
             Older builds live under their own v* releases.
           prerelease: false
-          files: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          files: mobile/android/app/build/outputs/apk/release/app-release.apk
 
       # Keep only the 10 most recent versioned build releases (plus the rolling
       # apk-latest). Deletes older ones and their tags so release storage stays

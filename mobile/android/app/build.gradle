@@ -24,6 +24,12 @@ android {
         // upgrade. Local builds fall back to a dev version.
         versionCode (project.hasProperty('appVersionCode') ? project.property('appVersionCode').toInteger() : 1)
         versionName (project.hasProperty('appVersionName') ? project.property('appVersionName').toString() : "1.0-dev")
+        // Real phones are ARM. Dropping the x86/x86_64 emulator ABIs halves
+        // the native-library payload (ML Kit OCR + camera ship .so files per
+        // ABI). Use an x86 emulator? Remove this line locally.
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -33,8 +39,14 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Shipped builds are minified + resource-shrunk (R8) — several MB
+            // smaller and faster than the debug builds CI used to publish.
+            // Signed with the same committed keystore as debug, so a release
+            // APK still installs as an in-place upgrade over older installs.
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

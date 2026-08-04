@@ -1,6 +1,7 @@
 import { matchPrintingCandidates } from "@shared/scan/setCode";
 import { reconcileRarity, type Agreement, type FoilClass } from "@shared/scan/rarityVision";
 import { rankByPrior, type RarityCandidate } from "@shared/scan/rarityPrior";
+import { narrowByVerdict, type TorchVerdict } from "@shared/scan/torchFoil";
 import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
 import { addPrintingCopy, patchCollectionEntry } from "./collection";
@@ -105,7 +106,7 @@ export async function applyScannedPrinting(
   cardId: number,
   setCode: string | null,
   edition: string | undefined,
-  opts: { foil?: FoilClass; modelRarity?: string | null } = {}
+  opts: { foil?: FoilClass; modelRarity?: string | null; torchVerdict?: TorchVerdict } = {}
 ): Promise<ResolvedPrinting> {
   let chosen: RarityCandidate | undefined;
   let agreement: Agreement | undefined;
@@ -114,7 +115,19 @@ export async function applyScannedPrinting(
   if (setCode) {
     try {
       candidates = await raritiesForCode(cardId, setCode); // prior-ranked
-      if (candidates.length > 0) {
+      // A torch-diff reading (experimental toggle) outranks the single-frame
+      // foil pass: an exact match confirms outright; a family verdict narrows
+      // the candidate pool the rest of the pipeline (and the picker) sees.
+      if (opts.torchVerdict && candidates.length > 0) {
+        const torch = narrowByVerdict(candidates, opts.torchVerdict);
+        if (torch.pick) {
+          chosen = torch.pick;
+          agreement = "confirmed";
+        } else if (torch.confident && torch.narrowed.length < candidates.length) {
+          candidates = torch.narrowed;
+        }
+      }
+      if (!chosen && candidates.length > 0) {
         const rarities = candidates.map((c) => c.rarity);
         if (opts.modelRarity && rarities.includes(opts.modelRarity)) {
           chosen = candidates.find((c) => c.rarity === opts.modelRarity);

@@ -19,3 +19,20 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# --- Capacitor: the JS<->native bridge finds plugins and their methods via
+# reflection/annotations, which R8 would otherwise strip or rename. ---
+-keep class com.getcapacitor.** { *; }
+-keep public class * extends com.getcapacitor.Plugin
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * {
+    @com.getcapacitor.annotation.PermissionCallback <methods>;
+    @com.getcapacitor.annotation.ActivityCallback <methods>;
+    @com.getcapacitor.PluginMethod public <methods>;
+}
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+# Cordova compatibility layer (present even with no cordova plugins installed).
+-keep class org.apache.cordova.** { *; }
+# Our own package (MainActivity is looked up by name from the manifest).
+-keep class com.phatbanana.ygodeckbuilder.** { *; }

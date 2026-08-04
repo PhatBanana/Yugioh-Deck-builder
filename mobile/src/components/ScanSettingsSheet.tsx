@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   SCAN_DELAY_MAX,
   SCAN_DELAY_MIN,
@@ -5,6 +7,9 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { useBackClose } from "../hooks/useBackClose";
+import TorchFoilLab from "./TorchFoilLab";
+import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
+import { toast } from "./Toaster";
 
 const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "continuous", label: "Steady" },
@@ -49,16 +54,77 @@ function Toggle({
   );
 }
 
+// Downloadable localized-name packs: each adds a language's card names to
+// search and to the scanner's match pool (~1–2 MB per language).
+function LanguagePacks() {
+  const installed = useLiveQuery(installedLangs, []);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function toggle(code: string, label: string) {
+    if (busy) return;
+    setBusy(code);
+    try {
+      if (installed?.has(code)) {
+        await removeLangPack(code);
+        toast(`${label} names removed`, "success");
+      } else {
+        const n = await installLangPack(code);
+        toast(`${label}: ${n.toLocaleString()} card names installed`, "success");
+      }
+    } catch {
+      toast(`Couldn't download the ${label} pack — check your connection`, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="py-3">
+      <span className="block text-sm">Card languages</span>
+      <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
+        Adds a language's card names to search and scanning (~1–2 MB each).
+        Japanese/Korean cards can be found by typed search, but the camera can
+        only read Latin-script text.
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {LANGS.map((l) => {
+          const on = installed?.has(l.code) ?? false;
+          return (
+            <button
+              key={l.code}
+              type="button"
+              disabled={busy !== null}
+              onClick={() => toggle(l.code, l.label)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                on
+                  ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
+                  : "bg-surface border-line text-neutral-300"
+              } ${busy === l.code ? "opacity-60" : ""}`}
+            >
+              {busy === l.code ? "…" : on ? "✓" : "+"} {l.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ScanSettingsSheet({
   settings,
   update,
+  scanning,
+  setScanPaused,
   onClose,
 }: {
   settings: ScanSettings;
   update: (patch: Partial<ScanSettings>) => void;
+  scanning: boolean;
+  setScanPaused: (p: boolean) => void;
   onClose: () => void;
 }) {
   useBackClose(onClose);
+  const [labOpen, setLabOpen] = useState(false);
   return (
     <div
       className="sheet-backdrop z-[70] flex items-end justify-center"
@@ -106,6 +172,14 @@ export default function ScanSettingsSheet({
             on={settings.detectPrinting}
             onChange={(v) => update({ detectPrinting: v })}
           />
+          {settings.detectPrinting && (
+            <Toggle
+              label="Torch rarity check (experimental)"
+              hint="After each card is added, the torch flashes once — where the light reflects helps pick which rarity you're holding. Keep the card still until the flash."
+              on={settings.torchRarity}
+              onChange={(v) => update({ torchRarity: v })}
+            />
+          )}
 
           <div className="py-3">
             <span className="block text-sm">Flash style</span>
@@ -148,8 +222,25 @@ export default function ScanSettingsSheet({
               <span>Fewer double-reads</span>
             </div>
           </div>
+
+          <LanguagePacks />
         </div>
+
+        <button
+          type="button"
+          onClick={() => setLabOpen(true)}
+          className="btn-ghost w-full py-2.5 text-sm mt-4"
+        >
+          🔦 Torch foil lab (experimental)
+        </button>
       </div>
+      {labOpen && (
+        <TorchFoilLab
+          scanning={scanning}
+          setScanPaused={setScanPaused}
+          onClose={() => setLabOpen(false)}
+        />
+      )}
     </div>
   );
 }

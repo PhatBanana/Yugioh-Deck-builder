@@ -24,6 +24,7 @@ import {
 } from "../services/decks";
 import { addManyToWishlist } from "../services/wishlist";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { searchAltNameIds } from "../services/langPacks";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -224,7 +225,12 @@ function AddCardSearch({
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
     if (q.length < 2) return [] as MCard[];
-    const rows = await db.cards.filter((c) => c.nameLower.includes(q)).limit(20).toArray();
+    // Installed language packs let the search match localized names too.
+    const altIds = await searchAltNameIds(q, 20);
+    const rows = await db.cards
+      .filter((c) => c.nameLower.includes(q) || altIds.has(c.id))
+      .limit(20)
+      .toArray();
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }, [debouncedQuery], []);
 
@@ -347,6 +353,14 @@ function DeckNotes({ deckId, initial }: { deckId: string; initial: string }) {
   );
 }
 
+const FORMAT_NAMES: Record<BanlistFormat, string> = {
+  tcg: "TCG banlist",
+  ocg: "OCG banlist",
+  goat: "Goat banlist",
+  master: "Master Duel",
+  speed: "Speed Duel",
+};
+
 function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) {
   const [target, setTarget] = useState<DeckSection>("main");
   const [name, setName] = useState("");
@@ -447,21 +461,34 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       <div className="flex items-center gap-2">
         <span className="text-xs text-neutral-500 shrink-0">Format</span>
         <div className="seg rounded-lg bg-raised p-0.5 text-xs flex-1">
-          {(["tcg", "ocg", "goat"] as const).map((f) => (
+          {(
+            [
+              ["tcg", "TCG"],
+              ["ocg", "OCG"],
+              ["goat", "Goat"],
+              ["master", "MD"],
+              ["speed", "Speed"],
+            ] as const
+          ).map(([f, label]) => (
             <button
               key={f}
               type="button"
               onClick={() => setFormat(f)}
               className={`seg-btn rounded-md py-1 ${format === f ? "seg-on" : ""}`}
             >
-              {f.toUpperCase()}
+              {label}
             </button>
           ))}
         </div>
       </div>
       {enriched.formatDataMissing && (
         <p className="text-[11px] text-orange-300 -mt-1">
-          No {format.toUpperCase()} banlist data yet — re-sync cards on the Cards tab to load it.
+          No {FORMAT_NAMES[format]} data yet — re-sync cards on the Cards tab to load it.
+        </p>
+      )}
+      {format === "speed" && !enriched.formatDataMissing && (
+        <p className="text-[11px] text-neutral-500 -mt-1">
+          Skill cards aren't tracked — build the 20–30 card deck here and add your Skill separately.
         </p>
       )}
 

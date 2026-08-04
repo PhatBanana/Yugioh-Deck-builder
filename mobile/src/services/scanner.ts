@@ -35,7 +35,11 @@ let candidateCache: NameCandidate[] | null = null;
 
 export async function getNameCandidates(): Promise<NameCandidate[]> {
   if (!candidateCache) {
-    candidateCache = (await db.cards.toArray()).map((c) => ({ id: c.id, name: c.name }));
+    const cards = (await db.cards.toArray()).map((c) => ({ id: c.id, name: c.name }));
+    // Localized names from installed language packs join the pool — the same
+    // fuzzy matcher then resolves e.g. a German-print card to its card id.
+    const alts = (await db.altNames.toArray()).map((a) => ({ id: a.cardId, name: a.name }));
+    candidateCache = cards.concat(alts);
   }
   return candidateCache;
 }
@@ -171,6 +175,37 @@ export async function captureFrameAndMatch(): Promise<ScanOutcome> {
   const { value } = await CameraPreview.captureSample({ quality: 92 });
   const { image, foil } = await prepareFrame(`data:image/jpeg;base64,${value}`);
   return ocrAndMatch(image, foil);
+}
+
+// Captures one raw preview frame as a data URL — no crop, OCR or matching.
+// Used by the torch-diff lab, which does its own paired measurement.
+export async function captureSampleFrame(): Promise<string | null> {
+  if (!previewActive) return null;
+  const { value } = await CameraPreview.captureSample({ quality: 92 });
+  return `data:image/jpeg;base64,${value}`;
+}
+
+// Measures a frame's foil stats exactly the way the scan loop does (same
+// center crop, same card-tracked regions with fixed-fraction fallback).
+// Exposed for the torch-diff lab so its numbers match production sampling.
+export async function measureFoilStats(
+  dataUrl: string
+): Promise<{ stats: FoilStats; cardFound: boolean } | null> {
+  try {
+    const img = await loadImage(dataUrl);
+    const sw = Math.round(img.width * 0.86);
+    const sh = Math.round(img.height * 0.9);
+    const canvas = document.createElement("canvas");
+    canvas.width = sw;
+    canvas.height = sh;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, Math.round((img.width - sw) / 2), Math.round((img.height - sh) / 2), sw, sh, 0, 0, sw, sh);
+    const regions = findCardRegions(ctx, sw, sh);
+    return { stats: readFoilStats(ctx, sw, sh, regions), cardFound: regions != null };
+  } catch {
+    return null;
+  }
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

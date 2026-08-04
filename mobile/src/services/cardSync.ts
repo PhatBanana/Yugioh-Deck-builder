@@ -1,4 +1,5 @@
-import { db, setSyncMeta, type MCard } from "../db";
+import { db, getSyncMeta, setSyncMeta, type MCard } from "../db";
+import { fetchLimitRegs, fetchYugipediaIds } from "./dataPacks";
 import { httpGetJson } from "./http";
 import { recordAllCardPrices, recordPriceSnapshots } from "./priceHistory";
 import { rebuildPrintingIndex } from "./rarity";
@@ -79,6 +80,44 @@ export interface CardSyncResult {
 
 const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
 
+// Patches Master Duel / Speed Duel regulations and Yugipedia page ids (from
+// the CI-built data packs) onto the local card rows in one diff pass.
+// Best-effort and throttled — this data moves on a banlist cadence, not
+// per-launch. `force` skips the throttle (fresh sync).
+const REGS_REFRESH_MS = 3 * 24 * 60 * 60 * 1000;
+
+export async function applyDataPacks(force = false): Promise<boolean> {
+  if (!force) {
+    const last = Number(await getSyncMeta("limit_regs_at")) || 0;
+    if (Date.now() - last < REGS_REFRESH_MS) return true;
+  }
+  try {
+    const [regs, ypIds] = await Promise.all([
+      fetchLimitRegs(),
+      // The ids pack is a nice-to-have — a failed fetch shouldn't scrub the
+      // regulations patch with it.
+      fetchYugipediaIds().catch(() => null),
+    ]);
+    if (Object.keys(regs).length < 1000) return false; // suspicious payload
+    const rows = await db.cards.toArray();
+    const patched: MCard[] = [];
+    for (const row of rows) {
+      const entry = regs[String(row.id)];
+      const banMd = entry?.md;
+      const speedLimit = entry?.speed;
+      const ypId = ypIds ? (ypIds[String(row.id)] ?? row.ypId) : row.ypId;
+      if (row.banMd !== banMd || row.speedLimit !== speedLimit || row.ypId !== ypId) {
+        patched.push({ ...row, banMd, speedLimit, ypId });
+      }
+    }
+    if (patched.length > 0) await db.cards.bulkPut(patched);
+    await setSyncMeta("limit_regs_at", String(Date.now()));
+    return true;
+  } catch {
+    return false; // offline / pack not published yet — formats show "no data"
+  }
+}
+
 export async function syncCards(
   onProgress?: (message: string) => void
 ): Promise<CardSyncResult> {
@@ -97,6 +136,7 @@ export async function syncCards(
   const cardCount = await db.cards.count();
   const shapeOk = localShape === CARDS_SHAPE && cardCount > 0;
   if (remoteVersion && localVersion === remoteVersion && shapeOk) {
+    applyDataPacks().catch(() => {}); // regulations can move without a DB bump
     return { cardCount, skipped: true };
   }
   // Version endpoint down/flaky but data is complete and recent: don't burn a
@@ -107,6 +147,7 @@ export async function syncCards(
     lastSynced &&
     Date.now() - Date.parse(lastSynced) < DAY_MS_LOCAL
   ) {
+    applyDataPacks().catch(() => {});
     return { cardCount, skipped: true };
   }
 
@@ -150,6 +191,11 @@ export async function syncCards(
     () => false,
     () => true
   );
+
+  // Master Duel / Speed Duel regulations ride the data-pack release, not the
+  // YGOPRODeck dump — refresh them with every full sync. Best-effort.
+  onProgress?.("Fetching format regulations…");
+  await applyDataPacks(true);
 
   // A sync is the only time local prices change. Snapshot every card's price
   // today (so any card added later already has history), then run the tracked

@@ -31,7 +31,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   sparkline.
 - Set completion browser (owned vs missing per set).
 - **Pack simulator**: rip a virtual booster of any set from its real card pool
-  and rarity mix (a fun approximation), with foils and pack value.
+  with era-accurate pull ratios picked from the set's release date (classic
+  2002–2019 vs modern guaranteed-foil boosters; approximate), with foils and
+  pack value.
 - CSV export; full JSON backup & restore (via the Android share sheet).
 - Sticky preferences (view/sort/filters/tab persist across launches).
 
@@ -59,7 +61,10 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ### Decks
 - Deck builder with Main / Extra / Side sections and divider UI.
-- Multi-format legality (TCG / OCG / Goat) validation.
+- Multi-format legality validation: TCG / OCG / Goat, plus **Master Duel**
+  and **Speed Duel** (regulations from the CI-built yaml-yugi data packs;
+  Speed checks the 20–30 card sizes and the Speed card pool — Skill cards
+  out of scope).
 - Deck stats (monster/spell/trap split, price) and opening-hand simulator.
 - **Deck odds**: exact opening-hand probabilities (hypergeometric) per card,
   going first (5) or second (6); tap cards as starters for a live consistency
@@ -108,6 +113,15 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   same signing key + rising versionCode, so it installs as an in-place
   upgrade. Requires the repo to be public (unauthenticated phones can't read
   a private repo's releases).
+- **Data packs**: a weekly CI workflow (`data-packs.yml`) distills the
+  yaml-yugi card database into small JSON assets on the rolling `data-latest`
+  release — Master Duel/Speed regulations, Yugipedia page ids, and localized
+  name packs — which the app fetches best-effort during card sync.
+- **Rulings & errata link**: every card sheet links to the card's Yugipedia
+  page by stable page id (name search as fallback).
+- **Card language packs**: downloadable localized names (ja/ko/de/fr/it/es/pt)
+  that widen card search, deck search, and the scanner's OCR matching (camera
+  reads Latin script only; ja/ko benefit typed search).
 
 ---
 
@@ -126,7 +140,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - [ ] Cloud sync / multi-device (currently local-only IndexedDB).
 - [ ] Trade suggestions (match your haves against others' wants).
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).
-- [ ] Localization / non-English card data.
+- [ ] UI localization (card-name language packs shipped; app chrome is
+      English-only).
 
 ## Known cleanup backlog
 

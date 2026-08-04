@@ -18,12 +18,22 @@ export interface DeckValidation {
   legal: boolean;
 }
 
-const MAIN_MIN = 40;
-const MAIN_MAX = 60;
-const EXTRA_MAX = 15;
-const SIDE_MAX = 15;
+// Deck size rules differ per format: standard play is 40–60/15/15, Speed
+// Duel runs a 20–30 main with 0–6 extra/side.
+export interface DeckSizeProfile {
+  mainMin: number;
+  mainMax: number;
+  extraMax: number;
+  sideMax: number;
+}
 
-export function validateDeck(cards: ValidatableCard[]): DeckValidation {
+export const STANDARD_SIZES: DeckSizeProfile = { mainMin: 40, mainMax: 60, extraMax: 15, sideMax: 15 };
+export const SPEED_SIZES: DeckSizeProfile = { mainMin: 20, mainMax: 30, extraMax: 6, sideMax: 6 };
+
+export function validateDeck(
+  cards: ValidatableCard[],
+  sizes: DeckSizeProfile = STANDARD_SIZES
+): DeckValidation {
   const count = (s: DeckSection) =>
     cards.filter((c) => c.section === s).reduce((n, c) => n + c.quantity, 0);
   const mainCount = count("main");
@@ -33,10 +43,10 @@ export function validateDeck(cards: ValidatableCard[]): DeckValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (mainCount < MAIN_MIN) errors.push(`Main Deck has ${mainCount} cards (needs at least ${MAIN_MIN}).`);
-  if (mainCount > MAIN_MAX) errors.push(`Main Deck has ${mainCount} cards (max ${MAIN_MAX}).`);
-  if (extraCount > EXTRA_MAX) errors.push(`Extra Deck has ${extraCount} cards (max ${EXTRA_MAX}).`);
-  if (sideCount > SIDE_MAX) errors.push(`Side Deck has ${sideCount} cards (max ${SIDE_MAX}).`);
+  if (mainCount < sizes.mainMin) errors.push(`Main Deck has ${mainCount} cards (needs at least ${sizes.mainMin}).`);
+  if (mainCount > sizes.mainMax) errors.push(`Main Deck has ${mainCount} cards (max ${sizes.mainMax}).`);
+  if (extraCount > sizes.extraMax) errors.push(`Extra Deck has ${extraCount} cards (max ${sizes.extraMax}).`);
+  if (sideCount > sizes.sideMax) errors.push(`Side Deck has ${sideCount} cards (max ${sizes.sideMax}).`);
 
   // Copy limits apply across all sections combined, per unique card.
   const totalById = new Map<number, { name: string; total: number; banlist: string | null }>();
