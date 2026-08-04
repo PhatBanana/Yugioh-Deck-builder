@@ -68,7 +68,11 @@ await mkdir(OUT_DIR, { recursive: true });
 const write = async (name, data) => {
   const json = JSON.stringify(data);
   await writeFile(`${OUT_DIR}/${name}`, json);
-  console.log(`${name}: ${Object.keys(data).length} entries, ${(json.length / 1024).toFixed(0)} KB`);
+  // Byte length, not string length — the CJK packs are ~45% bigger on the
+  // wire than their character count suggests, and this number is what the
+  // in-app download hint is written against.
+  const kb = Buffer.byteLength(json, "utf8") / 1024;
+  console.log(`${name}: ${Object.keys(data).length} entries, ${kb.toFixed(0)} KB`);
 };
 
 const regs = buildLimitRegs(cards);
