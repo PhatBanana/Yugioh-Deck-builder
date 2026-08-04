@@ -82,9 +82,9 @@ function LanguagePacks() {
     <div className="py-3">
       <span className="block text-sm">Card languages</span>
       <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
-        Adds a language's card names to search and scanning (under 1 MB each).
-        Japanese/Korean cards can be found by typed search, but the camera can
-        only read Latin-script text.
+        Adds a language's card names to search and scanning (~0.5 MB each,
+        Japanese 1.2 MB). Japanese/Korean cards can be found by typed search,
+        but the camera can only read Latin-script text.
       </span>
       <div className="flex flex-wrap gap-1.5">
         {LANGS.map((l) => {
