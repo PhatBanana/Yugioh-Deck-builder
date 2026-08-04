@@ -1,15 +1,26 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
-import type { MCard, MCardSets, MCollectionEntry } from "../db";
+import type { MCard, MCardSets, MCollectionEntry, PrintingCopy } from "../db";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { foilClass, topRarity } from "../lib/foil";
 import { artFullUrl, artSmallUrl, hasAltArts } from "../lib/art";
 import { valueEntry } from "@shared/collection/value";
 import { getCardUsage, type DeckUsageEntry } from "../services/decks";
-import { adjustPrintingCopy, allTags, setCondition, setPreferredArt, setTags } from "../services/collection";
+import {
+  adjustPrintingCopy,
+  allTags,
+  confirmPrintingCopy,
+  refilePrintingCopy,
+  setCondition,
+  setPreferredArt,
+  setTags,
+} from "../services/collection";
 import { getCardPrintings } from "../services/printings";
+import { lookupRaritiesByCode } from "../services/rarity";
+import { rankByPrior, type RarityCandidate } from "@shared/scan/rarityPrior";
+import RarityPickSheet from "./RarityPickSheet";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
 import WishlistButton from "./WishlistButton";
 import PriceHistory from "./PriceHistory";
@@ -71,16 +82,36 @@ function ConditionRow({ cardId, condition }: { cardId: number; condition?: CardC
 // sets — fetched on demand and cached, since the bulk sync strips them.
 function PrintingRow({
   cardId,
+  cardName,
+  img,
   entry,
   genericPrice,
 }: {
   cardId: number;
+  cardName: string;
+  img: string | null;
   entry?: MCollectionEntry;
   genericPrice: number | null;
 }) {
   const [sets, setSets] = useState<MCardSets["sets"] | null>(null);
   const [adding, setAdding] = useState(false);
   const [addEdition, setAddEdition] = useState("");
+  // An ambiguous row being confirmed: which copy, and what it could be.
+  const [confirming, setConfirming] = useState<{
+    copy: PrintingCopy;
+    candidates: RarityCandidate[];
+  } | null>(null);
+
+  async function startConfirm(copy: PrintingCopy) {
+    const candidates = rankByPrior(await lookupRaritiesByCode(copy.code ?? null));
+    if (candidates.length > 1) {
+      setConfirming({ copy, candidates });
+    } else {
+      // Nothing to choose between — the guess stands, just clear the flag.
+      await confirmPrintingCopy(cardId, copy);
+      toast("Rarity confirmed", "success");
+    }
+  }
   useEffect(() => {
     let cancelled = false;
     getCardPrintings(cardId).then((s) => !cancelled && setSets(s));
@@ -137,6 +168,15 @@ function PrintingRow({
                   {c.code ?? "no set code"}
                   {each != null ? ` · ${formatUsd(each)} ea` : ""}
                 </div>
+                {c.ambiguous && (
+                  <button
+                    type="button"
+                    onClick={() => void startConfirm(c)}
+                    className="mt-1 text-[11px] px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-800/60 text-amber-300"
+                  >
+                    rarity? tap to confirm
+                  </button>
+                )}
               </div>
               <CopyStepper
                 qty={c.quantity}
@@ -159,6 +199,31 @@ function PrintingRow({
           </div>
         )}
       </div>
+
+      {confirming && (
+        <RarityPickSheet
+          cardName={cardName}
+          img={img}
+          candidates={confirming.candidates}
+          current={confirming.copy.rarity}
+          onPick={(pick) => {
+            const from = confirming.copy;
+            if (pick.rarity === from.rarity) {
+              void confirmPrintingCopy(cardId, from);
+            } else {
+              void refilePrintingCopy(
+                cardId,
+                { code: from.code, rarity: from.rarity, edition: from.edition },
+                { code: pick.code, rarity: pick.rarity, edition: from.edition },
+                from.quantity
+              );
+            }
+            setConfirming(null);
+            toast("Rarity confirmed", "success");
+          }}
+          onClose={() => setConfirming(null)}
+        />
+      )}
 
       {adding && sets && (
         <div className="mt-2 panel p-2.5">
@@ -519,7 +584,13 @@ export default function CardDetailModal({
 
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
         {owned > 0 && (
-          <PrintingRow cardId={card.id} entry={entry} genericPrice={card.price ?? null} />
+          <PrintingRow
+            cardId={card.id}
+            cardName={card.name}
+            img={card.img}
+            entry={entry}
+            genericPrice={card.price ?? null}
+          />
         )}
         {owned > 0 && <BindersRow cardId={card.id} tags={entry?.tags ?? []} />}
 

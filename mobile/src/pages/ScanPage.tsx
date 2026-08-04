@@ -8,7 +8,8 @@ import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { addOwned } from "../services/collection";
 import { getNameCandidates, isScanSupported } from "../services/scanner";
-import { useAutoScan, type AutoScanState } from "../hooks/useAutoScan";
+import { useAutoScan, type AutoScanState, type ScannedEntry } from "../hooks/useAutoScan";
+import RarityPickSheet from "../components/RarityPickSheet";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -78,6 +79,16 @@ function ScanningOverlay({
   // Hardware back exits the fullscreen scan instead of minimizing the app.
   useBackClose(() => void scan.stop());
   const sessionTotal = scan.session.reduce((n, e) => n + e.count, 0);
+  // Rarity picker for an unsure chip — scanning idles while it's open.
+  const [pickFor, setPickFor] = useState<ScannedEntry | null>(null);
+  const openPicker = (e: ScannedEntry) => {
+    scan.setPaused(true);
+    setPickFor(e);
+  };
+  const closePicker = () => {
+    setPickFor(null);
+    scan.setPaused(false);
+  };
   return (
     <div className="fixed inset-0 z-[60] flex flex-col">
       {/* Top bar */}
@@ -232,24 +243,47 @@ function ScanningOverlay({
                   </span>
                 )}
               </div>
-              {e.rarity && (
-                <div
-                  className={`text-center text-[9px] font-semibold mt-0.5 leading-tight tabular-nums ${
-                    e.agreement === "conflict" ? "text-rose-400" : "text-amber-300/90"
-                  }`}
-                  title={
-                    e.agreement === "conflict"
-                      ? "The card's foil looks different from this set's rarity — tap to check"
-                      : undefined
-                  }
-                >
-                  {rarityAbbrev(e.rarity)}
-                  {e.agreement === "conflict" ? "?" : ""}
-                </div>
-              )}
+              {e.rarity &&
+                (() => {
+                  // A chip needs checking when the rarity is a guess (several
+                  // candidates, nothing confirmed it) or vision disagreed.
+                  const unsure =
+                    e.ambiguous || e.agreement === "conflict" || e.agreement === "unknown";
+                  const canPick = unsure && (e.candidates?.length ?? 0) > 1;
+                  const cls = `w-full text-center text-[9px] font-semibold mt-0.5 leading-tight tabular-nums ${
+                    e.agreement === "conflict" ? "text-rose-400" : unsure ? "text-amber-300" : "text-amber-300/90"
+                  }`;
+                  const label = `${rarityAbbrev(e.rarity)}${unsure ? "?" : ""}`;
+                  return canPick ? (
+                    <button
+                      type="button"
+                      onClick={() => openPicker(e)}
+                      className={`${cls} underline decoration-dotted underline-offset-2`}
+                      aria-label={`Confirm rarity for ${e.name}`}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <div className={cls}>{label}</div>
+                  );
+                })()}
             </div>
           ))}
         </div>
+      )}
+
+      {pickFor && pickFor.candidates && (
+        <RarityPickSheet
+          cardName={pickFor.name}
+          img={pickFor.img}
+          candidates={pickFor.candidates}
+          current={pickFor.rarity}
+          onPick={(c) => {
+            void scan.resolveRarity(pickFor, c);
+            closePicker();
+          }}
+          onClose={closePicker}
+        />
       )}
 
       {/* Controls */}
