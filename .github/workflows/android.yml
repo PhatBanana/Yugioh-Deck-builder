@@ -66,9 +66,10 @@ jobs:
           npm run build
           npx cap sync android
 
-      # Release variant: R8-minified + resource-shrunk, arm-only ABIs —
-      # several MB smaller and faster than the debug builds shipped before.
-      # Signed with the same committed keystore, so it upgrades in place.
+      # Release variant, arm-only ABIs — smaller than the old debug builds.
+      # R8 minification is currently OFF (see build.gradle) after crashing on
+      # a real device; re-enable once that's root-caused. Signed with the
+      # same committed keystore, so it upgrades in place.
       - name: Build APK
         working-directory: mobile/android
         run: |
