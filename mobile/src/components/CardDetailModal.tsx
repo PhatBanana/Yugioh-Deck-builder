@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CONDITION_LABEL, type CardCondition } from "@shared/grading/analyze";
 import type { MCard, MCardSets, MCollectionEntry, PrintingCopy } from "../db";
@@ -377,9 +377,41 @@ function BindersRow({ cardId, tags }: { cardId: number; tags: string[] }) {
 // The card DB only stores thumbnail URLs, but YGOPRODeck serves the full-size
 // scan at a predictable URL per image id; fall back to the thumb if it 404s.
 // `artId` shows a specific artwork; without it, the card's default art.
-function CardArtViewer({ card, artId, onClose }: { card: MCard; artId?: number; onClose: () => void }) {
+// When the owned copies span several printings, ◀ ▶ cycles through them, each
+// rendered with its own rarity's foil.
+function CardArtViewer({
+  card,
+  artId,
+  copies,
+  onClose,
+}: {
+  card: MCard;
+  artId?: number;
+  copies?: PrintingCopy[];
+  onClose: () => void;
+}) {
   const [src, setSrc] = useState(artFullUrl(artId ?? card.id));
   useBackClose(onClose);
+  // Distinct owned printings that actually have a rarity, flashiest first so
+  // the opening view matches the thumbnail's foil.
+  const printings = useMemo(() => {
+    const seen = new Set<string>();
+    const list = (copies ?? []).filter((c) => {
+      if (!c.rarity) return false;
+      const key = `${c.rarity}|${c.edition ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const top = topRarity(list);
+    return list.sort((a, b) => (a.rarity === top ? -1 : 0) - (b.rarity === top ? -1 : 0));
+  }, [copies]);
+  const [idx, setIdx] = useState(0);
+  const current = printings[idx];
+  const foil = foilClass(current?.rarity);
+  const step = (d: number) =>
+    setIdx((i) => (i + d + printings.length) % printings.length);
+
   return (
     <div
       className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-3"
@@ -391,12 +423,48 @@ function CardArtViewer({ card, artId, onClose }: { card: MCard; artId?: number; 
       role="button"
       aria-label="Close card art"
     >
-      <img
-        src={src}
-        alt={card.name}
-        className="max-w-full max-h-full rounded-xl"
-        onError={() => card.img && src !== card.img && setSrc(card.img)}
-      />
+      <span className="relative inline-block max-w-full max-h-full">
+        <img
+          src={src}
+          alt={card.name}
+          className="max-w-full max-h-[calc(100vh-7rem)] rounded-xl"
+          onError={() => card.img && src !== card.img && setSrc(card.img)}
+        />
+        {foil && <span aria-hidden className={`foil ${foil} rounded-xl`} />}
+      </span>
+
+      {printings.length > 0 && (
+        <div
+          className="absolute bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] flex items-center gap-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {printings.length > 1 && (
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              className="w-10 h-10 rounded-full bg-white/10 text-white text-lg"
+              aria-label="Previous printing"
+            >
+              ◀
+            </button>
+          )}
+          <span className="px-3 py-1.5 rounded-full bg-white/10 text-sm text-white tabular-nums">
+            {current?.rarity}
+            {current?.edition ? ` · ${current.edition}` : ""}
+            {printings.length > 1 ? `  (${idx + 1}/${printings.length})` : ""}
+          </span>
+          {printings.length > 1 && (
+            <button
+              type="button"
+              onClick={() => step(1)}
+              className="w-10 h-10 rounded-full bg-white/10 text-white text-lg"
+              aria-label="Next printing"
+            >
+              ▶
+            </button>
+          )}
+        </div>
+      )}
       <span className="absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] text-xs text-neutral-500">
         Tap anywhere to close
       </span>
@@ -624,7 +692,12 @@ export default function CardDetailModal({
       </div>
 
       {artOpen && (
-        <CardArtViewer card={card} artId={effectiveArtId} onClose={() => setArtOpen(false)} />
+        <CardArtViewer
+          card={card}
+          artId={effectiveArtId}
+          copies={entry?.copies}
+          onClose={() => setArtOpen(false)}
+        />
       )}
     </div>
   );
