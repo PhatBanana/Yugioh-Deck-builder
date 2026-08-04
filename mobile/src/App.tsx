@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Toaster from "./components/Toaster";
+import Toaster, { toast } from "./components/Toaster";
 import { ConfirmHost } from "./components/Confirm";
 import { usePersistentState } from "./hooks/usePersistentState";
 import ScanPage from "./pages/ScanPage";
@@ -10,6 +10,7 @@ import { hideBanner, initAds, showBanner } from "./services/ads";
 import { initBackButton } from "./services/backButton";
 import { migrateLegacyPrintings, recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
+import { checkForUpdate, openUpdate } from "./services/appUpdate";
 
 type Tab = "cards" | "scan" | "decks" | "meta";
 
@@ -39,6 +40,17 @@ export default function App() {
     recordPriceSnapshots().catch(() => {});
     // Fold any pre-breakdown printing/edition data into the copies model.
     migrateLegacyPrintings().catch(() => {});
+    // Daily check for a newer APK on the repo's releases (public repo only).
+    checkForUpdate()
+      .then((u) => {
+        if (u) {
+          toast(`App update available (v${u.versionName})`, "info", {
+            label: "Download",
+            onClick: () => openUpdate(u),
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Hide the banner over the fullscreen camera; show it everywhere else.

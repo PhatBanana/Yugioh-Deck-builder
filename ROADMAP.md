@@ -103,6 +103,11 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - GitHub Actions builds a debug APK on every push to `main`, published to the
   rolling `apk-latest` release + a versioned release (auto-pruned to the last
   10; build artifacts not retained, to bound storage).
+- **In-app updates**: the app checks the repo's GitHub Releases (~daily, plus
+  a manual check in Backup & restore) and offers the newer APK as a download —
+  same signing key + rising versionCode, so it installs as an in-place
+  upgrade. Requires the repo to be public (unauthenticated phones can't read
+  a private repo's releases).
 
 ---
 

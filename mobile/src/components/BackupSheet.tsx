@@ -8,6 +8,7 @@ import {
   type BackupFile,
 } from "../services/backup";
 import { useBackClose } from "../hooks/useBackClose";
+import { checkForUpdate, installedBuild, openUpdate } from "../services/appUpdate";
 import { toast } from "./Toaster";
 
 // Bottom sheet for exporting the collection/decks as a JSON file and
@@ -64,6 +65,22 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
     reader.readAsText(file);
   }
 
+  async function checkUpdate() {
+    if ((await installedBuild()) == null) {
+      toast("Update checks only work in the installed app", "info");
+      return;
+    }
+    const u = await checkForUpdate(true);
+    if (u) {
+      toast(`Update available (v${u.versionName})`, "info", {
+        label: "Download",
+        onClick: () => openUpdate(u),
+      });
+    } else {
+      toast("You're on the latest build", "success");
+    }
+  }
+
   async function applyRestore() {
     if (!pending) return;
     try {
@@ -111,6 +128,13 @@ export default function BackupSheet({ onClose }: { onClose: () => void }) {
           className="btn-ghost w-full py-2.5 text-sm mt-2"
         >
           📊 Export collection as CSV (spreadsheet)
+        </button>
+        <button
+          type="button"
+          onClick={() => void checkUpdate()}
+          className="btn-ghost w-full py-2.5 text-sm mt-2"
+        >
+          🔄 Check for app updates
         </button>
 
         <div className="mt-4 pt-3 border-t border-line">
