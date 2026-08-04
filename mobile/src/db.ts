@@ -27,6 +27,9 @@ export interface MCard {
   // its limit; undefined = not in the pool (or no data yet — the deck editor
   // distinguishes via the pack-fetched flag).
   speedLimit?: string | null;
+  // Yugipedia page id (from the data-pack sync) — powers the "Rulings &
+  // errata" link. Undefined until the pack has been fetched.
+  ypId?: number;
   price: number | null; // lowest TCGPlayer USD
   img: string | null; // small image URL (the default/first artwork)
   // Image ids of every artwork this card has, when it has more than one

@@ -513,6 +513,24 @@ function DeckUsage({ cardId }: { cardId: number }) {
   );
 }
 
+// External link to the card's Yugipedia page (rulings, errata, trivia). Uses
+// the stable page id from the data-pack sync when present, else a name search.
+function RulingsLink({ card }: { card: MCard }) {
+  const url = card.ypId
+    ? `https://yugipedia.com/index.php?curid=${card.ypId}`
+    : `https://yugipedia.com/index.php?search=${encodeURIComponent(card.name)}`;
+  return (
+    <button
+      type="button"
+      onClick={() => window.open(url, "_blank")}
+      className="mt-3 pt-3 border-t border-line w-full flex items-center justify-between text-sm text-neutral-300 pressable"
+    >
+      <span>📖 Rulings &amp; errata</span>
+      <span className="text-xs text-neutral-500">Yugipedia ↗</span>
+    </button>
+  );
+}
+
 // Horizontal strip of a card's alternate artworks. Tapping one previews it as
 // the hero image; for an owned card it's also saved as the preferred art (so
 // the collection thumbnails use it). Picking the default clears the override.
@@ -689,6 +707,8 @@ export default function CardDetailModal({
             {card.desc}
           </p>
         )}
+
+        <RulingsLink card={card} />
       </div>
 
       {artOpen && (
