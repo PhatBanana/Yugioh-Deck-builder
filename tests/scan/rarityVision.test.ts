@@ -45,6 +45,9 @@ describe("rarityBucket", () => {
     expect(rarityBucket("Secret Rare")).toBe("rainbow");
     expect(rarityBucket("Starlight Rare")).toBe("rainbow");
     expect(rarityBucket("Mosaic Rare")).toBe("unknown");
+    // Ultimate is classifiable (embossed foil over the art) — previously it
+    // fell through to "unknown" and vision could never weigh in on it.
+    expect(rarityBucket("Ultimate Rare")).toBe("holo-art");
   });
 });
 
