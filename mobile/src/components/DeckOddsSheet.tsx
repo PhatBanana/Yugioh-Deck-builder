@@ -36,8 +36,17 @@ export default function DeckOddsSheet({
   const selected = useMemo(() => main.filter((c) => starters.has(c.cardId)), [main, starters]);
   const starterCopies = useMemo(() => selected.reduce((n, c) => n + c.quantity, 0), [selected]);
   const consistency = chanceToOpenAny(deckSize, starterCopies, handSize);
-  // "Open all of them together" — a combo line, meaningful once ≥2 are picked.
-  const combo = chanceToOpenAll(deckSize, selected.map((c) => c.quantity), handSize);
+  // "Open all of them together" — a combo line, meaningful for 2–8 pieces.
+  // Inclusion–exclusion is 2^m, so it's memoized and capped: past 8 pieces it
+  // would freeze the UI, and a 9-piece "combo" isn't a combo anyway.
+  const COMBO_MAX = 8;
+  const combo = useMemo(
+    () =>
+      selected.length >= 2 && selected.length <= COMBO_MAX
+        ? chanceToOpenAll(deckSize, selected.map((c) => c.quantity), handSize)
+        : null,
+    [selected, deckSize, handSize]
+  );
 
   const toggleStarter = (id: number) =>
     setStarters((prev) => {
@@ -103,7 +112,7 @@ export default function DeckOddsSheet({
                     <div className="text-2xl font-semibold text-emerald-400">{pct(consistency)}</div>
                     <div className="text-[11px] text-neutral-500">open ≥1</div>
                   </div>
-                  {selected.length >= 2 && (
+                  {combo != null && (
                     <div>
                       <div className="text-2xl font-semibold text-amber-300">{pct(combo)}</div>
                       <div className="text-[11px] text-neutral-500">open all {selected.length}</div>
