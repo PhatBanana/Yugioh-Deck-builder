@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
+import type { RarityCandidate } from "@shared/scan/rarityPrior";
 import { db } from "../db";
-import { addOwned, addPrintingCopy } from "../services/collection";
+import { addOwned, addPrintingCopy, refilePrintingCopy } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
 import { buzz } from "../lib/haptics";
 import { formatUsd } from "../lib/util";
@@ -25,9 +26,12 @@ export interface ScannedEntry {
   name: string;
   img: string | null;
   count: number; // copies added this session
+  code?: string; // set code of the printing filed, when resolved
   rarity?: string; // inferred from the set code, once resolved
   edition?: string; // "1st Edition" / "Limited Edition", when read
   agreement?: Agreement; // whether the visual foil pass backed the set code
+  ambiguous?: boolean; // rarity is a best guess among several the code allows
+  candidates?: RarityCandidate[]; // every rarity the code could be, prior-ranked
 }
 
 // Everything read off the frame the card was committed from, for resolving the
@@ -83,6 +87,10 @@ export interface AutoScanState {
   refocus: () => Promise<void>;
   captureNow: () => Promise<void>;
   undoLast: () => Promise<void>;
+  // Idle the loop (no captures / torch pulses) while a sheet is open over it.
+  setPaused: (paused: boolean) => void;
+  // User picked the true rarity for a session entry — re-file its copies.
+  resolveRarity: (entry: ScannedEntry, rarity: RarityCandidate) => Promise<void>;
 }
 
 export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): AutoScanState {
@@ -110,6 +118,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     { id: number; printing?: { code?: string; rarity?: string; edition?: string } }[]
   >([]);
   const torchWantedRef = useRef(false); // 🔦 toggle state, readable inside the loop
+  const pausedRef = useRef(false); // picker open — keep the loop alive but idle
 
   // Keep the latest settings in a ref so the async scan loop reads current
   // values (delay/beep) without needing to be re-created on every change.
@@ -126,12 +135,30 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   // Merges resolved printing/rarity/edition into a session entry once the
   // (async) lookup returns — the card was already added.
   const tagSession = useCallback(
-    (id: number, tag: { rarity?: string; edition?: string; agreement?: Agreement }) => {
+    (
+      id: number,
+      tag: {
+        code?: string;
+        rarity?: string;
+        edition?: string;
+        agreement?: Agreement;
+        ambiguous?: boolean;
+        candidates?: RarityCandidate[];
+      }
+    ) => {
       if (!tag.rarity && !tag.edition) return;
       setSession((prev) =>
         prev.map((e) =>
           e.id === id
-            ? { ...e, rarity: tag.rarity ?? e.rarity, edition: tag.edition ?? e.edition, agreement: tag.agreement }
+            ? {
+                ...e,
+                code: tag.code ?? e.code,
+                rarity: tag.rarity ?? e.rarity,
+                edition: tag.edition ?? e.edition,
+                agreement: tag.agreement,
+                ambiguous: tag.ambiguous,
+                candidates: tag.candidates ?? e.candidates,
+              }
             : e
         )
       );
@@ -204,6 +231,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
 
   const tick = useCallback(async () => {
     if (!runningRef.current || busyRef.current) return;
+    // Paused (rarity picker open): skip the capture but keep rescheduling so
+    // the loop resumes the moment the sheet closes.
+    if (pausedRef.current) {
+      timerRef.current = setTimeout(tick, settingsRef.current.scanDelayMs);
+      return;
+    }
     busyRef.current = true;
     try {
       const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
@@ -358,6 +391,36 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     setStatus("Removed last card");
   }, []);
 
+  const setPaused = useCallback((paused: boolean) => {
+    pausedRef.current = paused;
+  }, []);
+
+  // The user told us which rarity the scanned copies really are: move this
+  // session entry's copies from the guessed row to the chosen one, mark the
+  // session chip confirmed, and repoint pending undos at the new row.
+  const resolveRarity = useCallback(async (entry: ScannedEntry, rarity: RarityCandidate) => {
+    const from = { code: entry.code, rarity: entry.rarity, edition: entry.edition };
+    const to = { code: rarity.code, rarity: rarity.rarity, edition: entry.edition };
+    await refilePrintingCopy(entry.id, from, to, entry.count);
+    for (const o of orderRef.current) {
+      if (
+        o.id === entry.id &&
+        o.printing &&
+        (o.printing.code ?? "") === (from.code ?? "") &&
+        (o.printing.rarity ?? "") === (from.rarity ?? "")
+      ) {
+        o.printing = to;
+      }
+    }
+    setSession((prev) =>
+      prev.map((e) =>
+        e.id === entry.id
+          ? { ...e, code: rarity.code, rarity: rarity.rarity, agreement: "confirmed", ambiguous: false }
+          : e
+      )
+    );
+  }, []);
+
   // Ensure the camera is released and the screen can sleep again if the page
   // unmounts mid-scan.
   useEffect(() => {
@@ -384,5 +447,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     refocus,
     captureNow,
     undoLast,
+    setPaused,
+    resolveRarity,
   };
 }

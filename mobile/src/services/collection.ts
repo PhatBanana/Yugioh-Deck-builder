@@ -273,17 +273,19 @@ export async function confirmPrintingCopy(
   await db.collection.put({ ...existing, copies });
 }
 
-// Moves one copy from a (mis-)guessed printing row to the rarity the user
+// Moves copies from a (mis-)guessed printing row to the rarity the user
 // actually holds, atomically — the card's total quantity is untouched, and the
 // destination row comes out confirmed.
 export async function refilePrintingCopy(
   cardId: number,
   from: { code?: string; rarity?: string; edition?: string },
-  to: { code?: string; rarity?: string; edition?: string }
+  to: { code?: string; rarity?: string; edition?: string },
+  qty = 1
 ): Promise<void> {
+  if (qty <= 0) return;
   await db.transaction("rw", db.collection, async () => {
-    await addPrintingCopy(cardId, from, -1);
-    await addPrintingCopy(cardId, to, 1, false);
+    await addPrintingCopy(cardId, from, -qty);
+    await addPrintingCopy(cardId, to, qty, false);
   });
 }
 

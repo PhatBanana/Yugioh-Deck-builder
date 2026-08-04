@@ -203,6 +203,7 @@ export default function CardsPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [ambigFilter, setAmbigFilter] = useState(false);
   const [setCount, setSetCount] = useState<number | null>(null);
   const debouncedQuery = useDebouncedValue(query, 250);
 
@@ -236,6 +237,13 @@ export default function CardsPage() {
     for (const e of await db.collection.toArray()) if (e.copies?.length) m.set(e.cardId, e.copies);
     return m;
   }, [view]);
+  // Scanned copies whose rarity is still a guess — derived from the same query.
+  const ambiguousCount = (() => {
+    let n = 0;
+    for (const copies of copiesMap?.values() ?? [])
+      for (const c of copies) if (c.ambiguous) n += c.quantity;
+    return n;
+  })();
   // Chosen alternate artwork per owned card, so grid/list thumbnails match the
   // art the owner picked.
   const artMap = useLiveQuery(async () => {
@@ -272,7 +280,10 @@ export default function CardsPage() {
     let rows: MCard[];
     if (view === "owned") {
       const entries = (await db.collection.toArray()).filter(
-        (e) => e.quantity > 0 && (!tagFilter || (e.tags ?? []).includes(tagFilter))
+        (e) =>
+          e.quantity > 0 &&
+          (!tagFilter || (e.tags ?? []).includes(tagFilter)) &&
+          (!ambigFilter || e.copies?.some((c) => c.ambiguous))
       );
       const cards = await db.cards.bulkGet(entries.map((e) => e.cardId));
       rows = cards.filter((c): c is MCard => !!c && (!q || c.nameLower.includes(q)));
@@ -295,7 +306,7 @@ export default function CardsPage() {
     if (banStatus) rows = rows.filter((c) => c.banlist === banStatus);
     rows.sort(SORTERS[sortBy]);
     return view === "all" ? rows.slice(0, limit + 1) : rows;
-  }, [debouncedQuery, view, limit, cardType, sortBy, tagFilter, attr, level, banStatus]);
+  }, [debouncedQuery, view, limit, cardType, sortBy, tagFilter, ambigFilter, attr, level, banStatus]);
 
   // Binder chips shown on the Owned view — only queried there.
   const tags = useLiveQuery(() => (view === "owned" ? allTags() : []), [view], []);
@@ -589,9 +600,22 @@ export default function CardsPage() {
         </button>
       )}
 
-      {/* Binder filter chips (owned view, only when binders exist). */}
-      {view === "owned" && tags.length > 0 && (
+      {/* Binder + rarity-confirmation filter chips (owned view). */}
+      {view === "owned" && (tags.length > 0 || ambiguousCount > 0) && (
         <div className="flex gap-1.5 flex-wrap">
+          {ambiguousCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setAmbigFilter((v) => !v)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                ambigFilter
+                  ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
+                  : "bg-surface border-line text-amber-300/90"
+              }`}
+            >
+              ⚠ {ambiguousCount} rarit{ambiguousCount === 1 ? "y" : "ies"} to confirm
+            </button>
+          )}
           {tags.map((t) => (
             <button
               key={t}
