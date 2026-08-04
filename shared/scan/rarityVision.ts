@@ -53,6 +53,12 @@ type Bucket = "matte" | "holo-name" | "holo-art" | "gold" | "rainbow" | "unknown
 export function rarityBucket(rarity: string): Bucket {
   const r = rarity.toLowerCase();
   if (/(secret|starlight|ghost|collector|prismatic|quarter century)/.test(r)) return "rainbow";
+  // Ultimate's embossed relief foil covers the art (and more) — in a single
+  // frame's specular reading it looks closest to a foiled-art card. A
+  // deliberate collision with Super, same policy as the secret-family bucket
+  // ("ultimate" must be checked before /ultra/ would… not match it — but be
+  // explicit rather than rely on that regex accident).
+  if (/ultimate/.test(r)) return "holo-art";
   if (/(ultra|gold)/.test(r)) return "gold"; // Ultra's name plate is gold foil
   if (/super/.test(r)) return "holo-art";
   if (/(common|short print|normal)/.test(r)) return "matte";

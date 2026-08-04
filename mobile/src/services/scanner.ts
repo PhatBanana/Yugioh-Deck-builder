@@ -10,6 +10,8 @@ import {
 } from "@shared/scan/nameMatcher";
 import { detectEdition, extractSetCode } from "@shared/scan/setCode";
 import { classifyFoil, type FoilClass, type FoilStats, type RegionStat } from "@shared/scan/rarityVision";
+import { cardFoilRegions, type FoilRegions } from "@shared/scan/foilRegions";
+import { detectCardBounds } from "@shared/grading/analyze";
 import { db } from "../db";
 import { classifyRarity } from "./rarityModel";
 
@@ -205,7 +207,7 @@ async function prepareFrame(dataUrl: string): Promise<{ image: string; foil?: Fo
     const image = canvas.toDataURL("image/jpeg", 0.95);
     let foil: FoilClass | undefined;
     try {
-      foil = classifyFoil(readFoilStats(ctx, sw, sh));
+      foil = classifyFoil(readFoilStats(ctx, sw, sh, findCardRegions(ctx, sw, sh)));
     } catch {
       // Pixel read blocked (rare) — skip the visual pass for this frame.
     }
@@ -216,12 +218,51 @@ async function prepareFrame(dataUrl: string): Promise<{ image: string; foil?: Fo
   }
 }
 
-// Per-region brightness/colour stats used to classify the card's foil. The
-// regions are fractions of the cropped card: the name plate across the top,
-// the artwork box, and the whole card (for rainbow foil that spans it).
-function readFoilStats(ctx: CanvasRenderingContext2D, w: number, h: number): FoilStats {
+// Locates the card inside the cropped frame so the foil regions track the
+// card itself instead of fixed screen fractions (which mostly measured the
+// table behind it). Runs on a small downscale — bounds detection doesn't need
+// resolution. Null when no plausible card box is found.
+function findCardRegions(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number
+): FoilRegions | null {
+  try {
+    const scale = Math.min(1, 220 / w);
+    const dw = Math.max(1, Math.round(w * scale));
+    const dh = Math.max(1, Math.round(h * scale));
+    const small = document.createElement("canvas");
+    small.width = dw;
+    small.height = dh;
+    const sctx = small.getContext("2d");
+    if (!sctx) return null;
+    sctx.drawImage(ctx.canvas, 0, 0, dw, dh);
+    const bounds = detectCardBounds({ data: sctx.getImageData(0, 0, dw, dh).data, width: dw, height: dh });
+    return bounds ? cardFoilRegions(bounds, dw, dh) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Per-region brightness/colour stats used to classify the card's foil: the
+// name plate across the top, the artwork box, and the whole card (for rainbow
+// foil that spans it). Regions come from the detected card box when available;
+// the fixed screen fractions remain as the framing-guide fallback.
+function readFoilStats(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  regions?: FoilRegions | null
+): FoilStats {
   const region = (x0: number, y0: number, x1: number, y1: number): RegionStat =>
     regionStat(ctx, Math.round(x0 * w), Math.round(y0 * h), Math.round((x1 - x0) * w), Math.round((y1 - y0) * h));
+  if (regions) {
+    return {
+      name: region(regions.name.x0, regions.name.y0, regions.name.x1, regions.name.y1),
+      art: region(regions.art.x0, regions.art.y0, regions.art.x1, regions.art.y1),
+      whole: region(regions.whole.x0, regions.whole.y0, regions.whole.x1, regions.whole.y1),
+    };
+  }
   return {
     name: region(0.08, 0.04, 0.92, 0.13),
     art: region(0.12, 0.16, 0.88, 0.52),
