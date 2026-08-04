@@ -26,8 +26,11 @@ interface ApiCardSets {
 
 export async function getCardPrintings(cardId: number): Promise<MCardSets["sets"]> {
   const cached = await db.cardSets.get(cardId);
-  if (cached && (isFresh(cached.fetchedAt, REFRESH_AFTER_DAYS) || cached.sets.length > 0))
-    return cached.sets;
+  // Only a *fresh* cache short-circuits; a stale one still refetches (falling
+  // back to it offline) so new sets and prices eventually appear. The old
+  // `|| sets.length > 0` made any populated cache permanent — printings and
+  // their prices never updated again.
+  if (cached && isFresh(cached.fetchedAt, REFRESH_AFTER_DAYS)) return cached.sets;
 
   try {
     const json = await httpGetJson<ApiCardSets>(
