@@ -6,7 +6,6 @@ import ScanPage from "./pages/ScanPage";
 import CardsPage from "./pages/CardsPage";
 import DecksPage from "./pages/DecksPage";
 import RecommendationsPage from "./pages/RecommendationsPage";
-import { hideBanner, initAds, showBanner } from "./services/ads";
 import { initBackButton } from "./services/backButton";
 import { migrateLegacyPrintings, recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
@@ -31,7 +30,6 @@ export default function App() {
   const [immersive, setImmersive] = useState(false);
 
   useEffect(() => {
-    void initAds();
     // Android back button closes open popups/sub-views instead of minimizing.
     initBackButton();
     // Best-effort daily snapshots: collection value for the value chart, and
@@ -53,27 +51,12 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Hide the banner over the fullscreen camera; show it everywhere else.
-  useEffect(() => {
-    if (immersive) void hideBanner();
-    else void showBanner();
-  }, [immersive]);
-
   return (
-    // Reserve space at the top for the native ad banner (drawn over the webview
-    // at the top) so it never overlaps the header/content. The var is 0 while
-    // the banner is hidden (e.g. during fullscreen scanning). The page
-    // background (canvas + glow) lives on <body>, so this div stays
+    // The page background (canvas + glow) lives on <body>, so this div stays
     // transparent — which the camera-scanning mode also relies on.
-    <div
-      className="min-h-dvh flex flex-col text-neutral-100"
-      style={{ paddingTop: "var(--ad-banner-h, 0px)" }}
-    >
+    <div className="min-h-dvh flex flex-col text-neutral-100">
       {!immersive && (
-        <header
-          className="sticky z-10 bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]"
-          style={{ top: "var(--ad-banner-h, 0px)" }}
-        >
+        <header className="sticky top-0 z-10 bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
           <h1 className="font-bold tracking-tight">
             <span className="wordmark bg-gradient-to-r from-amber-300 via-yellow-200 to-yellow-500 bg-clip-text text-transparent">
               YGO
