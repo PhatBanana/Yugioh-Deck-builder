@@ -130,51 +130,17 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ## Known cleanup backlog
 
-Findings from a full code review (2026-08). Critical/high items were fixed;
-these medium/low ones are real but deferred — pick them up opportunistically.
+Findings from a full code review (2026-08). Critical/high items were fixed
+immediately; most medium/low ones have since been cleaned up too. Still open:
 
-**Error handling / offline**
-- [ ] A failed `checkDBVer` check forces a full ~50 MB card re-download even
-      when the local data is fresh (`cardSync.ts`) — skip when synced recently.
-- [ ] A failed printing-index rebuild is swallowed and the UI then advises the
-      exact re-sync that just failed — surface it (`cardSync.ts`).
-- [ ] `payload.data.map` throws a raw TypeError when the card API returns an
-      error object — guard and message it (`cardSync.ts`).
-- [ ] Market-price fetch failure is indistinguishable from "no trend data";
-      offline users see a permanent "no data" (`marketPrices.ts`).
-- [ ] Trade logging writes the trade row then each card outside a transaction —
-      a mid-way failure half-applies the trade (`trades.ts`).
-
-**Stale caches**
-- [ ] Per-card printings cache never refreshes once populated
-      (`printings.ts` — the freshness check is bypassed by `sets.length > 0`),
-      so per-printing prices drift forever.
-- [ ] Set contents cache (`setCards`) has no TTL — completion percentages
-      stay wrong for sets fetched before the card DB was complete (`sets.ts`).
-
-**Perf / pagination**
-- [ ] Sets browser hard-caps at 30 results with no "show more" (`sets.ts`,
-      `CardsPage`).
 - [ ] Budget planner and set sheets render unbounded lists; each missing-card
       row mounts its own wishlist live query (`WishlistBudgetSheet`,
       `SetSheet`).
 - [ ] Card search full-scans all ~13k rows per keystroke; `nameLower` is
       indexed and could serve prefix matches (`CardsPage`).
-
-**Correctness (minor)**
-- [ ] CSV export still reads the legacy single-printing field, so per-printing
-      breakdowns export blank set/rarity columns and mismatched totals
-      (`backup.ts`).
-- [ ] Pack simulator draws with replacement — one pack can contain duplicate
-      cards (`shared/packs/openPack.ts`).
 - [ ] Price-alert windows mislabel cards whose history is shorter than the
       window ("1m" move may be two days) — mark "since tracking started"
       (`shared/collection/insights.ts`).
-- [ ] CSV quoting misses `\r` (`shared/collection/csv.ts`).
-- [ ] `DeckOddsSheet` persists starters from inside a React state updater
-      (double-write under StrictMode).
-
-**Test gaps**
 - [ ] `shared/deck/handSim.ts` (drawHand bias) and
       `shared/recommendation/recommend.ts` have no tests at all.
 

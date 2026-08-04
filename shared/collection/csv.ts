@@ -11,10 +11,11 @@ export interface CsvRow {
 }
 
 // RFC-4180-ish quoting: wrap in quotes when the value contains a comma,
-// quote, or newline; double any embedded quotes.
+// quote, or line break (CR or LF — Excel-pasted text often carries CRs);
+// double any embedded quotes.
 function cell(value: string | number): string {
   const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function collectionToCsv(rows: CsvRow[]): string {

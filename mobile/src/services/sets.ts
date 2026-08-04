@@ -1,4 +1,5 @@
 import { matchesQuery, queryTokens } from "@shared/search/textMatch";
+import { isFresh } from "../lib/util";
 import { db, type MSet, type MSetCards } from "../db";
 import { httpGetJson } from "./http";
 
@@ -68,7 +69,10 @@ export interface SetCompletion {
 
 export async function getSetCardIds(setName: string): Promise<MSetCards | null> {
   const cached = await db.setCards.get(setName);
-  if (cached) return cached;
+  // Fresh cache short-circuits; a stale one refetches (so a set fetched
+  // before the local card DB was complete stops being wrong forever) and
+  // still serves as the offline fallback below.
+  if (cached && isFresh(cached.fetchedAt, 14)) return cached;
   try {
     const data = await httpGetJson<{ data?: { id?: number; name?: string }[] }>(
       `https://db.ygoprodeck.com/api/v7/cardinfo.php?cardset=${encodeURIComponent(setName)}`
@@ -102,7 +106,8 @@ export async function getSetCardIds(setName: string): Promise<MSetCards | null> 
     await db.setCards.put(record);
     return record;
   } catch {
-    return null;
+    // Offline / API failure: a stale cache beats nothing.
+    return cached ?? null;
   }
 }
 

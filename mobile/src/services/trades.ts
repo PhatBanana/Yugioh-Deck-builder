@@ -31,12 +31,16 @@ export async function logTrade(
     gotValueUsd: await valueOf(got),
     note: options?.note?.trim() || undefined,
   };
-  await db.trades.put(trade);
-
-  if (options?.applyToCollection !== false) {
-    for (const s of gave) await addOwned(s.cardId, -s.quantity);
-    for (const s of got) await addOwned(s.cardId, s.quantity);
-  }
+  // One transaction for the trade row and every collection change — a failure
+  // partway can't leave a recorded trade with only some cards moved. (cards +
+  // priceHistory are in scope because addOwned records a price point.)
+  await db.transaction("rw", [db.trades, db.collection, db.cards, db.priceHistory], async () => {
+    await db.trades.put(trade);
+    if (options?.applyToCollection !== false) {
+      for (const s of gave) await addOwned(s.cardId, -s.quantity);
+      for (const s of got) await addOwned(s.cardId, s.quantity);
+    }
+  });
   return trade;
 }
 

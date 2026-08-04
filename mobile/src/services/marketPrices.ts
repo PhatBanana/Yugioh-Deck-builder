@@ -15,25 +15,32 @@ const ENDPOINT: Record<PriceStore, string> = {
 
 export const STORE_SYMBOL: Record<PriceStore, string> = { tcgplayer: "$", cardmarket: "€" };
 
+// Distinguishes "the card has no trend data" (a real, cacheable answer) from
+// "the request failed" (offline/blocked — worth a retry, not a 'no data'
+// message that reads as permanent).
+export type MarketHistoryResult =
+  | { ok: true; series: MarketSeries[] }
+  | { ok: false };
+
 // In-memory cache so flipping between printings/stores or reopening a card in
-// the same session doesn't refetch.
+// the same session doesn't refetch. Only successful answers are cached.
 const cache = new Map<string, MarketSeries[]>();
 
 export async function getMarketPriceHistory(
   cardName: string,
   store: PriceStore = "tcgplayer"
-): Promise<MarketSeries[]> {
+): Promise<MarketHistoryResult> {
   const key = `${store}|${cardName}`;
   const cached = cache.get(key);
-  if (cached) return cached;
+  if (cached) return { ok: true, series: cached };
   try {
     const json = await httpGetJson<unknown>(
       `${ENDPOINT[store]}?name=${encodeURIComponent(cardName)}`
     );
     const series = parseMarketTrend(json);
     cache.set(key, series);
-    return series;
+    return { ok: true, series };
   } catch {
-    return [];
+    return { ok: false };
   }
 }

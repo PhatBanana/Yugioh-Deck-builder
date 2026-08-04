@@ -213,8 +213,8 @@ export default function CardsPage() {
   }, [view]);
 
   const setResults = useLiveQuery(
-    async () => (view === "sets" ? searchSets(debouncedQuery) : []),
-    [view, debouncedQuery, setCount],
+    async () => (view === "sets" ? searchSets(debouncedQuery, limit + 1) : []),
+    [view, debouncedQuery, setCount, limit],
     []
   );
 
@@ -326,6 +326,9 @@ export default function CardsPage() {
       const cards = await syncCards(setSyncing);
       invalidateCandidateCache();
       refreshAlertCount().catch(() => {}); // prices changed — refresh the badge
+      if (cards.rarityIndexFailed) {
+        toast("Rarity index couldn't be built — scan rarities may be slow until the next sync", "error");
+      }
       setSyncing("Updating meta decks…");
       const decks = await syncMetaDecks(setSyncing);
       toast(
@@ -373,7 +376,8 @@ export default function CardsPage() {
     );
   }
 
-  const hasMore = view !== "sets" && (results?.length ?? 0) > limit;
+  const hasMore =
+    (view === "sets" ? setResults.length : (results?.length ?? 0)) > limit;
   const visible = hasMore ? results!.slice(0, limit) : (results ?? []);
 
   return (
@@ -651,7 +655,7 @@ export default function CardsPage() {
       {/* Sets view: browse the set catalogue and open completion sheets. */}
       {view === "sets" && (
         <div className="flex flex-col gap-2">
-          {setResults.map((s) => (
+          {setResults.slice(0, limit).map((s) => (
             <button
               key={s.name}
               type="button"

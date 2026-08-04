@@ -17,20 +17,25 @@ const STORES: { id: PriceStore; label: string }[] = [
 // when a card has no trend data.
 export default function PriceHistory({ cardId, cardName }: { cardId: number; cardName: string }) {
   const [store, setStore] = useState<PriceStore>("tcgplayer");
-  const [series, setSeries] = useState<MarketSeries[] | null>(null); // null = loading
+  // null = loading; "failed" = request failed (offline) — distinct from a
+  // successful "this card has no trend data" answer.
+  const [series, setSeries] = useState<MarketSeries[] | "failed" | null>(null);
   const [seriesIdx, setSeriesIdx] = useState(0);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setSeries(null);
     setSeriesIdx(0);
-    getMarketPriceHistory(cardName, store).then((s) => !cancelled && setSeries(s));
+    getMarketPriceHistory(cardName, store).then(
+      (r) => !cancelled && setSeries(r.ok ? r.series : "failed")
+    );
     return () => {
       cancelled = true;
     };
-  }, [cardName, store]);
+  }, [cardName, store, attempt]);
 
-  const chosen = series && series[seriesIdx];
+  const chosen = Array.isArray(series) ? series[seriesIdx] : undefined;
 
   return (
     <div className="mt-3 pt-3 border-t border-line">
@@ -52,7 +57,24 @@ export default function PriceHistory({ cardId, cardName }: { cardId: number; car
 
       {series === null && <p className="text-xs text-neutral-600">Loading market history…</p>}
 
-      {series && series.length === 0 && (
+      {series === "failed" && (
+        <>
+          <p className="text-xs text-neutral-600 mb-1">
+            Couldn't load market history — check your connection.{" "}
+            <button
+              type="button"
+              onClick={() => setAttempt((a) => a + 1)}
+              className="text-amber-400 underline"
+            >
+              Retry
+            </button>
+          </p>
+          {/* Whatever the app recorded locally still works offline. */}
+          <PriceSparkline cardId={cardId} />
+        </>
+      )}
+
+      {Array.isArray(series) && series.length === 0 && (
         <>
           <p className="text-xs text-neutral-600 mb-1">
             No {STORES.find((s) => s.id === store)?.label} trend data for this card.
@@ -64,7 +86,7 @@ export default function PriceHistory({ cardId, cardName }: { cardId: number; car
 
       {chosen && (
         <>
-          {series && series.length > 1 && (
+          {Array.isArray(series) && series.length > 1 && (
             <select
               className="input-base w-full rounded-lg px-2 py-1.5 text-xs mb-2"
               value={seriesIdx}

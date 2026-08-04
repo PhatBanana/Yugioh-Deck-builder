@@ -35,6 +35,20 @@ function pick<T>(arr: T[], rand: () => number): T {
   return arr[Math.floor(rand() * arr.length)];
 }
 
+// Draws `n` items without replacement (no duplicate cards in one pack, like a
+// real booster). Only if the pool is smaller than the ask do repeats appear.
+function drawUnique<T>(arr: T[], n: number, rand: () => number): T[] {
+  const pool = [...arr];
+  const out: T[] = [];
+  while (out.length < n && pool.length > 0) {
+    const i = Math.floor(rand() * pool.length);
+    out.push(pool[i]);
+    pool.splice(i, 1);
+  }
+  while (out.length < n && arr.length > 0) out.push(pick(arr, rand));
+  return out;
+}
+
 function pickFoil(foils: PoolCard[], rand: () => number): PoolCard {
   const byRarity = new Map<string, PoolCard[]>();
   for (const c of foils) {
@@ -72,7 +86,7 @@ export function openPack(
     result.push(foils.length > 0 ? pickFoil(src, rand) : pick(src, rand));
   }
   const commonSrc = commons.length > 0 ? commons : pool;
-  while (result.length < size) result.push(pick(commonSrc, rand));
+  result.push(...drawUnique(commonSrc, size - result.length, rand));
 
   return result;
 }
