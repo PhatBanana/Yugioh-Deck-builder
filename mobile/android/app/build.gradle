@@ -39,14 +39,19 @@ android {
     }
     buildTypes {
         release {
-            // Shipped builds are minified + resource-shrunk (R8) — several MB
-            // smaller and faster than the debug builds CI used to publish.
-            // Signed with the same committed keystore as debug, so a release
-            // APK still installs as an in-place upgrade over older installs.
-            minifyEnabled true
-            shrinkResources true
+            // R8 minification/resource-shrinking is OFF: shipped to a device for
+            // the first time it produced an immediate crash (app loads briefly,
+            // then the whole process dies to a black screen) — almost certainly
+            // a native class an SDK needs via reflection that R8 stripped despite
+            // our keep-rules (AdMob is the prime suspect: its native banner load
+            // fires a moment after launch, matching the symptom). Needs a real
+            // device + logcat to root-cause before re-enabling; see proguard-rules.pro.
+            // Still real wins with zero runtime risk: arm-only ABIs below, and
+            // signing with the committed debug keystore so releases install as
+            // in-place upgrades over older installs.
+            minifyEnabled false
+            shrinkResources false
             signingConfig signingConfigs.debug
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
