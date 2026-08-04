@@ -57,7 +57,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
       >
         <div className="sheet-handle" />
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold">🎴 Pack simulator</h2>
+          <h2 className="text-lg font-semibold">📦 Pack simulator</h2>
           <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
             ×
           </button>
@@ -65,9 +65,9 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
         <p className="text-xs text-neutral-500 mb-3 truncate">{setName}</p>
 
         {pool === null ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">Loading set…</p>
+          <p className="empty-state">Loading set…</p>
         ) : pool.length === 0 ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">
+          <p className="empty-state">
             No rarity data for this set — re-sync the card database and try again.
           </p>
         ) : (
@@ -114,7 +114,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
             )}
 
             <button type="button" onClick={rip} className="btn-primary w-full py-3 text-sm">
-              {pack ? "🎴 Open another pack" : "🎴 Open a pack"}
+              {pack ? "📦 Open another pack" : "📦 Open a pack"}
             </button>
             <p className="text-[11px] text-neutral-600 text-center mt-2">
               Simulated odds for fun — not the exact print run.

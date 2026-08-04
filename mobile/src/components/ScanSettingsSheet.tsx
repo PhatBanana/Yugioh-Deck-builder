@@ -68,23 +68,23 @@ export default function ScanSettingsSheet({
   const [labOpen, setLabOpen] = useState(false);
   return (
     <div
-      className="sheet-backdrop z-[70] flex items-end"
+      className="sheet-backdrop z-[70] flex items-end justify-center"
       onClick={onClose}
     >
       <div
-        className="sheet w-full rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+        className="sheet w-full sm:max-w-md rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" />
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Scan settings</h2>
+          <h2 className="text-lg font-semibold">Scan settings</h2>
           <button
             type="button"
             onClick={onClose}
             className="text-neutral-400 text-xl leading-none px-2"
             aria-label="Close settings"
           >
-            ✕
+            ×
           </button>
         </div>
 

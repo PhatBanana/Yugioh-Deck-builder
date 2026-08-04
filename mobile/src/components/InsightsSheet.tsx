@@ -53,9 +53,9 @@ export default function InsightsSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         {!insights ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">Crunching your collection…</p>
+          <p className="empty-state">Crunching your collection…</p>
         ) : insights.totalCopies === 0 ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">
+          <p className="empty-state">
             Add some cards to see where your collection's value sits.
           </p>
         ) : (

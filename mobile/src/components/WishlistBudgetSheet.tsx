@@ -41,7 +41,7 @@ export default function WishlistBudgetSheet({ onClose }: { onClose: () => void }
         </div>
 
         {items.length === 0 ? (
-          <p className="text-sm text-neutral-500 py-6 text-center">
+          <p className="empty-state">
             Your wishlist is empty — tap ♡ on cards to plan around them.
           </p>
         ) : (

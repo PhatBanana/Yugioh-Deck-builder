@@ -371,7 +371,13 @@ export default function CardsPage() {
         >
           Restore a backup
         </button>
-        {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
+        {backupOpen && (
+        <BackupSheet
+          onClose={() => setBackupOpen(false)}
+          syncing={syncing}
+          onSync={runFullSync}
+        />
+      )}
       </div>
     );
   }
@@ -508,42 +514,30 @@ export default function CardsPage() {
             aria-hidden
             className="absolute inset-0 bg-[radial-gradient(120%_140%_at_85%_-30%,rgba(245,158,11,0.12),transparent_60%)]"
           />
-          <div className="relative flex items-end justify-between gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-neutral-500">
-                Collection value
-              </div>
-              <div className="text-3xl font-bold tabular-nums bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
-                ${stats.estimatedValueUsd.toFixed(0)}
-              </div>
-              <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1.5">
-                <span>
-                  {stats.totalCopies} cards · {stats.uniqueCards} unique
-                </span>
-                {valueDelta != null && Math.abs(valueDelta) >= 0.01 && (
-                  <span
-                    className={`tabular-nums font-medium ${
-                      valueDelta >= 0 ? "text-emerald-400" : "text-red-400"
-                    }`}
-                  >
-                    {valueDelta >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(valueDelta))} today
-                  </span>
-                )}
-              </div>
+          <div className="relative">
+            <div className="text-[11px] uppercase tracking-wide text-neutral-500">
+              Collection value
             </div>
-            <div className="flex flex-col items-end gap-1 text-xs text-neutral-500">
-              <button type="button" onClick={() => setTradesOpen(true)} className="underline">
-                Trades
-              </button>
-              <button type="button" onClick={() => setBackupOpen(true)} className="underline">
-                Backup
-              </button>
-              <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
-                {syncing ?? "Re-sync data"}
-              </button>
+            <div className="text-3xl font-bold tabular-nums bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent">
+              ${stats.estimatedValueUsd.toFixed(0)}
+            </div>
+            <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-1.5">
+              <span>
+                {stats.totalCopies} cards · {stats.uniqueCards} unique
+              </span>
+              {valueDelta != null && Math.abs(valueDelta) >= 0.01 && (
+                <span
+                  className={`tabular-nums font-medium ${
+                    valueDelta >= 0 ? "text-emerald-400" : "text-red-400"
+                  }`}
+                >
+                  {valueDelta >= 0 ? "▲" : "▼"} {formatUsd(Math.abs(valueDelta))} today
+                </span>
+              )}
             </div>
           </div>
-          {/* Insights + price alerts + bulk select. */}
+          {/* One action row, one style — everything the collection offers.
+              (Re-sync lives inside Backup, the app/data home.) */}
           <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-3 gap-2">
             <button
               type="button"
@@ -569,14 +563,28 @@ export default function CardsPage() {
               onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
               className={`btn-ghost py-2 text-xs ${selectMode ? "ring-1 ring-amber-400 text-amber-200" : ""}`}
             >
-              {selectMode ? "✕ Cancel" : "☑ Select"}
+              {selectMode ? "× Cancel" : "☑ Select"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTradesOpen(true)}
+              className="btn-ghost py-2 text-xs"
+            >
+              🤝 Trades
+            </button>
+            <button
+              type="button"
+              onClick={() => setBackupOpen(true)}
+              className="btn-ghost py-2 text-xs"
+            >
+              💾 Backup{syncing ? "…" : ""}
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between text-xs text-neutral-500">
-          <span className="flex items-center gap-1.5">
-            <span>
+        <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate">
               {stats
                 ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
                   (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
@@ -584,7 +592,7 @@ export default function CardsPage() {
             </span>
             {valueDelta != null && Math.abs(valueDelta) >= 0.01 && (
               <span
-                className={`tabular-nums font-medium ${
+                className={`tabular-nums font-medium shrink-0 ${
                   valueDelta >= 0 ? "text-emerald-400" : "text-red-400"
                 }`}
               >
@@ -592,15 +600,20 @@ export default function CardsPage() {
               </span>
             )}
           </span>
-          <span className="flex gap-3">
-            <button type="button" onClick={() => setTradesOpen(true)} className="underline">
-              Trades
+          <span className="flex gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setTradesOpen(true)}
+              className="btn-ghost px-2.5 py-1.5 text-xs"
+            >
+              🤝 Trades
             </button>
-            <button type="button" onClick={() => setBackupOpen(true)} className="underline">
-              Backup
-            </button>
-            <button type="button" disabled={!!syncing} onClick={runFullSync} className="underline">
-              {syncing ?? "Re-sync data"}
+            <button
+              type="button"
+              onClick={() => setBackupOpen(true)}
+              className="btn-ghost px-2.5 py-1.5 text-xs"
+            >
+              💾 Backup
             </button>
           </span>
         </div>
@@ -672,7 +685,7 @@ export default function CardsPage() {
             </button>
           ))}
           {setResults.length === 0 && (
-            <div className="text-center text-neutral-500 text-sm py-10">
+            <div className="empty-state">
               {setCount === 0
                 ? "Couldn't load the set list — check your connection and reopen this tab."
                 : "No sets match."}
@@ -709,7 +722,7 @@ export default function CardsPage() {
           )
         )}
         {visible.length === 0 && (
-          <div className="col-span-3 text-center text-neutral-500 text-sm py-10">
+          <div className="col-span-3 empty-state">
             {view === "wishlist"
               ? "Your wishlist is empty. Tap ♡ on cards, or on the Meta tab's “buy next” list."
               : view === "owned"
@@ -730,7 +743,13 @@ export default function CardsPage() {
         </button>
       )}
 
-      {backupOpen && <BackupSheet onClose={() => setBackupOpen(false)} />}
+      {backupOpen && (
+        <BackupSheet
+          onClose={() => setBackupOpen(false)}
+          syncing={syncing}
+          onSync={runFullSync}
+        />
+      )}
       {tradesOpen && <TradesSheet onClose={() => setTradesOpen(false)} />}
       {insightsOpen && <InsightsSheet onClose={() => setInsightsOpen(false)} />}
       {alertsOpen && <PriceAlertsSheet onClose={() => setAlertsOpen(false)} />}

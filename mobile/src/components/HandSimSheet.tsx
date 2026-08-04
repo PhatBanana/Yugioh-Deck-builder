@@ -57,7 +57,7 @@ export default function HandSimSheet({
         </p>
 
         {pile.length < 5 ? (
-          <p className="text-sm text-neutral-400 py-6 text-center">
+          <p className="empty-state">
             Add at least 5 main-deck cards to test hands.
           </p>
         ) : (

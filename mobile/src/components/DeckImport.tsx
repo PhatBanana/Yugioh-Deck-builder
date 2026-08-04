@@ -89,7 +89,7 @@ export default function DeckImport() {
           ← Back to search
         </button>
         <div>
-          <h2 className="font-semibold">{selected.title}</h2>
+          <h2 className="text-lg font-semibold">{selected.title}</h2>
           <p className="text-xs text-neutral-500">
             {selected.kind === "archetype"
               ? "All cards in this archetype. Set how many of each you own."
@@ -209,7 +209,7 @@ export default function DeckImport() {
       )}
 
       {nothing && (
-        <div className="text-neutral-500 text-sm text-center py-6">
+        <div className="empty-state">
           No decks or archetypes match “{query}”.
         </div>
       )}
