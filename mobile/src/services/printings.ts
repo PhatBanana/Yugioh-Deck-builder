@@ -1,5 +1,6 @@
-import { matchPrintingCandidates, type PrintingRef } from "@shared/scan/setCode";
+import { matchPrintingCandidates } from "@shared/scan/setCode";
 import { reconcileRarity, type Agreement, type FoilClass } from "@shared/scan/rarityVision";
+import { rankByPrior, type RarityCandidate } from "@shared/scan/rarityPrior";
 import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
 import { addPrintingCopy, patchCollectionEntry } from "./collection";
@@ -67,15 +68,28 @@ export interface ResolvedPrinting {
   edition?: string;
   agreement?: Agreement; // how the set code and the visual foil pass lined up
   foil?: FoilClass;
+  // True when the filed rarity is a best guess among several the code allows.
+  ambiguous?: boolean;
+  // Every rarity the code could be (prior-ranked), for the picker UI.
+  candidates?: RarityCandidate[];
 }
 
-// The rarities a scanned set code could be. Prefers the global offline index
-// (built on sync); falls back to a per-card network fetch if the index isn't
-// built yet.
-async function raritiesForCode(cardId: number, setCode: string): Promise<PrintingRef[]> {
+// The rarities a scanned set code could be, prior-ranked (most likely first).
+// Prefers the global offline index (built on sync); falls back to a per-card
+// network fetch if the index isn't built yet. Both paths carry the printing's
+// own price, a likelihood/display signal.
+export async function raritiesForCode(cardId: number, setCode: string): Promise<RarityCandidate[]> {
   const indexed = await lookupRaritiesByCode(setCode);
-  if (indexed.length > 0) return indexed;
-  return matchPrintingCandidates(setCode, await getCardPrintings(cardId));
+  if (indexed.length > 0) return rankByPrior(indexed);
+  const sets = await getCardPrintings(cardId);
+  const matched = matchPrintingCandidates(setCode, sets);
+  return rankByPrior(
+    matched.map((m) => ({
+      code: m.code,
+      rarity: m.rarity,
+      priceUsd: sets.find((s) => s.code === m.code && s.rarity === m.rarity)?.price ?? null,
+    }))
+  );
 }
 
 // Given a set code and/or edition read off a card while scanning — plus the
@@ -90,12 +104,13 @@ export async function applyScannedPrinting(
   edition: string | undefined,
   opts: { foil?: FoilClass; modelRarity?: string | null } = {}
 ): Promise<ResolvedPrinting> {
-  let chosen: PrintingRef | undefined;
+  let chosen: RarityCandidate | undefined;
   let agreement: Agreement | undefined;
+  let candidates: RarityCandidate[] = [];
 
   if (setCode) {
     try {
-      const candidates = await raritiesForCode(cardId, setCode);
+      candidates = await raritiesForCode(cardId, setCode); // prior-ranked
       if (candidates.length > 0) {
         const rarities = candidates.map((c) => c.rarity);
         if (opts.modelRarity && rarities.includes(opts.modelRarity)) {
@@ -106,13 +121,21 @@ export async function applyScannedPrinting(
           agreement = verdict.agreement;
           if (verdict.rarity) chosen = candidates.find((c) => c.rarity === verdict.rarity);
         }
-        // No visual help (or it abstained): accept an unambiguous single rarity.
-        if (!chosen && new Set(rarities).size === 1) chosen = candidates[0];
+        // No visual help (or it abstained): a single distinct rarity is a sure
+        // thing; several means file the statistically likely one as a marked
+        // guess — never silently, and never "whatever sorted first".
+        if (!chosen) {
+          chosen = candidates[0];
+          if (new Set(rarities).size > 1) agreement ??= "unknown";
+        }
       }
     } catch {
       // Offline / lookup failure — keep whatever edition we read.
     }
   }
+
+  const distinct = new Set(candidates.map((c) => c.rarity)).size;
+  const ambiguous = distinct > 1 && agreement !== "confirmed";
 
   // Attribute this one scanned copy to its printing in the breakdown (the
   // commit already bumped the card's total quantity).
@@ -120,8 +143,17 @@ export async function applyScannedPrinting(
     await addPrintingCopy(
       cardId,
       { code: chosen?.code, rarity: chosen?.rarity, edition },
-      1
+      1,
+      ambiguous
     );
   }
-  return { code: chosen?.code, rarity: chosen?.rarity, edition, agreement, foil: opts.foil };
+  return {
+    code: chosen?.code,
+    rarity: chosen?.rarity,
+    edition,
+    agreement,
+    foil: opts.foil,
+    ambiguous: ambiguous || undefined,
+    candidates: distinct > 1 ? candidates : undefined,
+  };
 }

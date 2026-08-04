@@ -110,8 +110,11 @@ export function reconcileRarity(codeCandidates: string[], foil: FoilClass): Rari
     if (hits.length === 1) {
       return { rarity: hits[0], foil, agreement: "confirmed", source: "code+vision" };
     }
-    // Vision can't break the tie — keep the first candidate, flag as unsure.
-    return { rarity: codeCandidates[0], foil, agreement: "unknown", source: "code" };
+    // Vision narrowed but didn't settle it — prefer the best vision-consistent
+    // candidate; with no hits at all, the best overall. Callers pass the list
+    // pre-ranked by prior likelihood, so [0] is "most likely", not
+    // "alphabetically first".
+    return { rarity: hits[0] ?? codeCandidates[0], foil, agreement: "unknown", source: "code" };
   }
 
   // No set-code match: a single frame's foil class isn't specific enough to

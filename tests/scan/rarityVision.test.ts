@@ -78,6 +78,14 @@ describe("reconcileRarity", () => {
     expect(v).toMatchObject({ rarity: "Super Rare", agreement: "unknown" });
   });
 
+  it("prefers a vision-consistent candidate even when several share its bucket", () => {
+    // Both Secret and Starlight sit in the rainbow bucket — vision can't
+    // settle it, but the first consistent candidate (callers pass the list
+    // prior-ranked) beats an inconsistent one like Common.
+    const v = reconcileRarity(["Common", "Secret Rare", "Starlight Rare"], "rainbow");
+    expect(v).toMatchObject({ rarity: "Secret Rare", agreement: "unknown" });
+  });
+
   it("offers no rarity when there is no set-code match", () => {
     expect(reconcileRarity([], "matte")).toMatchObject({ rarity: undefined, source: "none" });
     expect(reconcileRarity([], "rainbow")).toMatchObject({ rarity: undefined, source: "vision" });

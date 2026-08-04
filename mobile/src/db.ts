@@ -40,6 +40,11 @@ export interface PrintingCopy {
   edition?: string; // "1st Edition" / "Limited Edition"; unset = Unlimited
   quantity: number;
   condition?: CardCondition;
+  // True when the rarity is a best guess: the set code maps to several
+  // rarities and neither vision nor the user has confirmed which this copy
+  // is. Cleared when the user confirms/re-files it. (Non-indexed field —
+  // needs no Dexie version bump.)
+  ambiguous?: true;
 }
 
 export interface MCollectionEntry {

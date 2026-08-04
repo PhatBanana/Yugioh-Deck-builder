@@ -40,12 +40,16 @@ export async function printingIndexReady(): Promise<boolean> {
 
 // The rarities a scanned set code could be, from the local index (offline).
 // Usually one; more than one means the card was printed at several rarities in
-// that set, which the visual pass can then disambiguate. Empty when the index
-// isn't built yet or the code is unknown.
-export async function lookupRaritiesByCode(setCode: string | null): Promise<PrintingRef[]> {
+// that set, which the visual pass / prior ranking then disambiguates. Each
+// candidate carries its per-printing price — a likelihood signal (cheap =
+// plentiful) and shown in the rarity picker. Empty when the index isn't built
+// yet or the code is unknown.
+export async function lookupRaritiesByCode(
+  setCode: string | null
+): Promise<(PrintingRef & { priceUsd: number | null })[]> {
   if (!setCode) return [];
   const rows = await db.printingIndex.where("codeCanon").equals(canonSetCode(setCode)).toArray();
-  return rows.map((r) => ({ code: r.code, rarity: r.rarity }));
+  return rows.map((r) => ({ code: r.code, rarity: r.rarity, priceUsd: r.priceUsd }));
 }
 
 // Per-printing price key. Needs both a set code and a rarity to be specific.
