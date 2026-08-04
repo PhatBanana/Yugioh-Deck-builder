@@ -275,6 +275,12 @@ export default function CardsPage() {
   useEffect(() => {
     if (view !== "owned") exitSelect();
   }, [view]);
+  // Changing filters/search hides rows — drop the selection so a bulk Remove
+  // can't touch cards that are no longer on screen.
+  useEffect(() => {
+    exitSelect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagFilter, ambigFilter, debouncedQuery, cardType, attr, level, banStatus]);
 
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -726,7 +732,14 @@ export default function CardsPage() {
       {alertsOpen && <PriceAlertsSheet onClose={() => setAlertsOpen(false)} />}
       {budgetOpen && <WishlistBudgetSheet onClose={() => setBudgetOpen(false)} />}
       {openSet && <SetSheet setName={openSet} onClose={() => setOpenSet(null)} />}
-      {selectMode && <BulkEditBar ids={[...selected]} onDone={exitSelect} />}
+      {/* Hidden while any sheet is open — it sits above them (z-75 vs z-70). */}
+      {selectMode &&
+        !insightsOpen &&
+        !alertsOpen &&
+        !budgetOpen &&
+        !backupOpen &&
+        !tradesOpen &&
+        !openSet && <BulkEditBar ids={[...selected]} onDone={exitSelect} />}
     </div>
   );
 }
