@@ -18,7 +18,7 @@ import {
   setTags,
 } from "../services/collection";
 import { getCardPrintings } from "../services/printings";
-import { lookupRaritiesByCode } from "../services/rarity";
+import { loadPrintingPrices, lookupRaritiesByCode, printingPriceKey } from "../services/rarity";
 import { rankByPrior, type RarityCandidate } from "@shared/scan/rarityPrior";
 import RarityPickSheet from "./RarityPickSheet";
 import QuantityStepper, { stepperMax } from "./QuantityStepper";
@@ -124,8 +124,26 @@ function PrintingRow({
   const copies = entry?.copies ?? [];
   const assigned = copies.reduce((n, c) => n + c.quantity, 0);
   const unassigned = Math.max(0, owned - assigned);
-  const priceFor = (code?: string, rarity?: string) =>
-    sets?.find((s) => s.code === code && s.rarity === rarity)?.price ?? null;
+
+  // Each owned printing's own current price, from the offline printing index —
+  // rebuilt on every card sync, so it knows new sets the (older, per-card)
+  // network cache may miss. That cache is only the fallback.
+  const [indexPrices, setIndexPrices] = useState<Map<string, number> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadPrintingPrices(entry?.copies ?? []).then((m) => !cancelled && setIndexPrices(m));
+    return () => {
+      cancelled = true;
+    };
+  }, [entry?.copies]);
+  const priceFor = (code?: string, rarity?: string) => {
+    const key = printingPriceKey(code, rarity);
+    return (
+      (key ? indexPrices?.get(key) : null) ??
+      sets?.find((s) => s.code === code && s.rarity === rarity)?.price ??
+      null
+    );
+  };
 
   if (owned === 0)
     return (
