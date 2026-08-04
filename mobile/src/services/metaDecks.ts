@@ -11,7 +11,6 @@ import {
 } from "@shared/metaDecks/parseHtml";
 import { classifyStrategy, type StrategyCardInfo } from "@shared/metaDecks/strategy";
 import type { DeckSection } from "@shared/recommendation/types";
-import staticSnapshot from "@data/static-meta-decks.json";
 import { db, setSyncMeta, type MMetaDeck } from "../db";
 import { httpGetJson, httpGetText } from "./http";
 
@@ -137,7 +136,9 @@ interface SnapshotDeck {
 }
 
 async function loadStaticSnapshot(): Promise<MMetaDeck[]> {
-  const snap = staticSnapshot as SnapshotDeck[];
+  // Dynamic import keeps the 60 KB snapshot out of the main bundle — it's
+  // only needed on first run or when the live scrape fails.
+  const snap = (await import("@data/static-meta-decks.json")).default as SnapshotDeck[];
   // Resolve every referenced card name in one indexed query rather than one
   // per card (this seeds on first run / scrape fallback).
   const names = [...new Set(snap.flatMap((d) => d.cards.map((c) => c.cardName.toLowerCase())))];
