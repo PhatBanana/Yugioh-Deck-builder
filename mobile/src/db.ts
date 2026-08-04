@@ -20,8 +20,10 @@ export interface MCard {
   banlist: string | null; // TCG: 'Banned' | 'Limited' | 'Semi-Limited'
   banOcg?: string | null; // OCG banlist (null until the next full card sync)
   banGoat?: string | null; // Goat-format banlist (same)
-  // Master Duel regulation (from the data-pack sync): null = in the game and
-  // unlimited; undefined = no data yet OR not in Master Duel.
+  // Master Duel (from the data-pack sync): PRESENT (always as null) = the card
+  // is in Master Duel; undefined = not in the game, or no data yet. The
+  // upstream source has no MD Forbidden/Limited list, so this carries pool
+  // membership only — never a copy limit.
   banMd?: string | null;
   // Speed Duel: PRESENT (even as null) = the card is in the Speed pool, with
   // its limit; undefined = not in the pool (or no data yet — the deck editor

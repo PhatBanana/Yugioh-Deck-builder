@@ -25,3 +25,4 @@ npm-debug.log*
 /data/app.db-*
 /data/images/
 /runtime/
+dist-data/

@@ -12,8 +12,12 @@ import {
   buildYugipediaIds,
 } from "../shared/datapacks/transform.ts";
 
+// The aggregate is ~94 MB, which is over jsDelivr's 20 MB cap for
+// GitHub-hosted files (it answers 403). Nothing here runs in a browser — this
+// is a CI-only script — so raw.githubusercontent.com is the right source and
+// CORS is irrelevant.
 const AGGREGATE_URL =
-  "https://cdn.jsdelivr.net/gh/DawnbrandBots/yaml-yugi@aggregate/cards.json";
+  "https://raw.githubusercontent.com/DawnbrandBots/yaml-yugi/aggregate/cards.json";
 const OUT_DIR = "dist-data";
 const LANGS = ["ja", "ko", "de", "fr", "it", "es", "pt"];
 
@@ -27,20 +31,37 @@ if (!Array.isArray(cards) || cards.length < 10000) {
 console.log(`${cards.length} cards.`);
 
 // ---- Schema check: fail LOUDLY if yaml-yugi moved the fields we read, so a
-// scheduled run turns red instead of silently publishing empty packs. -------
+// scheduled run turns red instead of silently publishing empty packs. Every
+// threshold below is anchored to what the live aggregate carried when this
+// was written (12,928 cards), with slack for the DB growing. ---------------
 const darkMagician = cards.find((c) => c?.password === 46986414);
 if (!darkMagician) throw new Error("schema check: Dark Magician (46986414) not found by password");
 if (typeof darkMagician.name?.en !== "string") {
   throw new Error("schema check: name.en missing — multi-language name shape changed?");
 }
-const withReg = cards.filter((c) => c?.limit_regulation && typeof c.limit_regulation === "object");
-if (withReg.length < cards.length * 0.5) {
-  throw new Error(`schema check: only ${withReg.length} cards carry limit_regulation`);
+if (typeof darkMagician.limit_regulation?.tcg !== "string") {
+  throw new Error("schema check: limit_regulation.tcg missing — regulation shape changed?");
 }
 const withYp = cards.filter((c) => typeof c?.yugipedia_page_id === "number");
 if (withYp.length < cards.length * 0.5) {
   throw new Error(`schema check: only ${withYp.length} cards carry yugipedia_page_id`);
 }
+// Master Duel membership rides master_duel_rarity (N/R/SR/UR) — there is no
+// upstream MD Forbidden/Limited list. ~12.4k of 12.9k cards carry one.
+const inMd = cards.filter((c) => c?.master_duel_rarity != null);
+if (inMd.length < cards.length * 0.5) {
+  throw new Error(`schema check: only ${inMd.length} cards carry master_duel_rarity`);
+}
+// The Speed Duel pool is small and is defined purely by the presence of
+// limit_regulation.speed (~1,221 cards). If this ever covers everything, the
+// key stopped meaning "in the pool" and the Speed format would go wrong.
+const inSpeed = cards.filter((c) => c?.limit_regulation?.speed !== undefined);
+if (inSpeed.length < 200 || inSpeed.length > cards.length * 0.5) {
+  throw new Error(
+    `schema check: Speed pool is ${inSpeed.length} cards — limit_regulation.speed no longer marks pool membership?`
+  );
+}
+console.log(`Master Duel pool: ${inMd.length}; Speed Duel pool: ${inSpeed.length}.`);
 
 // ---- Build + write ---------------------------------------------------------
 await mkdir(OUT_DIR, { recursive: true });
