@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   SCAN_DELAY_MAX,
   SCAN_DELAY_MIN,
@@ -5,6 +6,7 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { useBackClose } from "../hooks/useBackClose";
+import TorchFoilLab from "./TorchFoilLab";
 
 const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "continuous", label: "Steady" },
@@ -52,13 +54,18 @@ function Toggle({
 export default function ScanSettingsSheet({
   settings,
   update,
+  scanning,
+  setScanPaused,
   onClose,
 }: {
   settings: ScanSettings;
   update: (patch: Partial<ScanSettings>) => void;
+  scanning: boolean;
+  setScanPaused: (p: boolean) => void;
   onClose: () => void;
 }) {
   useBackClose(onClose);
+  const [labOpen, setLabOpen] = useState(false);
   return (
     <div
       className="sheet-backdrop z-[70] flex items-end"
@@ -149,7 +156,22 @@ export default function ScanSettingsSheet({
             </div>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setLabOpen(true)}
+          className="btn-ghost w-full py-2.5 text-sm mt-4"
+        >
+          🔦 Torch foil lab (experimental)
+        </button>
       </div>
+      {labOpen && (
+        <TorchFoilLab
+          scanning={scanning}
+          setScanPaused={setScanPaused}
+          onClose={() => setLabOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -339,7 +339,13 @@ export default function ScanPage({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const settingsSheet = settingsOpen ? (
-    <ScanSettingsSheet settings={settings} update={update} onClose={() => setSettingsOpen(false)} />
+    <ScanSettingsSheet
+      settings={settings}
+      update={update}
+      scanning={scan.scanning}
+      setScanPaused={scan.setPaused}
+      onClose={() => setSettingsOpen(false)}
+    />
   ) : null;
 
   useEffect(() => {
