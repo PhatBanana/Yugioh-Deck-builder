@@ -24,7 +24,7 @@ import { toast } from "../components/Toaster";
 import { syncCards } from "../services/cardSync";
 import { syncMetaDecks } from "../services/metaDecks";
 import { invalidateCandidateCache } from "../services/scanner";
-import { searchAltNameIds } from "../services/langPacks";
+import { searchCardIds } from "../services/cardSearch";
 import { getCollectionStats, getValueDelta } from "../services/collection";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { formatUsd } from "../lib/util";
@@ -307,9 +307,10 @@ export default function CardsPage() {
 
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
-    // Localized names from installed language packs widen the match set.
-    const altIds = q ? await searchAltNameIds(q) : new Set<number>();
-    const nameHit = (c: MCard) => !q || c.nameLower.includes(q) || altIds.has(c.id);
+    // In-memory name index (card names + installed language packs) — avoids
+    // re-reading all ~13k records from IndexedDB per keystroke.
+    const matchIds = q ? await searchCardIds(q) : null;
+    const nameHit = (c: MCard) => !matchIds || matchIds.has(c.id);
     let rows: MCard[];
     if (view === "owned") {
       const entries = (await db.collection.toArray()).filter(
@@ -327,11 +328,12 @@ export default function CardsPage() {
     } else if (!q && !cardType && !attr && !level && !banStatus && sortBy === "name") {
       // Fast path: the index is already in name order.
       return db.cards.orderBy("nameLower").limit(limit + 1).toArray();
+    } else if (matchIds) {
+      // Search: fetch only the matched rows instead of scanning the table.
+      rows = (await db.cards.bulkGet([...matchIds])).filter((c): c is MCard => !!c);
     } else {
-      // Filter/sort need the full pool (the slimmed table is small enough).
-      rows = q
-        ? await db.cards.filter((c) => nameHit(c)).toArray()
-        : await db.cards.toArray();
+      // Filter/sort without a query need the full pool.
+      rows = await db.cards.toArray();
     }
     if (cardType) rows = rows.filter((c) => c.type.includes(cardType));
     if (attr) rows = rows.filter((c) => c.attribute === attr);

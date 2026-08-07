@@ -22,11 +22,17 @@ describe("priceMove", () => {
     expect(m.baselineDate).toBe("2026-01-15");
   });
 
-  it("falls back to the earliest point when history is shorter than the window", () => {
+  it("falls back to the earliest point when history is shorter than the window, flagged sinceStart", () => {
     const p = pts(["2026-02-01", 8], ["2026-02-10", 10]);
     const m = priceMove(p, "2026-01-01")!; // cutoff before any point
     expect(m.baseline).toBe(8);
     expect(m.latest).toBe(10);
+    expect(m.sinceStart).toBe(true);
+  });
+
+  it("does not flag sinceStart when history reaches the cutoff", () => {
+    const p = pts(["2026-01-01", 10], ["2026-02-01", 18]);
+    expect(priceMove(p, "2026-01-16")!.sinceStart).toBe(false);
   });
 
   it("returns null for no points and 0% when baseline is 0", () => {

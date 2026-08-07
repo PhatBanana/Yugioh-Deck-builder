@@ -74,6 +74,11 @@ export default function PriceAlertsSheet({ onClose }: { onClose: () => void }) {
                       <span className="ml-1.5 text-neutral-600">
                         {a.owned ? "owned" : "wishlist"}
                       </span>
+                      {a.sinceStart && (
+                        <span className="ml-1.5 text-neutral-600">
+                          since {a.baselineDate.slice(5)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className={`text-right tabular-nums shrink-0 ${up ? "text-emerald-400" : "text-red-400"}`}>

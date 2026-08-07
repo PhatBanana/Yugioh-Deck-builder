@@ -9,11 +9,16 @@ import CardThumb from "./CardThumb";
 
 // "What can I complete for $X?" — totals the wishlist and, for a budget, picks
 // the cheapest cards that fit (most wants knocked out per dollar).
+// Rows rendered before "Show more" takes over — a big wishlist shouldn't
+// mount hundreds of rows in one go.
+const PAGE = 60;
+
 export default function WishlistBudgetSheet({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
   const openCard = useCardDetail();
   const items = useLiveQuery(() => getWishlistItems(), [], []);
   const [budget, setBudget] = useState(25);
+  const [limit, setLimit] = useState(PAGE);
 
   const plan = useMemo(
     () => planBudget(items.map((i) => ({ id: i.cardId, price: i.price })), budget),
@@ -95,7 +100,7 @@ export default function WishlistBudgetSheet({ onClose }: { onClose: () => void }
 
             {/* Cheapest-first list, split by what fits. */}
             <div className="divide-y divide-line/70">
-              {sorted.map((c) => {
+              {sorted.slice(0, limit).map((c) => {
                 const fits = affordable.has(c.cardId);
                 return (
                   <button
@@ -119,6 +124,15 @@ export default function WishlistBudgetSheet({ onClose }: { onClose: () => void }
                 );
               })}
             </div>
+            {sorted.length > limit && (
+              <button
+                type="button"
+                onClick={() => setLimit((l) => l + PAGE)}
+                className="btn-ghost w-full py-2 text-sm mt-2"
+              >
+                Show more ({sorted.length - limit} left)
+              </button>
+            )}
           </>
         )}
       </div>
