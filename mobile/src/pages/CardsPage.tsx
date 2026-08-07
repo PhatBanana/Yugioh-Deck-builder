@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type MCard, type PrintingCopy } from "../db";
+import { db, getSyncMeta, setSyncMeta, type MCard, type PrintingCopy } from "../db";
+import { backupIsStale, lastBackupAt } from "../services/backup";
 import { rarityAbbrev } from "@shared/scan/setCode";
 import { foilClass, topRarity } from "../lib/foil";
 import { artSmallUrl } from "../lib/art";
@@ -212,6 +213,27 @@ export default function CardsPage() {
   useEffect(() => {
     if (view === "sets") ensureSetList().then(setSetCount);
   }, [view]);
+
+  // Backup nudge: a collection worth keeping + no recent export = one gentle
+  // toast with a shortcut to the Backup sheet. Throttled (3 days between
+  // nudges) so it reminds without nagging. Exists because a database
+  // corruption once forced a data wipe with nothing to restore from.
+  useEffect(() => {
+    (async () => {
+      const copies = await db.collection.count();
+      if (copies < 10) return; // nothing worth nagging about yet
+      if (!backupIsStale(await lastBackupAt())) return;
+      const lastNudge = Number(await getSyncMeta("backup_nudge_at")) || 0;
+      if (Date.now() - lastNudge < 3 * 24 * 60 * 60 * 1000) return;
+      await setSyncMeta("backup_nudge_at", String(Date.now()));
+      toast("Your collection isn't backed up recently", "info", {
+        label: "Back up",
+        onClick: () => setBackupOpen(true),
+      });
+    })().catch(() => {});
+    // Once per mount is the point — not on every dependency change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setResults = useLiveQuery(
     async () => (view === "sets" ? searchSets(debouncedQuery, limit + 1) : []),

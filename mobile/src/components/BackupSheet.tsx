@@ -1,8 +1,12 @@
 import { useRef, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
+  backupIsStale,
   createBackup,
   createCollectionCsv,
   exportTextFile,
+  lastBackupAt,
+  markBackedUp,
   parseBackup,
   restoreBackup,
   type BackupFile,
@@ -28,6 +32,8 @@ export default function BackupSheet({
   const [pending, setPending] = useState<BackupFile | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   useBackClose(onClose);
+  // Live so the "last backup" line updates the moment an export succeeds.
+  const lastBackup = useLiveQuery(lastBackupAt, [], null);
 
   async function exportFile() {
     try {
@@ -35,6 +41,7 @@ export default function BackupSheet({
       const name = `ygo-backup-${backup.exportedAt.slice(0, 10)}.json`;
       const ok = await exportTextFile(name, "application/json", JSON.stringify(backup));
       if (!ok) toast("Couldn't save a file — use Copy instead", "error");
+      else await markBackedUp();
     } catch {
       toast("Backup failed — couldn't read your data", "error");
     }
@@ -55,6 +62,7 @@ export default function BackupSheet({
     try {
       const json = JSON.stringify(await createBackup());
       await navigator.clipboard.writeText(json);
+      await markBackedUp();
       toast("Backup copied — paste it somewhere safe", "success");
     } catch {
       toast("Couldn't copy the backup", "error");
@@ -95,6 +103,9 @@ export default function BackupSheet({
     if (!pending) return;
     try {
       const summary = await restoreBackup(pending);
+      // The data now matches a file that exists outside the app — that
+      // counts as backed up.
+      await markBackedUp();
       toast(
         `Restored ${summary.cards} cards, ${summary.decks} decks, ${summary.wishlist} wishlisted`,
         "success"
@@ -119,10 +130,19 @@ export default function BackupSheet({
           </button>
         </div>
 
-        <p className="text-xs text-neutral-500 mb-2">
+        <p className="text-xs text-neutral-500 mb-1">
           Saves your collection, decks, wishlist and value/price history as one
           JSON file. The card database isn't included — it re-downloads on any
           device.
+        </p>
+        <p
+          className={`text-xs mb-2 ${
+            backupIsStale(lastBackup ?? null) ? "text-orange-300" : "text-emerald-300/90"
+          }`}
+        >
+          {lastBackup
+            ? `Last backup: ${lastBackup.toISOString().slice(0, 10)}`
+            : "No backup yet — export one now, before you need it."}
         </p>
         <div className="flex gap-2">
           <button type="button" onClick={() => void exportFile()} className="btn-primary flex-1 py-2.5 text-sm">
