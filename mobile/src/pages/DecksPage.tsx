@@ -24,7 +24,7 @@ import {
 } from "../services/decks";
 import { addManyToWishlist } from "../services/wishlist";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { searchAltNameIds } from "../services/langPacks";
+import { searchCardIds } from "../services/cardSearch";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -34,6 +34,7 @@ import DeckOddsSheet from "../components/DeckOddsSheet";
 import DuelToolsSheet from "../components/DuelToolsSheet";
 import ImportDeckCodeSheet from "../components/ImportDeckCodeSheet";
 import { shareDeck } from "../services/deckShare";
+import { shareDeckImage } from "../services/deckImage";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
 
@@ -225,13 +226,11 @@ function AddCardSearch({
   const results = useLiveQuery(async () => {
     const q = debouncedQuery.trim().toLowerCase();
     if (q.length < 2) return [] as MCard[];
-    // Installed language packs let the search match localized names too.
-    const altIds = await searchAltNameIds(q, 20);
-    const rows = await db.cards
-      .filter((c) => c.nameLower.includes(q) || altIds.has(c.id))
-      .limit(20)
-      .toArray();
-    return rows.sort((a, b) => a.name.localeCompare(b.name));
+    // In-memory name index (card names + installed language packs) — no
+    // 13k-row IndexedDB scan per keystroke.
+    const ids = [...(await searchCardIds(q))];
+    const rows = (await db.cards.bulkGet(ids)).filter((c): c is MCard => !!c);
+    return rows.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 20);
   }, [debouncedQuery], []);
 
   async function add(card: MCard) {
@@ -367,6 +366,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const [nameLoaded, setNameLoaded] = useState(false);
   const [testingHand, setTestingHand] = useState(false);
   const [showingOdds, setShowingOdds] = useState(false);
+  const [sharingImage, setSharingImage] = useState(false);
   const [format, setFormat] = useState<BanlistFormat>("tcg");
   // Hardware back returns to the deck list.
   useBackClose(onBack);
@@ -421,6 +421,20 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
     const how = await shareDeck(deck);
     if (how === "copied") toast("Deck code copied to clipboard", "success");
     else if (how === "failed") toast("Couldn't share the deck", "error");
+  }
+
+  async function shareImage() {
+    if (!enriched || enriched.cards.length === 0) {
+      toast("Add some cards first", "info");
+      return;
+    }
+    setSharingImage(true);
+    try {
+      const how = await shareDeckImage(enriched);
+      if (how === "failed") toast("Couldn't render the deck image", "error");
+    } finally {
+      setSharingImage(false);
+    }
   }
 
   async function removeDeck() {
@@ -601,13 +615,19 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         );
       })}
 
-      <button
-        type="button"
-        onClick={shareCode}
-        className="btn-ghost w-full py-2.5 text-sm mt-2"
-      >
-        🔗 Share deck
-      </button>
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <button type="button" onClick={shareCode} className="btn-ghost py-2.5 text-sm">
+          🔗 Share code
+        </button>
+        <button
+          type="button"
+          onClick={shareImage}
+          disabled={sharingImage}
+          className="btn-ghost py-2.5 text-sm disabled:opacity-60"
+        >
+          {sharingImage ? "⏳ Rendering…" : "🖼 Share image"}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
         <button

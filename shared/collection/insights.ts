@@ -15,12 +15,17 @@ export interface PriceMove {
   pctChange: number; // fraction, e.g. 0.2 = +20%
   latestDate: string;
   baselineDate: string;
+  // True when the card's history doesn't reach the cutoff, so the "move" is
+  // really "since tracking started" (baselineDate), not the full window. The
+  // UI must label these honestly — a 2-day-old card is not a "1m" move.
+  sinceStart: boolean;
 }
 
 // A card's price move relative to a cutoff date. The baseline is the most
 // recent point at or before the cutoff; if the card has no history that far
 // back, it falls back to the earliest point (best we can do for a card only
-// tracked recently). `points` must be sorted oldest-first. Null when empty.
+// tracked recently — flagged via `sinceStart`). `points` must be sorted
+// oldest-first. Null when empty.
 export function priceMove(points: PricePoint[], cutoffDate: string): PriceMove | null {
   if (points.length === 0) return null;
   const latest = points[points.length - 1];
@@ -38,6 +43,7 @@ export function priceMove(points: PricePoint[], cutoffDate: string): PriceMove |
     pctChange,
     latestDate: latest.date,
     baselineDate: baseline.date,
+    sinceStart: baseline.date > cutoffDate,
   };
 }
 

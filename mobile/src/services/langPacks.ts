@@ -54,17 +54,3 @@ export async function removeLangPack(lang: string): Promise<void> {
   await db.altNames.where("lang").equals(lang).delete();
   invalidateCandidateCache();
 }
-
-// Card ids whose installed localized names contain the query (lowercased).
-// Used to widen name search when packs are installed; cheap no-op when the
-// table is empty.
-export async function searchAltNameIds(q: string, max = 200): Promise<Set<number>> {
-  const ids = new Set<number>();
-  if (!q) return ids;
-  if ((await db.altNames.limit(1).count()) === 0) return ids;
-  await db.altNames
-    .filter((a) => a.nameLower.includes(q))
-    .until(() => ids.size >= max)
-    .each((a) => ids.add(a.cardId));
-  return ids;
-}

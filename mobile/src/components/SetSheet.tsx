@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../db";
 import { getSetCompletion, type SetCompletion } from "../services/sets";
 import { formatUsd } from "../lib/util";
 import { useBackClose } from "../hooks/useBackClose";
@@ -7,13 +9,25 @@ import WishlistButton from "./WishlistButton";
 import { useCardDetail } from "./CardDetailModal";
 import PackSimSheet from "./PackSimSheet";
 
+// Rows rendered per list before "Show more" — a 400-card set shouldn't mount
+// 400 rows (and their hearts) in one go.
+const PAGE = 60;
+
 // Completion view for one card set: progress bar, what you own, what's
 // missing (with wishlist hearts).
 export default function SetSheet({ setName, onClose }: { setName: string; onClose: () => void }) {
   const [completion, setCompletion] = useState<SetCompletion | null | undefined>(undefined);
   const [packOpen, setPackOpen] = useState(false);
+  const [missingLimit, setMissingLimit] = useState(PAGE);
+  const [ownedLimit, setOwnedLimit] = useState(PAGE);
   const openCard = useCardDetail();
   useBackClose(onClose);
+  // One wishlist query for every heart in the list (instead of one per row).
+  const wishedIds = useLiveQuery(
+    async () => new Set((await db.wishlist.toArray()).map((w) => w.cardId)),
+    [],
+    new Set<number>()
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +103,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                   })()}
                 </h3>
                 <div className="flex flex-col">
-                  {completion.missingCards.map((c) => (
+                  {completion.missingCards.slice(0, missingLimit).map((c) => (
                     <div key={c.cardId} className="flex items-center gap-2 py-1">
                       <button
                         type="button"
@@ -102,10 +116,19 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                       <span className="shrink-0 text-xs text-neutral-500 tabular-nums">
                         {c.price != null ? formatUsd(c.price) : ""}
                       </span>
-                      <WishlistButton cardId={c.cardId} />
+                      <WishlistButton cardId={c.cardId} wished={wishedIds.has(c.cardId)} />
                     </div>
                   ))}
                 </div>
+                {completion.missingCards.length > missingLimit && (
+                  <button
+                    type="button"
+                    onClick={() => setMissingLimit((l) => l + PAGE)}
+                    className="btn-ghost w-full py-2 text-sm mt-1"
+                  >
+                    Show more ({completion.missingCards.length - missingLimit} left)
+                  </button>
+                )}
               </div>
             )}
 
@@ -115,7 +138,7 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                   You own ({completion.ownedCards.length})
                 </h3>
                 <div className="flex flex-col">
-                  {completion.ownedCards.map((c) => (
+                  {completion.ownedCards.slice(0, ownedLimit).map((c) => (
                     <button
                       key={c.cardId}
                       type="button"
@@ -128,6 +151,15 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
                     </button>
                   ))}
                 </div>
+                {completion.ownedCards.length > ownedLimit && (
+                  <button
+                    type="button"
+                    onClick={() => setOwnedLimit((l) => l + PAGE)}
+                    className="btn-ghost w-full py-2 text-sm mt-1"
+                  >
+                    Show more ({completion.ownedCards.length - ownedLimit} left)
+                  </button>
+                )}
               </div>
             )}
           </>

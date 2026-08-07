@@ -13,6 +13,7 @@ import { classifyFoil, type FoilClass, type FoilStats, type RegionStat } from "@
 import { cardFoilRegions, type FoilRegions } from "@shared/scan/foilRegions";
 import { detectCardBounds } from "@shared/grading/analyze";
 import { db } from "../db";
+import { invalidateSearchIndex } from "./cardSearch";
 import { classifyRarity } from "./rarityModel";
 
 export interface ScanOutcome {
@@ -46,6 +47,9 @@ export async function getNameCandidates(): Promise<NameCandidate[]> {
 
 export function invalidateCandidateCache(): void {
   candidateCache = null;
+  // The search index is built from the same tables (cards + altNames) and
+  // goes stale at exactly the same moments — one choke point for both.
+  invalidateSearchIndex();
 }
 
 export function isScanSupported(): boolean {

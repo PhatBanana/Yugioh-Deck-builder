@@ -80,7 +80,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - "How it plays" strategy notes (auto-seeded when copied from a meta deck).
 - `.ydk` import/export; duplicate a deck; cover art on deck tiles.
 - **Deck sharing**: share a deck as a compact copy-paste code (via the Android
-  share sheet or clipboard) and import one from a pasted code.
+  share sheet or clipboard) and import one from a pasted code — or as a
+  **rendered image** (every copy shown per section, deck-site style, with
+  name/composition/price header) via the share sheet.
 - One-tap "add this deck's missing cards to wishlist."
 - Duel tools (life points, dice/coin, etc.).
 
@@ -145,8 +147,7 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
       `services/rarityModel.ts`); needs a labelled dataset of card photos.
 - [ ] **Sealed-product / barcode scanning** — the camera plugin supports
       barcode scanning; use it to add sealed products or look up by UPC.
-- [ ] **Deck-as-image export** — render a deck to a shareable image (the
-      copy-paste code is shipped; an image is the remaining half).
+      (Needs on-device iteration — barcode formats and a UPC lookup source.)
 
 ## Later / ideas
 
@@ -158,19 +159,12 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ## Known cleanup backlog
 
-Findings from a full code review (2026-08). Critical/high items were fixed
-immediately; most medium/low ones have since been cleaned up too. Still open:
-
-- [ ] Budget planner and set sheets render unbounded lists; each missing-card
-      row mounts its own wishlist live query (`WishlistBudgetSheet`,
-      `SetSheet`).
-- [ ] Card search full-scans all ~13k rows per keystroke; `nameLower` is
-      indexed and could serve prefix matches (`CardsPage`).
-- [ ] Price-alert windows mislabel cards whose history is shorter than the
-      window ("1m" move may be two days) — mark "since tracking started"
-      (`shared/collection/insights.ts`).
-- [ ] `shared/deck/handSim.ts` (drawHand bias) and
-      `shared/recommendation/recommend.ts` have no tests at all.
+Findings from a full code review (2026-08). All items from that review are
+now closed — the last batch (2026-08-07): budget/set sheets paginate with one
+shared wishlist query; card search runs on an in-memory name index (card +
+localized names) instead of per-keystroke IndexedDB scans; price alerts label
+short-history moves "since <date>"; `handSim` (uniformity/no-bias) and
+`recommend` (ranking, key-card weighting, dedupe, costs) are unit-tested.
 
 ## Known limitations (by design / data)
 
