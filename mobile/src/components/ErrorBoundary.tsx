@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createBackup, exportTextFile } from "../services/backup";
+import { onFatalError } from "../lib/crashGuard";
 
 // Catches any render-time crash app-wide and shows a recoverable screen
 // instead of a silent black one. This exists because a bad record in
@@ -8,15 +9,28 @@ import { createBackup, exportTextFile } from "../services/backup";
 // way back in was clearing app storage, which wiped an unbacked-up
 // collection. The backup button here works from a crashed tree because it
 // only touches Dexie directly, never the broken component tree.
+//
+// Render throws land here via getDerivedStateFromError; fatal async errors
+// (database won't open, quota, downgraded APK) land here via the crash
+// guard's listener — one recovery screen for both.
 interface State {
   error: Error | null;
 }
 
 export default class AppErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null };
+  private unsubscribe: (() => void) | null = null;
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  componentDidMount(): void {
+    this.unsubscribe = onFatalError((error) => this.setState({ error }));
+  }
+
+  componentWillUnmount(): void {
+    this.unsubscribe?.();
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
@@ -77,13 +91,21 @@ function CrashScreen({ error, onReload }: { error: Error; onReload: () => void }
     window.location.reload();
   }
 
+  // An older APK opened against a newer database schema: the data is fine,
+  // this build is just too old to read it. Wiping data would be exactly the
+  // wrong move, so say so explicitly.
+  const downgraded = error.name === "VersionError";
+
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 text-center bg-canvas text-neutral-100">
       <span className="text-4xl">⚠️</span>
-      <h1 className="text-lg font-semibold">Something went wrong</h1>
+      <h1 className="text-lg font-semibold">
+        {downgraded ? "This app version is too old" : "Something went wrong"}
+      </h1>
       <p className="text-sm text-neutral-400 max-w-sm">
-        The app hit an error while rendering. Your data on disk is untouched — back it up now if
-        you can, then try reloading.
+        {downgraded
+          ? "Your data was created by a newer version of the app than the one installed. Your collection is intact — install the latest APK from the repo's Releases page and it will open normally. Don't reset your data."
+          : "The app hit an error while rendering. Your data on disk is untouched — back it up now if you can, then try reloading."}
       </p>
       <pre className="w-full max-w-sm max-h-32 overflow-auto text-left text-[11px] text-orange-300 bg-surface border border-line rounded-lg p-3 whitespace-pre-wrap">
         {error.name}: {error.message}

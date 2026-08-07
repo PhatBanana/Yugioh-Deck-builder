@@ -10,6 +10,7 @@ import { addOwned } from "../services/collection";
 import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState, type ScannedEntry } from "../hooks/useAutoScan";
 import RarityPickSheet from "../components/RarityPickSheet";
+import SessionReviewSheet from "../components/SessionReviewSheet";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -79,14 +80,24 @@ function ScanningOverlay({
   // Hardware back exits the fullscreen scan instead of minimizing the app.
   useBackClose(() => void scan.stop());
   const sessionTotal = scan.session.reduce((n, e) => n + e.count, 0);
-  // Rarity picker for an unsure chip — scanning idles while it's open.
+  // Rarity picker for an unsure chip, and the full session review list —
+  // scanning idles while either is open (the picker can stack on the review).
   const [pickFor, setPickFor] = useState<ScannedEntry | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const openPicker = (e: ScannedEntry) => {
     scan.setPaused(true);
     setPickFor(e);
   };
   const closePicker = () => {
     setPickFor(null);
+    if (!reviewOpen) scan.setPaused(false);
+  };
+  const openReview = () => {
+    scan.setPaused(true);
+    setReviewOpen(true);
+  };
+  const closeReview = () => {
+    setReviewOpen(false);
     scan.setPaused(false);
   };
   return (
@@ -101,9 +112,15 @@ function ScanningOverlay({
         >
           ×
         </button>
-        <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
-          {sessionTotal} added
-        </span>
+        <button
+          type="button"
+          onClick={openReview}
+          disabled={sessionTotal === 0}
+          className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white disabled:opacity-60"
+          aria-label="Review cards added this session"
+        >
+          {sessionTotal} added{sessionTotal > 0 ? " ›" : ""}
+        </button>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -270,6 +287,15 @@ function ScanningOverlay({
             </div>
           ))}
         </div>
+      )}
+
+      {reviewOpen && (
+        <SessionReviewSheet
+          session={scan.session}
+          onClose={closeReview}
+          onRemove={(e) => void scan.removeOne(e)}
+          onPickRarity={openPicker}
+        />
       )}
 
       {pickFor && pickFor.candidates && (

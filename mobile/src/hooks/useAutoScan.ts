@@ -89,6 +89,9 @@ export interface AutoScanState {
   refocus: () => Promise<void>;
   captureNow: () => Promise<void>;
   undoLast: () => Promise<void>;
+  // Remove one copy of a specific session entry (misread in the review list),
+  // regardless of scan order.
+  removeOne: (entry: ScannedEntry) => Promise<void>;
   // Idle the loop (no captures / torch pulses) while a sheet is open over it.
   setPaused: (paused: boolean) => void;
   // User picked the true rarity for a session entry — re-file its copies.
@@ -411,6 +414,25 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     setStatus("Removed last card");
   }, []);
 
+  // Targeted undo for the session review list: drops the most recent commit
+  // of this card (so its exact filed printing is removed), not just the last
+  // commit overall.
+  const removeOne = useCallback(async (entry: ScannedEntry) => {
+    const idx = orderRef.current.findLastIndex((o) => o.id === entry.id);
+    if (idx < 0) return;
+    const [commit] = orderRef.current.splice(idx, 1);
+    if (commit.printing) await addPrintingCopy(entry.id, commit.printing, -1);
+    await addOwned(entry.id, -1);
+    setSession((prev) => {
+      const e = prev.find((s) => s.id === entry.id);
+      if (!e) return prev;
+      if (e.count <= 1) return prev.filter((s) => s.id !== entry.id);
+      return prev.map((s) => (s.id === entry.id ? { ...s, count: s.count - 1 } : s));
+    });
+    if (lockedIdRef.current === entry.id) lockedIdRef.current = null;
+    setStatus(`Removed ${entry.name}`);
+  }, []);
+
   const setPaused = useCallback((paused: boolean) => {
     pausedRef.current = paused;
   }, []);
@@ -467,6 +489,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     refocus,
     captureNow,
     undoLast,
+    removeOne,
     setPaused,
     resolveRarity,
   };

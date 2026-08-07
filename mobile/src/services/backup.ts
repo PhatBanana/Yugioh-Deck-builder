@@ -5,11 +5,38 @@ import { collectionToCsv, type CsvRow } from "@shared/collection/csv";
 import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import {
   db,
+  getSyncMeta,
+  setSyncMeta,
   type MCollectionEntry,
   type MDeck,
   type MPricePoint,
   type MValueSnapshot,
 } from "../db";
+
+// ---- Backup freshness ------------------------------------------------------
+// The app can't silently save a copy that survives a data wipe (scoped
+// storage: anything it writes itself dies with "clear app data"), so the only
+// real safety net is the user exporting to Drive/Downloads. Tracking when
+// that last happened lets the UI say "last backup: 12 days ago" and nudge
+// before it's ancient — this exists because a database corruption once forced
+// a wipe and there was no backup to come back to.
+
+export const BACKUP_STALE_DAYS = 7;
+
+export async function markBackedUp(): Promise<void> {
+  await setSyncMeta("last_backup_at", new Date().toISOString());
+}
+
+export async function lastBackupAt(): Promise<Date | null> {
+  const iso = await getSyncMeta("last_backup_at");
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? new Date(t) : null;
+}
+
+export function backupIsStale(last: Date | null): boolean {
+  if (!last) return true;
+  return Date.now() - last.getTime() > BACKUP_STALE_DAYS * 24 * 60 * 60 * 1000;
+}
 
 // Full user-data backup as a single JSON document. The card database itself
 // is excluded — it's re-downloadable — so backups stay small and portable.

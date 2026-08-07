@@ -34,7 +34,11 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   with era-accurate pull ratios picked from the set's release date (classic
   2002–2019 vs modern guaranteed-foil boosters; approximate), with foils and
   pack value.
-- CSV export; full JSON backup & restore (via the Android share sheet).
+- CSV export; full JSON backup & restore (via the Android share sheet), with
+  **backup freshness tracking**: the sheet shows when you last exported, and
+  a throttled reminder nudges when a 10+ card collection hasn't been backed
+  up in a week. (A silent auto-backup can't survive "clear app data" under
+  scoped storage — an export to Drive/Downloads is the only copy that does.)
 - Sticky preferences (view/sort/filters/tab persist across launches).
 
 ### Scanning (add cards)
@@ -57,6 +61,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   torch (steady or glare-reducing pulse).
 - Scan settings: keep-awake, beep, haptic buzz, time-between-reads, detect
   edition/rarity toggle. End-of-session recap (cards + value added).
+- **Session review list**: tap the "N added" counter mid-scan for the full
+  list of this session's cards — fix any card's rarity or remove a misread
+  copy on the spot (removal targets that card's exact filed printing).
 - Other add paths: paste a list, or import a whole deck's cards.
 
 ### Decks
@@ -99,6 +106,12 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ### Platform & UX
 - Android back button closes popups/sheets instead of minimizing.
+- **Crash recovery screen** instead of a silent black screen: render crashes
+  (error boundary) and fatal database failures (global crash guard —
+  corruption, quota, IndexedDB unavailable) both land on a screen showing the
+  real error with backup-first recovery options; an older APK opened over a
+  newer database gets a dedicated "install the latest APK, don't reset"
+  message.
 - Undo snackbars (remove card, delete deck) and confirm dialogs for
   destructive actions.
 - Fullscreen card art; Millennium-gold theme with motion/depth, all animation
