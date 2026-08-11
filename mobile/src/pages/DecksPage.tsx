@@ -35,6 +35,7 @@ import DuelToolsSheet from "../components/DuelToolsSheet";
 import ImportDeckCodeSheet from "../components/ImportDeckCodeSheet";
 import { shareDeck } from "../services/deckShare";
 import { shareDeckImage } from "../services/deckImage";
+import ImportDeckListSheet from "../components/ImportDeckListSheet";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
 
@@ -56,6 +57,7 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
   const decks = useLiveQuery(() => listDecks(), [], []);
   const [duelOpen, setDuelOpen] = useState(false);
   const [importCodeOpen, setImportCodeOpen] = useState(false);
+  const [importListOpen, setImportListOpen] = useState(false);
 
   async function newDeck() {
     const d = await createDeck("New Deck");
@@ -99,6 +101,15 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
         </label>
         <button
           type="button"
+          onClick={() => setImportListOpen(true)}
+          className="btn-ghost px-3 py-3 text-sm"
+          aria-label="Import a written deck list"
+          title="Paste a written deck list"
+        >
+          📋
+        </button>
+        <button
+          type="button"
           onClick={() => setImportCodeOpen(true)}
           className="btn-ghost px-3 py-3 text-sm"
           aria-label="Import from deck code"
@@ -117,6 +128,15 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
 
       {duelOpen && <DuelToolsSheet onClose={() => setDuelOpen(false)} />}
+      {importListOpen && (
+        <ImportDeckListSheet
+          onClose={() => setImportListOpen(false)}
+          onImported={(id) => {
+            setImportListOpen(false);
+            onOpen(id);
+          }}
+        />
+      )}
       {importCodeOpen && (
         <ImportDeckCodeSheet
           onClose={() => setImportCodeOpen(false)}
