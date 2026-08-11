@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { applyImport, resolveImport, type ImportResult } from "../services/collection";
+import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
 
 // Paste-a-list collection import (3x Name lines, .ydk contents, or a JSON
@@ -88,12 +89,25 @@ export default function PasteImport() {
           <div>
             <h2 className="text-sm font-semibold text-emerald-400 mb-1">
               Matched ({preview.matched.length})
+              {preview.matched.some((m) => m.typed) && (
+                <span className="ml-2 font-normal text-amber-300">
+                  — check the corrected names
+                </span>
+              )}
             </h2>
-            <ul className="text-sm flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+            <ul className="flex flex-col divide-y divide-line/70 max-h-72 overflow-y-auto">
               {preview.matched.map((m) => (
-                <li key={m.cardId} className="flex justify-between gap-2">
-                  <span className="truncate">{m.name}</span>
-                  <span className="text-neutral-500 tabular-nums shrink-0">×{m.quantity}</span>
+                <li key={m.cardId} className="flex items-center gap-2.5 py-1">
+                  <CardThumb img={m.img} w="w-7" h="h-10" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm truncate">{m.name}</div>
+                    {m.typed && (
+                      <div className="text-[11px] text-amber-300 truncate">
+                        typed: "{m.typed}"
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-neutral-500 text-sm tabular-nums shrink-0">×{m.quantity}</span>
                 </li>
               ))}
             </ul>
