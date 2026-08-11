@@ -1,9 +1,11 @@
 import { parseImportText } from "@shared/collection/importParser";
+import { matchCardName } from "@shared/scan/nameMatcher";
 import type { OwnedCollection } from "@shared/recommendation/types";
 import type { CardCondition } from "@shared/grading/analyze";
 import { valueEntry } from "@shared/collection/value";
 import { todayISO } from "../lib/util";
-import { db, getSyncMeta, setSyncMeta, type MCollectionEntry, type PrintingCopy } from "../db";
+import { getNameCandidates } from "./scanner";
+import { db, getSyncMeta, setSyncMeta, type MCard, type MCollectionEntry, type PrintingCopy } from "../db";
 import { httpGetJson } from "./http";
 import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import { recordPricePoints } from "./priceHistory";
@@ -347,28 +349,39 @@ export async function trimCopiesToQuantity(
 }
 
 export interface ImportResult {
-  matched: { cardId: number; name: string; quantity: number }[];
+  matched: {
+    cardId: number;
+    name: string;
+    quantity: number;
+    img: string | null;
+    typed?: string; // what the pasted line said, when a fuzzy match corrected it
+  }[];
   unmatched: { raw: string; reason: string }[];
 }
 
 // Mirrors the desktop import resolver against IndexedDB, including the
-// alternate-artwork id fallback for .ydk files.
+// alternate-artwork id fallback for .ydk files. Names that miss exactly go
+// through the scanner's fuzzy matcher (typed lists carry typos); corrected
+// matches carry `typed` so the preview can show what it decided.
 export async function resolveImport(text: string): Promise<ImportResult> {
   const entries = parseImportText(text);
-  const matched = new Map<number, { cardId: number; name: string; quantity: number }>();
+  const matched = new Map<number, ImportResult["matched"][number]>();
   const unmatched: ImportResult["unmatched"] = [];
 
-  const add = (cardId: number, name: string, quantity: number) => {
-    const existing = matched.get(cardId);
+  const add = (card: MCard, quantity: number, typed?: string) => {
+    const existing = matched.get(card.id);
     if (existing) existing.quantity = Math.min(99, existing.quantity + quantity);
-    else matched.set(cardId, { cardId, name, quantity });
+    else matched.set(card.id, { cardId: card.id, name: card.name, quantity, img: card.img, typed });
   };
+
+  // Fuzzy candidates loaded once, only if some name misses exactly.
+  let candidates: Awaited<ReturnType<typeof getNameCandidates>> | null = null;
 
   for (const entry of entries) {
     if (entry.cardId != null) {
       const local = await db.cards.get(entry.cardId);
       if (local) {
-        add(local.id, local.name, entry.quantity);
+        add(local, entry.quantity);
         continue;
       }
       try {
@@ -380,7 +393,7 @@ export async function resolveImport(text: string): Promise<ImportResult> {
           ? await db.cards.where("nameLower").equals(name.toLowerCase()).first()
           : undefined;
         if (byName) {
-          add(byName.id, byName.name, entry.quantity);
+          add(byName, entry.quantity);
           continue;
         }
       } catch {
@@ -395,7 +408,7 @@ export async function resolveImport(text: string): Promise<ImportResult> {
       .equals(entry.name!.toLowerCase())
       .first();
     if (byName) {
-      add(byName.id, byName.name, entry.quantity);
+      add(byName, entry.quantity);
       continue;
     }
     if (entry.raw !== entry.name) {
@@ -404,9 +417,17 @@ export async function resolveImport(text: string): Promise<ImportResult> {
         .equals(entry.raw.toLowerCase())
         .first();
       if (byRaw) {
-        add(byRaw.id, byRaw.name, 1);
+        add(byRaw, 1);
         continue;
       }
+    }
+    // Typos: same fuzzy matcher the scanner uses, reported via `typed`.
+    candidates ??= await getNameCandidates();
+    const [top] = matchCardName(entry.name!, candidates, { limit: 1, minScore: 0.55 });
+    const fuzzyCard = top ? await db.cards.get(top.id) : undefined;
+    if (fuzzyCard) {
+      add(fuzzyCard, entry.quantity, entry.name);
+      continue;
     }
     unmatched.push({ raw: entry.raw, reason: `No card named "${entry.name}"` });
   }
