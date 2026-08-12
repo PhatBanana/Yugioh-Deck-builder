@@ -32,6 +32,7 @@ export interface ScannedEntry {
   rarity?: string; // inferred from the set code, once resolved
   edition?: string; // "1st Edition" / "Limited Edition", when read
   agreement?: Agreement; // whether the visual foil pass backed the set code
+  foil?: FoilClass; // what the camera's foil pass saw (pre-answers the picker)
   ambiguous?: boolean; // rarity is a best guess among several the code allows
   candidates?: RarityCandidate[]; // every rarity the code could be, prior-ranked
 }
@@ -147,6 +148,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         rarity?: string;
         edition?: string;
         agreement?: Agreement;
+        foil?: FoilClass;
         ambiguous?: boolean;
         candidates?: RarityCandidate[];
       }
@@ -161,6 +163,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
                 rarity: tag.rarity ?? e.rarity,
                 edition: tag.edition ?? e.edition,
                 agreement: tag.agreement,
+                foil: tag.foil ?? e.foil,
                 ambiguous: tag.ambiguous,
                 candidates: tag.candidates ?? e.candidates,
               }

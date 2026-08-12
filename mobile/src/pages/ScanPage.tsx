@@ -304,6 +304,7 @@ function ScanningOverlay({
           img={pickFor.img}
           candidates={pickFor.candidates}
           current={pickFor.rarity}
+          foil={pickFor.foil}
           onPick={(c) => {
             void scan.resolveRarity(pickFor, c);
             closePicker();
