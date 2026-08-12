@@ -39,9 +39,14 @@ export default function BackupSheet({
     try {
       const backup = await createBackup();
       const name = `ygo-backup-${backup.exportedAt.slice(0, 10)}.json`;
-      const ok = await exportTextFile(name, "application/json", JSON.stringify(backup));
-      if (!ok) toast("Couldn't save a file — use Copy instead", "error");
-      else await markBackedUp();
+      const outcome = await exportTextFile(name, "application/json", JSON.stringify(backup));
+      if (outcome === "saved") {
+        // Only an actual save counts as backed up — backing out doesn't.
+        await markBackedUp();
+        toast("Backup saved", "success");
+      } else if (outcome === "failed") {
+        toast("Couldn't save a file — use Copy instead", "error");
+      }
     } catch {
       toast("Backup failed — couldn't read your data", "error");
     }
@@ -51,8 +56,9 @@ export default function BackupSheet({
     try {
       const csv = await createCollectionCsv();
       const name = `ygo-collection-${new Date().toISOString().slice(0, 10)}.csv`;
-      const ok = await exportTextFile(name, "text/csv", csv);
-      if (!ok) toast("Couldn't save the CSV", "error");
+      const outcome = await exportTextFile(name, "text/csv", csv);
+      if (outcome === "saved") toast("CSV saved", "success");
+      else if (outcome === "failed") toast("Couldn't save the CSV", "error");
     } catch {
       toast("CSV export failed", "error");
     }

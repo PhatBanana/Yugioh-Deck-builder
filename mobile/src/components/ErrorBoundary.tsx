@@ -49,8 +49,10 @@ function CrashScreen({ error, onReload }: { error: Error; onReload: () => void }
     try {
       const data = await createBackup();
       const name = `ygo-backup-${data.exportedAt.slice(0, 10)}.json`;
-      const ok = await exportTextFile(name, "application/json", JSON.stringify(data));
-      alert(ok ? "Backup saved — check your share sheet / downloads." : "Backup failed to save.");
+      const outcome = await exportTextFile(name, "application/json", JSON.stringify(data));
+      if (outcome === "saved") alert("Backup saved.");
+      else if (outcome === "failed") alert("Backup failed to save.");
+      // dismissed: the user backed out — no alert needed.
     } catch (e) {
       alert(`Backup failed: ${e instanceof Error ? e.message : "unknown error"}`);
     }
