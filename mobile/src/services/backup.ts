@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
+import { SaveFile } from "./saveFile";
 import { collectionToCsv, type CsvRow } from "@shared/collection/csv";
 import { loadPrintingPrices, printingPriceKey } from "./rarity";
 import {
@@ -52,23 +53,37 @@ export interface BackupFile {
   priceHistory: MPricePoint[];
 }
 
-// Gets a text file to the user: Android opens the system share sheet (user
-// picks the destination — Files, Drive, …); the browser downloads normally.
-// Returns false only on real failure (dismissing the share sheet is fine).
-export async function exportTextFile(name: string, mime: string, content: string): Promise<boolean> {
+export type ExportOutcome = "saved" | "dismissed" | "failed";
+
+// Gets a text file to the user. Android shows the system "Save as…" dialog
+// (pick Downloads / Drive / anywhere — an actual save, not a share); if that
+// native plugin is somehow unavailable it falls back to the share sheet. The
+// browser downloads normally. "dismissed" = the user backed out; only
+// "saved" means a file definitely exists outside the app.
+export async function exportTextFile(
+  name: string,
+  mime: string,
+  content: string
+): Promise<ExportOutcome> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const file = await Filesystem.writeFile({
-        path: name,
-        data: content,
-        directory: Directory.Cache,
-        encoding: Encoding.UTF8,
-      });
-      await Share.share({ title: name, url: file.uri, dialogTitle: `Save ${name} to…` });
-      return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      return /cancel/i.test(msg); // dismissed ≠ failed
+      const { saved } = await SaveFile.save({ fileName: name, mimeType: mime, text: content });
+      return saved ? "saved" : "dismissed";
+    } catch {
+      // Save dialog unavailable (no document provider?) — share sheet fallback.
+      try {
+        const file = await Filesystem.writeFile({
+          path: name,
+          data: content,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({ title: name, url: file.uri, dialogTitle: `Save ${name} to…` });
+        return "saved";
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        return /cancel/i.test(msg) ? "dismissed" : "failed";
+      }
     }
   }
   try {
@@ -79,9 +94,9 @@ export async function exportTextFile(name: string, mime: string, content: string
     a.download = name;
     a.click();
     URL.revokeObjectURL(url);
-    return true;
+    return "saved";
   } catch {
-    return false;
+    return "failed";
   }
 }
 

@@ -72,12 +72,12 @@ export default function TorchFoilLab({
   }
 
   async function shareLog() {
-    const ok = await exportTextFile(
+    const outcome = await exportTextFile(
       `torch-foil-samples-${new Date().toISOString().slice(0, 10)}.json`,
       "application/json",
       JSON.stringify(samples, null, 2)
     );
-    if (!ok) toast("Couldn't share the log", "error");
+    if (outcome === "failed") toast("Couldn't save the log", "error");
   }
 
   // Re-run the classifier over the log with the live thresholds, so slider
