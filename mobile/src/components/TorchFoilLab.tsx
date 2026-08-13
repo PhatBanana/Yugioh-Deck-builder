@@ -5,6 +5,7 @@ import {
   type TorchThresholds,
 } from "@shared/scan/torchFoil";
 import { RARITY_GUIDE } from "@shared/scan/rarityGuide";
+import RarityGuideSheet from "./RarityGuideSheet";
 import { captureTorchDiff, type TorchDiffSample } from "../services/torchFoil";
 import { startPreview, stopPreview } from "../services/scanner";
 import { exportTextFile } from "../services/backup";
@@ -39,6 +40,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   const [thresholds, setThresholds] = useState<TorchThresholds>(DEFAULT_TORCH_THRESHOLDS);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [guideOpen, setGuideOpen] = useState(false);
   const startedRef = useRef(false);
 
   // Own the camera for as long as the lab is open. The lab is reached from
@@ -94,7 +96,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   // Re-run the classifier over the log with the live thresholds, so slider
   // tweaks show immediately how many tagged samples they'd get right.
   const rescored = useMemo(
-    () => samples.map((s) => ({ s, v: classifyTorchDelta(s.delta, s.on, thresholds) })),
+    () => samples.map((s) => ({ s, v: classifyTorchDelta(s.delta, s.on, thresholds, s.off) })),
     [samples, thresholds]
   );
   const tagged = rescored.filter(({ s }) => s.groundTruth);
@@ -138,7 +140,16 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
         <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
           🔦 Torch foil lab
         </span>
-        <span className="w-10" aria-hidden />
+        {/* The guide lives here — this is the screen where you're actually
+            squinting at a foil trying to name it. */}
+        <button
+          type="button"
+          onClick={() => setGuideOpen(true)}
+          className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-lg"
+          aria-label="Open the rarity guide"
+        >
+          📖
+        </button>
       </div>
 
       {/* Aiming window: deliberately transparent so the camera shows through. */}
@@ -258,7 +269,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
                   <th className="font-normal text-right">Δart</th>
                   <th className="font-normal text-right">Δall</th>
                   <th className="font-normal text-right">gold</th>
-                  <th className="font-normal text-right">hue</th>
+                  <th className="font-normal text-right">amb·hue</th>
                   <th className="font-normal">tagged</th>
                 </tr>
               </thead>
@@ -275,7 +286,8 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
                     <td className="text-right">{s.delta.art.toFixed(2)}</td>
                     <td className="text-right">{s.delta.whole.toFixed(2)}</td>
                     <td className="text-right">{s.on.name.goldness.toFixed(2)}</td>
-                    <td className="text-right">{s.on.whole.hueSpread.toFixed(2)}</td>
+                    {/* Ambient art hue — the signal that survives torch glare. */}
+                    <td className="text-right">{s.off.art.hueSpread.toFixed(2)}</td>
                     <td className="truncate max-w-16">
                       {s.groundTruth ? shortTruth(s.groundTruth) : "—"}
                     </td>
@@ -299,6 +311,8 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
                 <Slider k="goldness" min={0.05} max={0.6} step={0.05} />
                 <Slider k="hueSpread" min={0.1} max={0.7} step={0.05} />
                 <Slider k="uniform" min={0.4} max={0.95} step={0.05} />
+                <Slider k="saturated" min={0.3} max={0.9} step={0.05} />
+                <Slider k="ambientHue" min={0.1} max={0.6} step={0.05} />
               </div>
             </div>
 
@@ -317,6 +331,8 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+
+      {guideOpen && <RarityGuideSheet onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }

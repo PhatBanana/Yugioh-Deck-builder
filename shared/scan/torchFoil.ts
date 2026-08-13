@@ -26,6 +26,17 @@ export interface TorchThresholds {
   goldness: number; // ON-frame name goldness that marks a gold plate (Ultra)
   hueSpread: number; // ON-frame whole-card hue spread that marks rainbow
   uniform: number; // whole-card delta this close to the max region = uniform
+  // ON-frame specular above this in BOTH name and art = the torch's mirror
+  // reflection off the glossy card face blew out the frame; region deltas no
+  // longer carry foil information. (First real device data: every reading on
+  // an S24 came back 0.5–0.87 in every region — an Ultra's gold name even
+  // read goldness 0.0, because blown-out pixels are white, not gold.)
+  saturated: number;
+  // OFF-frame (ambient) art hue spread that marks rainbow glitter. The
+  // secret family's speckle shows COLOR VARIANCE in ordinary light — the one
+  // signal that survives when the torch frame is glare-blown. From the same
+  // device data: Quarter Century samples read 0.44/0.61, Ultras 0.0/0.09.
+  ambientHue: number;
 }
 
 export const DEFAULT_TORCH_THRESHOLDS: TorchThresholds = {
@@ -34,6 +45,8 @@ export const DEFAULT_TORCH_THRESHOLDS: TorchThresholds = {
   goldness: 0.25,
   hueSpread: 0.35,
   uniform: 0.7,
+  saturated: 0.45,
+  ambientHue: 0.3,
 };
 
 export type TorchTier =
@@ -70,7 +83,8 @@ export function deltaOf(off: FoilStats, on: FoilStats): RegionDelta {
 export function classifyTorchDelta(
   delta: RegionDelta,
   on: FoilStats,
-  t: TorchThresholds = DEFAULT_TORCH_THRESHOLDS
+  t: TorchThresholds = DEFAULT_TORCH_THRESHOLDS,
+  off?: FoilStats
 ): TorchVerdict {
   const reasons: string[] = [];
   const name = Math.max(0, delta.name);
@@ -82,6 +96,31 @@ export function classifyTorchDelta(
   if (top < t.minSignal && whole < t.minSignal) {
     reasons.push(`no region brightened ≥ ${t.minSignal}`);
     return { tier: "common", rarity: TIER_RARITY.common, confidence: conf(t.minSignal - top, t.minSignal), reasons };
+  }
+
+  // Glare saturation: every card face is glossy, and a point-source torch
+  // blows regions out regardless of foil — at which point "which region lit
+  // up" is meaningless and any tier verdict would be confidently wrong (real
+  // S24 data: Ultras and Quarter Centuries all read "Super Rare" at 95% this
+  // way). One blown region is enough to spoil the comparison — an Ultra in
+  // that data had art at 0.65 with the name at 0.37, and "art leads" was
+  // still pure glare. The reading that survives is the AMBIENT frame's hue
+  // spread: rainbow glitter shows color variance without any torch. Use it
+  // if we have it; otherwise admit the reading is unusable.
+  if (Math.max(on.name.specular, on.art.specular) >= t.saturated) {
+    const ambient = off?.art.hueSpread ?? 0;
+    if (off && ambient >= t.ambientHue) {
+      reasons.push(
+        `torch frame glare-saturated; ambient art hue spread ${ambient.toFixed(2)} → rainbow glitter`
+      );
+      return { tier: "secret+", confidence: conf(ambient - t.ambientHue, 0.25), reasons };
+    }
+    reasons.push(
+      off
+        ? `torch frame glare-saturated (name ${on.name.specular.toFixed(2)}, art ${on.art.specular.toFixed(2)}), ambient shows no rainbow — reading unusable`
+        : "torch frame glare-saturated and no ambient frame to fall back on"
+    );
+    return { tier: "unknown", confidence: 0, reasons };
   }
 
   // Whole-card response ≈ the strongest region → the foil covers the card.
