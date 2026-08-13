@@ -14,7 +14,11 @@
 // learned on-device model (see mobile services/rarityModel.ts) plugs in
 // alongside this when one is available.
 
-export type FoilClass = "matte" | "holo-art" | "holo-name" | "gold-name" | "rainbow";
+// "unclear" = the frame was glare-blown (torch/flash on a glossy card face)
+// and carries no honest foil information — distinct from "matte", which is a
+// positive claim that nothing shines. Real S24 data forced the distinction:
+// flashed frames read specular 0.5-0.87 in every region regardless of foil.
+export type FoilClass = "matte" | "holo-art" | "holo-name" | "gold-name" | "rainbow" | "unclear";
 
 export interface RegionStat {
   /** 0..1 fraction of very bright ("blown out") pixels — foil glints. */
@@ -37,9 +41,21 @@ const SPECULAR = 0.16; // a region counts as foiled above this glint fraction
 const RAINBOW = 0.45; // hue spread that reads as rainbow foil
 const GOLD = 0.3; // gold fraction that reads as a gold name plate
 const MARGIN = 0.06; // how much brighter one region must be than another
+// Rainbow glitter shows COLOR VARIANCE in ambient light, glints or not —
+// device data: Quarter Century art hue spread 0.44/0.61 vs Ultra 0.0/0.09.
+const AMBIENT_RAINBOW = 0.4;
+// A name or art region this blown out means the frame is glare (torch/flash
+// mirror off the gloss coat) and per-region comparison is meaningless.
+const SATURATED = 0.45;
 
 export function classifyFoil(s: FoilStats): FoilClass {
+  // Hue-based rainbow reads survive both dim ambient frames (low specular)
+  // and glare-blown flashed frames, so they come first.
+  if (s.art.hueSpread >= AMBIENT_RAINBOW) return "rainbow";
   if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) return "rainbow";
+  // Glare-blown and not rainbow: no honest read exists. "matte" here would
+  // raise false conflicts against genuinely foiled cards.
+  if (Math.max(s.name.specular, s.art.specular) >= SATURATED) return "unclear";
   const nameFoiled = s.name.specular >= SPECULAR;
   if (nameFoiled && s.name.goldness >= GOLD) return "gold-name";
   if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) return "holo-name";
@@ -78,6 +94,8 @@ function foilBucket(f: FoilClass): Bucket {
       return "holo-art";
     case "matte":
       return "matte";
+    case "unclear":
+      return "unknown"; // glare-blown frame — vision has no opinion
   }
 }
 
@@ -95,10 +113,11 @@ export interface RarityVerdict {
 // several candidates when the code alone is ambiguous.
 export function reconcileRarity(codeCandidates: string[], foil: FoilClass): RarityVerdict {
   const fb = foilBucket(foil);
-  // true / false / undefined (rarity's bucket unknown, so no opinion)
+  // true / false / undefined (either side's bucket unknown → no opinion)
   const consistent = (rar: string): boolean | undefined => {
     const rb = rarityBucket(rar);
-    return rb === "unknown" ? undefined : rb === fb;
+    if (rb === "unknown" || fb === "unknown") return undefined;
+    return rb === fb;
   };
 
   if (codeCandidates.length === 1) {
@@ -124,6 +143,12 @@ export function reconcileRarity(codeCandidates: string[], foil: FoilClass): Rari
   }
 
   // No set-code match: a single frame's foil class isn't specific enough to
-  // name a rarity on its own, but surface that we at least saw foil.
-  return { rarity: undefined, foil, agreement: "unknown", source: foil === "matte" ? "none" : "vision" };
+  // name a rarity on its own, but surface that we at least saw foil (matte
+  // and glare-blown frames saw nothing usable).
+  return {
+    rarity: undefined,
+    foil,
+    agreement: "unknown",
+    source: foil === "matte" || foil === "unclear" ? "none" : "vision",
+  };
 }
