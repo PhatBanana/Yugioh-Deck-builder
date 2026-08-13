@@ -34,6 +34,31 @@ describe("classifyFoil", () => {
   it("reads whole-card rainbow foil as rainbow (Secret family)", () => {
     expect(classifyFoil(stats({ whole: { specular: 0.25, hueSpread: 0.6 } }))).toBe("rainbow");
   });
+
+  it("reads rainbow glitter from ambient hue variance alone (device-validated)", () => {
+    // Quarter Century ambient frames: art hue spread 0.44/0.61 at near-zero
+    // specular — the glitter's color variance needs no glints to show.
+    expect(classifyFoil(stats({ art: { specular: 0.017, hueSpread: 0.61 } }))).toBe("rainbow");
+    expect(classifyFoil(stats({ art: { specular: 0.011, hueSpread: 0.44 } }))).toBe("rainbow");
+    // An Ultra's ambient art (hue 0.09) must not.
+    expect(classifyFoil(stats({ art: { specular: 0.025, hueSpread: 0.09 } }))).toBe("matte");
+  });
+
+  it("calls a glare-blown frame unclear instead of guessing", () => {
+    // Torch/flash mirror off the gloss coat: regions saturate regardless of
+    // foil (S24 read 0.5-0.87 everywhere). One blown region already spoils
+    // the comparison.
+    expect(classifyFoil(stats({ name: { specular: 0.73 }, art: { specular: 0.75 } }))).toBe(
+      "unclear"
+    );
+    expect(classifyFoil(stats({ name: { specular: 0.37 }, art: { specular: 0.65 } }))).toBe(
+      "unclear"
+    );
+    // …unless the hue signal still says rainbow.
+    expect(
+      classifyFoil(stats({ name: { specular: 0.87 }, art: { specular: 0.87, hueSpread: 0.5 } }))
+    ).toBe("rainbow");
+  });
 });
 
 describe("rarityBucket", () => {
@@ -92,5 +117,18 @@ describe("reconcileRarity", () => {
   it("offers no rarity when there is no set-code match", () => {
     expect(reconcileRarity([], "matte")).toMatchObject({ rarity: undefined, source: "none" });
     expect(reconcileRarity([], "rainbow")).toMatchObject({ rarity: undefined, source: "vision" });
+    expect(reconcileRarity([], "unclear")).toMatchObject({ rarity: undefined, source: "none" });
+  });
+
+  it("an unclear (glare-blown) foil never confirms or conflicts", () => {
+    expect(reconcileRarity(["Secret Rare"], "unclear")).toMatchObject({
+      rarity: "Secret Rare",
+      agreement: "unknown",
+    });
+    // With several candidates it keeps the prior-best and stays unsure.
+    expect(reconcileRarity(["Ultra Rare", "Secret Rare"], "unclear")).toMatchObject({
+      rarity: "Ultra Rare",
+      agreement: "unknown",
+    });
   });
 });

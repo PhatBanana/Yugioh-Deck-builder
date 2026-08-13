@@ -107,15 +107,18 @@ body {
   }
 
   /* Secret-family glitter twinkles (discrete jumps read as sparkle, not a
-     slide); other finishes stay static. */
+     slide); other finishes stay static. Position count MUST match
+     .foil-rainbow's layer count (5 speckles move; the vertical prism bands
+     and the sheen stay put). */
   @keyframes foil-sparkle {
     to {
       background-position:
-        6px 12px,
-        -7px 6px,
-        11px -7px,
-        -6px 12px,
-        13px -3px,
+        4px 7px,
+        -5px 4px,
+        7px -5px,
+        -4px 7px,
+        8px -3px,
+        0 0,
         0 0;
     }
   }
@@ -179,7 +182,10 @@ html.camera-scanning #root {
   mix-blend-mode: color-dodge;
   opacity: 0.55;
 }
-/* Ultra: GOLD name plate + a faint holo wash on the art. */
+/* Ultra: GOLD name plate + a smooth holo art sheen. Reference photos (RA05
+   Dark Magician / Ash Blossom Ultras, with and without flash): the art's
+   reflection is a BROAD SOFT WHITE diagonal streak — smooth mirror foil,
+   not a colored wash — while the name stays unmistakably gold. */
 .foil-gold {
   background:
     linear-gradient(
@@ -193,9 +199,10 @@ html.camera-scanning #root {
       no-repeat,
     linear-gradient(
         115deg,
-        rgba(56, 189, 248, 0.22),
-        rgba(232, 121, 249, 0.22),
-        rgba(56, 189, 248, 0.22)
+        rgba(255, 255, 255, 0) 18%,
+        rgba(255, 255, 255, 0.38) 44%,
+        rgba(205, 228, 255, 0.3) 56%,
+        rgba(255, 255, 255, 0) 82%
       )
       no-repeat;
   background-size:
@@ -208,15 +215,26 @@ html.camera-scanning #root {
   opacity: 0.9;
 }
 /* Secret family (Secret/Starlight/Ghost/Prismatic/Quarter Century): dense
-   multicolor GLITTER across the whole card — tiled speckles, not a smooth
-   rainbow wash — plus a soft diagonal sheen. */
+   multicolor GLITTER across the whole card plus a soft diagonal sheen.
+   Reference photos (RA05 Quarter Century Secrets, with and without flash):
+   the speckle is much FINER and denser than a first guess — a near-mosaic
+   dust covering borders and frame too, not scattered dots — and under flash
+   faint VERTICAL prism bands appear across the face. Tiles shrunk to 4-7px
+   with smaller dots, plus a subtle vertical banding layer. */
 .foil-rainbow {
   background:
-    radial-gradient(circle, rgba(255, 64, 128, 0.95) 0 18%, transparent 32%) 0 0 / 6px 6px,
-    radial-gradient(circle, rgba(64, 220, 255, 0.95) 0 16%, transparent 30%) 2px 3px / 9px 9px,
-    radial-gradient(circle, rgba(255, 238, 64, 0.95) 0 15%, transparent 30%) 4px 1px / 7px 7px,
-    radial-gradient(circle, rgba(96, 255, 128, 0.9) 0 14%, transparent 28%) 1px 5px / 11px 11px,
-    radial-gradient(circle, rgba(190, 120, 255, 0.95) 0 16%, transparent 30%) 5px 2px / 8px 8px,
+    radial-gradient(circle, rgba(255, 64, 128, 0.9) 0 22%, transparent 38%) 0 0 / 4px 4px,
+    radial-gradient(circle, rgba(64, 220, 255, 0.9) 0 20%, transparent 36%) 1px 2px / 6px 6px,
+    radial-gradient(circle, rgba(255, 238, 64, 0.9) 0 20%, transparent 36%) 3px 1px / 5px 5px,
+    radial-gradient(circle, rgba(96, 255, 128, 0.85) 0 18%, transparent 34%) 1px 3px / 7px 7px,
+    radial-gradient(circle, rgba(190, 120, 255, 0.9) 0 20%, transparent 36%) 3px 2px / 5px 5px,
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 196, 64, 0.14) 0 3px,
+      rgba(64, 220, 255, 0.1) 3px 6px,
+      rgba(255, 96, 196, 0.12) 6px 9px,
+      rgba(120, 255, 160, 0.1) 9px 12px
+    ),
     linear-gradient(
       120deg,
       rgba(255, 255, 255, 0.22),
