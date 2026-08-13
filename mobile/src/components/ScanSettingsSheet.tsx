@@ -7,7 +7,6 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { useBackClose } from "../hooks/useBackClose";
-import TorchFoilLab from "./TorchFoilLab";
 import RarityGuideSheet from "./RarityGuideSheet";
 import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
 import { toast } from "./Toaster";
@@ -114,18 +113,13 @@ function LanguagePacks() {
 export default function ScanSettingsSheet({
   settings,
   update,
-  scanning,
-  setScanPaused,
   onClose,
 }: {
   settings: ScanSettings;
   update: (patch: Partial<ScanSettings>) => void;
-  scanning: boolean;
-  setScanPaused: (p: boolean) => void;
   onClose: () => void;
 }) {
   useBackClose(onClose);
-  const [labOpen, setLabOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   return (
     <div
@@ -237,22 +231,8 @@ export default function ScanSettingsSheet({
         >
           📖 Rarity guide — what each foil looks like
         </button>
-        <button
-          type="button"
-          onClick={() => setLabOpen(true)}
-          className="btn-ghost w-full py-2.5 text-sm mt-2"
-        >
-          🔦 Torch foil lab (experimental)
-        </button>
       </div>
       {guideOpen && <RarityGuideSheet onClose={() => setGuideOpen(false)} />}
-      {labOpen && (
-        <TorchFoilLab
-          scanning={scanning}
-          setScanPaused={setScanPaused}
-          onClose={() => setLabOpen(false)}
-        />
-      )}
     </div>
   );
 }
