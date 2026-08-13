@@ -12,6 +12,7 @@ import type { FoilClass } from "@shared/scan/rarityVision";
 import { foilClass } from "../lib/foil";
 import { formatUsd } from "../lib/util";
 import { useBackClose } from "../hooks/useBackClose";
+import RarityGuideSheet from "./RarityGuideSheet";
 
 // One-tap rarity disambiguation: when a set code maps to several rarities,
 // judging the foil by eye is the hard part — so each candidate shows its foil
@@ -44,6 +45,7 @@ export default function RarityPickSheet({
   useBackClose(onClose);
   const cameraAnswers = useMemo(() => foilToAnswers(foil), [foil]);
   const [answers, setAnswers] = useState<TraitAnswers>(cameraAnswers);
+  const [guideFor, setGuideFor] = useState<string | null>(null);
   const questions = useMemo(
     () => usefulQuestions(candidates.map((c) => c.rarity)),
     [candidates]
@@ -87,9 +89,18 @@ export default function RarityPickSheet({
             ×
           </button>
         </div>
-        <p className="text-xs text-neutral-500 mb-2 truncate">
-          {cardName} — this set printed it at {candidates.length} rarities. Match
-          the foil on your card.
+        <p className="text-xs text-neutral-500 mb-2">
+          <span className="block truncate">
+            {cardName} — this set printed it at {candidates.length} rarities.
+            Match the foil on your card.
+          </span>
+          <button
+            type="button"
+            onClick={() => setGuideFor(candidates[0]?.rarity ?? "")}
+            className="text-amber-300/90 mt-0.5"
+          >
+            📖 What do these look like?
+          </button>
         </p>
 
         {(questions.name || questions.artFoiled || questions.embossed) && (
@@ -189,6 +200,10 @@ export default function RarityPickSheet({
           })}
         </div>
       </div>
+
+      {guideFor !== null && (
+        <RarityGuideSheet focus={guideFor} onClose={() => setGuideFor(null)} />
+      )}
     </div>
   );
 }

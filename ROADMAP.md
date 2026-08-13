@@ -56,6 +56,14 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   is marked ambiguous — the session chip shows "?" and taps open a one-tap
   picker (foil previews, prices, pull odds); unconfirmed copies stay findable
   via the card sheet's confirm pill and an Owned-view filter chip.
+- **Rarity guide**: a reference sheet (Scan settings, or "what do these look
+  like?" in the rarity picker) describing how to spot each tier by eye — the
+  tell, era and pull frequency, with a live foil swatch per tier and a
+  Yugipedia link for real photos. Its trait chips are unit-tested against the
+  same table the picker's narrowing uses, so the two can't drift apart.
+- **Rarity narrowing**: the picker asks only the questions that split the
+  candidates (name colour / shiny art / raised texture), pre-answered by what
+  the camera's foil pass could genuinely see.
 - Camera controls: real **optical zoom** with physical-lens buttons
   (0.5/1/2/3×) + quarter-step fine tuning, front/back flip, tap-to-refocus,
   torch (steady or glare-reducing pulse).
