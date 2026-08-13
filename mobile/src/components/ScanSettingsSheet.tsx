@@ -7,7 +7,6 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { useBackClose } from "../hooks/useBackClose";
-import RarityGuideSheet from "./RarityGuideSheet";
 import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
 import { toast } from "./Toaster";
 
@@ -120,7 +119,6 @@ export default function ScanSettingsSheet({
   onClose: () => void;
 }) {
   useBackClose(onClose);
-  const [guideOpen, setGuideOpen] = useState(false);
   return (
     <div
       className="sheet-backdrop z-[70] flex items-end justify-center"
@@ -224,15 +222,7 @@ export default function ScanSettingsSheet({
           <LanguagePacks />
         </div>
 
-        <button
-          type="button"
-          onClick={() => setGuideOpen(true)}
-          className="btn-ghost w-full py-2.5 text-sm mt-4"
-        >
-          📖 Rarity guide — what each foil looks like
-        </button>
       </div>
-      {guideOpen && <RarityGuideSheet onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }

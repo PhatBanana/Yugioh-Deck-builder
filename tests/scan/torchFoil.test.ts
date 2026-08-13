@@ -81,6 +81,71 @@ describe("classifyTorchDelta", () => {
   });
 });
 
+// Regression fixtures from the first real device capture session (S24,
+// RA05 Dark Magicians + Ash Blossoms in Ultra and Quarter Century Secret).
+// The torch blew out every reading — specular 0.5–0.87 across regions — and
+// the classifier called glossy Ultras and Quarter Centuries "Super Rare" at
+// 95% confidence. These pin the two behaviours that fix demanded: blown
+// frames must never yield a confident tier, and the ambient frame's hue
+// spread (which survives glare) is what separates the rainbow family.
+describe("classifyTorchDelta on real glare-saturated device data", () => {
+  it("a Quarter Century (ambient art hue 0.61) reads secret+ despite glare", () => {
+    const off = stats(region(0.0037), region(0.0175, 0.6115, 0.0571), region(0.0122, 0, 0.0408));
+    const on = stats(
+      region(0.8667, 0.0396, 0.3206),
+      region(0.8667, 0.0503, 0.1527),
+      region(0.6179, 0.0362, 0.2151)
+    );
+    const v = classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off);
+    expect(v.tier).toBe("secret+");
+    expect(v.confidence).toBeGreaterThanOrEqual(0.6);
+  });
+
+  it("a second rainbow sample (ambient art hue 0.44) also reads secret+", () => {
+    const off = stats(region(0.0889), region(0.0112, 0.4441, 0.1111), region(0.01, 0.2791, 0.075));
+    const on = stats(
+      region(0.6533, 0.0171, 0.3937),
+      region(0.7772, 0.0851, 0.0919),
+      region(0.5325, 0.0502, 0.1971)
+    );
+    expect(classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off).tier).toBe(
+      "secret+"
+    );
+  });
+
+  it("a blown-out Ultra with no ambient rainbow abstains instead of guessing Super", () => {
+    // Art 0.65 saturated while the name sat at 0.37 — "art leads" was glare,
+    // not foil. The Ultra's gold name even read goldness 0 (blown pixels are
+    // white). The only safe verdict is no verdict.
+    const off = stats(region(0.0809), region(0.025, 0.0918, 0.13), region(0.0205, 0.0761, 0.0366));
+    const on = stats(
+      region(0.3652, 0, 0),
+      region(0.6511, 0.0305, 0.1956),
+      region(0.5109, 0.0637, 0.2931)
+    );
+    const v = classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off);
+    expect(v.tier).toBe("unknown");
+    expect(v.confidence).toBe(0);
+  });
+
+  it("fully saturated with a flat ambient frame abstains too", () => {
+    const off = stats(region(0.0624), region(0.002), region(0.0082, 0, 0.0606));
+    const on = stats(
+      region(0.7314, 0.0736, 0.1287),
+      region(0.7503, 0.0535, 0.1035),
+      region(0.5426, 0.0487, 0.1805)
+    );
+    expect(classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off).tier).toBe(
+      "unknown"
+    );
+  });
+
+  it("without an ambient frame a saturated reading still abstains", () => {
+    const on = stats(region(0.7), region(0.7), region(0.5));
+    expect(classifyTorchDelta(deltaOf(OFF, on), on).tier).toBe("unknown");
+  });
+});
+
 describe("narrowByVerdict", () => {
   const cand = (rarity: string) => ({ code: "RA05-EN083", rarity, priceUsd: null });
   const pool = [
