@@ -14,13 +14,16 @@ export async function httpGetText(url: string): Promise<string> {
   return res.text();
 }
 
-export async function httpGetJson<T>(url: string): Promise<T> {
+export async function httpGetJson<T>(
+  url: string,
+  headers?: Record<string, string>
+): Promise<T> {
   if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.get({ url, readTimeout: 120000 });
+    const res = await CapacitorHttp.get({ url, headers, readTimeout: 120000 });
     if (res.status >= 400) throw new Error(`HTTP ${res.status} for ${url}`);
     return (typeof res.data === "string" ? JSON.parse(res.data) : res.data) as T;
   }
-  const res = await fetch(url);
+  const res = await fetch(url, headers ? { headers } : undefined);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.json() as Promise<T>;
 }

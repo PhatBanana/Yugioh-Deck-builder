@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   backupIsStale,
@@ -12,7 +12,12 @@ import {
   type BackupFile,
 } from "../services/backup";
 import { useBackClose } from "../hooks/useBackClose";
-import { checkForUpdate, installedBuild, openUpdate } from "../services/appUpdate";
+import {
+  checkForUpdateResult,
+  installedBuild,
+  openUpdate,
+  RELEASES_PAGE,
+} from "../services/appUpdate";
 import { toast } from "./Toaster";
 
 // Bottom sheet for exporting the collection/decks as a JSON file and
@@ -32,8 +37,16 @@ export default function BackupSheet({
   const [pending, setPending] = useState<BackupFile | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   useBackClose(onClose);
+  const [checking, setChecking] = useState(false);
+  const [build, setBuild] = useState<number | null>(null);
   // Live so the "last backup" line updates the moment an export succeeds.
   const lastBackup = useLiveQuery(lastBackupAt, [], null);
+
+  // Showing the installed build makes "did the update actually apply?"
+  // answerable without guessing from behaviour.
+  useEffect(() => {
+    void installedBuild().then(setBuild);
+  }, []);
 
   async function exportFile() {
     try {
@@ -90,18 +103,24 @@ export default function BackupSheet({
   }
 
   async function checkUpdate() {
-    if ((await installedBuild()) == null) {
-      toast("Update checks only work in the installed app", "info");
-      return;
-    }
-    const u = await checkForUpdate(true);
-    if (u) {
-      toast(`Update available (v${u.versionName})`, "info", {
-        label: "Download",
-        onClick: () => openUpdate(u),
-      });
-    } else {
-      toast("You're on the latest build", "success");
+    setChecking(true);
+    try {
+      const res = await checkForUpdateResult(true);
+      if (res.status === "update") {
+        toast(`Update available (v${res.update.versionName})`, "info", {
+          label: "Download",
+          onClick: () => openUpdate(res.update),
+        });
+      } else if (res.status === "current") {
+        toast(`You're on the latest build (${res.installed})`, "success");
+      } else if (res.status === "unsupported") {
+        toast("Update checks only work in the installed app", "info");
+      } else if (res.status === "error") {
+        // Never silently claim "up to date" when the check itself failed.
+        toast(`Couldn't check for updates — ${res.message}`, "error");
+      }
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -167,11 +186,22 @@ export default function BackupSheet({
         </button>
         <button
           type="button"
+          disabled={checking}
           onClick={() => void checkUpdate()}
-          className="btn-ghost w-full py-2.5 text-sm mt-2"
+          className="btn-ghost w-full py-2.5 text-sm mt-2 disabled:opacity-60"
         >
-          🔄 Check for app updates
+          {checking ? "Checking…" : "🔄 Check for app updates"}
         </button>
+        <p className="text-[11px] text-neutral-600 mt-1 text-center">
+          {build == null ? "Browser build" : `Installed build ${build}`} ·{" "}
+          <button
+            type="button"
+            onClick={() => window.open(RELEASES_PAGE, "_blank")}
+            className="text-amber-300/80"
+          >
+            all releases ↗
+          </button>
+        </p>
         {onSync && (
           <button
             type="button"
