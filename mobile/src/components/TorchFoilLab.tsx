@@ -16,42 +16,41 @@ const TRUTHS = ["Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ul
 // torch off then on (exposure locked) and shows where the light bounces back.
 // This is the data-gathering harness for tuning classifyTorchDelta — tag each
 // sample with the card's real rarity and share the JSON log back for tuning.
-export default function TorchFoilLab({
-  scanning,
-  setScanPaused,
-  onClose,
-}: {
-  scanning: boolean; // the scan loop is running (lab opened mid-session)
-  setScanPaused: (p: boolean) => void;
-  onClose: () => void;
-}) {
+//
+// Rendered as a fullscreen camera view, NOT a bottom sheet: the preview is
+// drawn behind the webview, so it can only be seen through a transparent
+// window. (As a sheet it sat on an opaque backdrop — the camera was running
+// and aiming was pure guesswork.) The readout sits over a dark scrim at the
+// bottom; the card frame above it stays see-through.
+export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
   const [busy, setBusy] = useState<string | null>(null);
   const [samples, setSamples] = useState<TorchDiffSample[]>([]);
   const [thresholds, setThresholds] = useState<TorchThresholds>(DEFAULT_TORCH_THRESHOLDS);
-  const startedPreviewRef = useRef(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const startedRef = useRef(false);
 
-  // Mid-scan: idle the loop so its captures/pulses don't collide with ours.
-  // Idle: run the preview ourselves (and make the page transparent so it
-  // shows through for aiming).
+  // Own the camera for as long as the lab is open. The lab is reached from
+  // the Scan tab's idle screen, so the scan loop is never running underneath.
   useEffect(() => {
     const root = document.documentElement;
-    if (scanning) {
-      setScanPaused(true);
-    } else {
-      void startPreview().then(() => {
-        startedPreviewRef.current = true;
-        root.classList.add("camera-scanning");
-      });
-    }
+    let cancelled = false;
+    void startPreview().then(
+      () => {
+        if (cancelled) {
+          void stopPreview();
+          return;
+        }
+        startedRef.current = true;
+        root.classList.add("camera-scanning"); // makes html/body/#root transparent
+      },
+      () => !cancelled && setPreviewFailed(true)
+    );
     return () => {
-      if (scanning) setScanPaused(false);
-      if (startedPreviewRef.current) {
-        root.classList.remove("camera-scanning");
-        void stopPreview();
-      }
+      cancelled = true;
+      root.classList.remove("camera-scanning");
+      if (startedRef.current) void stopPreview();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function measure() {
@@ -66,9 +65,7 @@ export default function TorchFoilLab({
   }
 
   function tagLast(truth: string) {
-    setSamples((prev) =>
-      prev.map((s, i) => (i === 0 ? { ...s, groundTruth: truth } : s))
-    );
+    setSamples((prev) => prev.map((s, i) => (i === 0 ? { ...s, groundTruth: truth } : s)));
   }
 
   async function shareLog() {
@@ -113,27 +110,50 @@ export default function TorchFoilLab({
   }
 
   return (
-    <div className="sheet-backdrop z-[80] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md max-h-[80vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold">🔦 Torch foil lab</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
-          </button>
-        </div>
-        <p className="text-xs text-neutral-500 mb-3">
-          Point the camera at a card, hold still, and Measure — the torch
-          flashes once and the lab shows where the light bounced back. The
-          "Torch rarity check" toggle in scan settings uses these readings live
-          during scanning; this lab is for eyeballing the raw numbers (tag +
-          share samples only if the toggle keeps guessing wrong).
+    <div className="fixed inset-0 z-[60] flex flex-col">
+      {/* Top bar — over the live preview. */}
+      <div className="flex items-center justify-between p-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-black/50 backdrop-blur text-white text-xl leading-none"
+          aria-label="Close the lab"
+        >
+          ×
+        </button>
+        <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur text-sm text-white">
+          🔦 Torch foil lab
+        </span>
+        <span className="w-10" aria-hidden />
+      </div>
+
+      {/* Aiming window: deliberately transparent so the camera shows through. */}
+      <div className="flex-1 min-h-0 flex items-center justify-center px-10">
+        {previewFailed ? (
+          <p className="text-center text-sm text-white bg-black/60 backdrop-blur rounded-xl p-4">
+            Couldn't start the camera. Close the lab and try again — the app
+            needs camera permission, and no other app can be using it.
+          </p>
+        ) : (
+          <div className="w-full max-w-[13rem] aspect-[59/86] rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)] pointer-events-none" />
+        )}
+      </div>
+
+      {/* Readout — a dark scrim keeps the numbers legible over the preview. */}
+      <div className="bg-black/80 backdrop-blur-md max-h-[52vh] overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] rounded-t-2xl">
+        <p className="text-[11px] text-neutral-400 mb-2">
+          Fill the frame with one card, hold still, then Measure — the torch
+          flashes once and the readout shows where the light bounced back. Tag
+          and share samples only if the "Torch rarity check" toggle keeps
+          guessing wrong.
         </p>
 
-        <button type="button" onClick={measure} disabled={!!busy} className="btn-primary w-full py-3 text-sm">
+        <button
+          type="button"
+          onClick={measure}
+          disabled={!!busy || previewFailed}
+          className="btn-primary w-full py-3 text-sm disabled:opacity-50"
+        >
           {busy ?? "⚡ Measure (torch flashes)"}
         </button>
 
@@ -210,7 +230,8 @@ export default function TorchFoilLab({
           <>
             <div className="mt-3">
               <span className="block text-[10px] text-neutral-500 mb-1">
-                Thresholds (re-scores the log live{tagged.length > 0 ? ` — ${correct}/${tagged.length} tagged correct` : ""}):
+                Thresholds (re-scores the log live
+                {tagged.length > 0 ? ` — ${correct}/${tagged.length} tagged correct` : ""}):
               </span>
               <div className="flex flex-col gap-1">
                 <Slider k="minSignal" min={0.01} max={0.3} step={0.01} />

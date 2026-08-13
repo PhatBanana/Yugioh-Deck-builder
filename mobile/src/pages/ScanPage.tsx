@@ -11,6 +11,7 @@ import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState, type ScannedEntry } from "../hooks/useAutoScan";
 import RarityPickSheet from "../components/RarityPickSheet";
 import SessionReviewSheet from "../components/SessionReviewSheet";
+import TorchFoilLab from "../components/TorchFoilLab";
 import { useScanSettings } from "../hooks/useScanSettings";
 import ScanSettingsSheet from "../components/ScanSettingsSheet";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -364,26 +365,28 @@ export default function ScanPage({
   const [manualQuery, setManualQuery] = useState("");
   const [manualMatches, setManualMatches] = useState<NameMatch[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
 
   const settingsSheet = settingsOpen ? (
-    <ScanSettingsSheet
-      settings={settings}
-      update={update}
-      scanning={scan.scanning}
-      setScanPaused={scan.setPaused}
-      onClose={() => setSettingsOpen(false)}
-    />
+    <ScanSettingsSheet settings={settings} update={update} onClose={() => setSettingsOpen(false)} />
   ) : null;
 
+  // Both the scan overlay and the foil lab are fullscreen camera views — hide
+  // the app chrome for either.
   useEffect(() => {
-    onImmersive(scan.scanning);
-    // Toggle on <html> so the CSS can make html/body/#root all transparent,
-    // letting the behind-the-webview camera preview show through.
+    onImmersive(scan.scanning || labOpen);
+  }, [scan.scanning, labOpen, onImmersive]);
+
+  // Toggle on <html> so the CSS can make html/body/#root all transparent,
+  // letting the behind-the-webview camera preview show through. Keyed on
+  // scanning alone — the lab owns the class while it's open, so this effect
+  // must not re-run and clear it out from under the lab.
+  useEffect(() => {
     const root = document.documentElement;
     if (scan.scanning) root.classList.add("camera-scanning");
     else root.classList.remove("camera-scanning");
     return () => root.classList.remove("camera-scanning");
-  }, [scan.scanning, onImmersive]);
+  }, [scan.scanning]);
 
   async function manualSearch(q: string) {
     setManualQuery(q);
@@ -411,6 +414,8 @@ export default function ScanPage({
       />
     );
   }
+
+  if (labOpen) return <TorchFoilLab onClose={() => setLabOpen(false)} />;
 
   if (scan.scanning)
     return (
@@ -448,7 +453,17 @@ export default function ScanPage({
 
       {mode === "scan" && (
         <>
-          <div className="flex justify-end -mb-2 -mt-1">
+          <div className="flex justify-end gap-1 -mb-2 -mt-1">
+            {/* The lab drives the camera itself, so it belongs beside Scan
+                rather than buried in settings. */}
+            <button
+              type="button"
+              disabled={!isScanSupported()}
+              onClick={() => setLabOpen(true)}
+              className="text-sm text-neutral-400 active:text-white px-2 py-1 disabled:opacity-40"
+            >
+              🔦 Foil lab
+            </button>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
