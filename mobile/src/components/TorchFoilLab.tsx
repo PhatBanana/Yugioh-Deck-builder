@@ -4,13 +4,23 @@ import {
   DEFAULT_TORCH_THRESHOLDS,
   type TorchThresholds,
 } from "@shared/scan/torchFoil";
+import { RARITY_GUIDE } from "@shared/scan/rarityGuide";
 import { captureTorchDiff, type TorchDiffSample } from "../services/torchFoil";
 import { startPreview, stopPreview } from "../services/scanner";
 import { exportTextFile } from "../services/backup";
 import { useBackClose } from "../hooks/useBackClose";
 import { toast } from "./Toaster";
 
-const TRUTHS = ["Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare"];
+// Every tier you might be holding, straight from the rarity guide — a short
+// hand-picked list meant you couldn't tag the very cards the classifier is
+// worst at (Quarter Century, Starlight, Collector's…), which are exactly the
+// samples worth collecting.
+const TRUTHS = RARITY_GUIDE.map((e) => e.rarity);
+
+// Trim the redundant "Rare" suffix for the chips, keeping names distinct.
+function shortTruth(rarity: string): string {
+  return rarity.replace(/\s*Rare$/, "") || rarity;
+}
 
 // Experimental torch-differential foil probe: measures the same card with the
 // torch off then on (exposure locked) and shows where the light bounces back.
@@ -28,6 +38,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   const [samples, setSamples] = useState<TorchDiffSample[]>([]);
   const [thresholds, setThresholds] = useState<TorchThresholds>(DEFAULT_TORCH_THRESHOLDS);
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [selected, setSelected] = useState(0);
   const startedRef = useRef(false);
 
   // Own the camera for as long as the lab is open. The lab is reached from
@@ -62,10 +73,13 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
       return;
     }
     setSamples((prev) => [s, ...prev]);
+    setSelected(0); // show the reading just taken
   }
 
-  function tagLast(truth: string) {
-    setSamples((prev) => prev.map((s, i) => (i === 0 ? { ...s, groundTruth: truth } : s)));
+  function tagSelected(truth: string) {
+    setSamples((prev) =>
+      prev.map((s, i) => (i === selected ? { ...s, groundTruth: truth } : s))
+    );
   }
 
   async function shareLog() {
@@ -88,7 +102,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
     ({ s, v }) => v.rarity === s.groundTruth || (v.tier === "secret+" && /secret/i.test(s.groundTruth!))
   ).length;
 
-  const latest = rescored[0];
+  const latest = rescored[selected] ?? rescored[0];
   const fmt = (x: number) => x.toFixed(3);
 
   function Slider({ k, min, max, step }: { k: keyof TorchThresholds; min: number; max: number; step: number }) {
@@ -211,18 +225,64 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
                   <button
                     key={t}
                     type="button"
-                    onClick={() => tagLast(t)}
+                    onClick={() => tagSelected(t)}
                     className={`px-2 py-1 rounded text-[10px] border ${
                       latest.s.groundTruth === t
                         ? "bg-amber-400/20 border-amber-800/60 text-amber-200"
                         : "bg-raised border-line text-neutral-400"
                     }`}
                   >
-                    {t.replace(" Rare", "")}
+                    {shortTruth(t)}
                   </button>
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Compare readings across cards. If two different rarities produce
+            near-identical numbers here, no threshold can ever tell them apart
+            and the problem is upstream (regions, exposure lock, torch) — which
+            is the first thing worth knowing. */}
+        {rescored.length > 1 && (
+          <div className="mt-3">
+            <span className="block text-[10px] text-neutral-500 mb-1">
+              All readings — tap one to inspect and tag it:
+            </span>
+            <table className="w-full text-[10px] tabular-nums">
+              <thead>
+                <tr className="text-neutral-600 text-left">
+                  <th className="font-normal">#</th>
+                  <th className="font-normal">verdict</th>
+                  <th className="font-normal text-right">Δname</th>
+                  <th className="font-normal text-right">Δart</th>
+                  <th className="font-normal text-right">Δall</th>
+                  <th className="font-normal text-right">gold</th>
+                  <th className="font-normal text-right">hue</th>
+                  <th className="font-normal">tagged</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rescored.map(({ s, v }, i) => (
+                  <tr
+                    key={i}
+                    onClick={() => setSelected(i)}
+                    className={i === selected ? "bg-amber-400/10 text-amber-200" : "text-neutral-400"}
+                  >
+                    <td>{rescored.length - i}</td>
+                    <td className="truncate max-w-16">{v.tier}</td>
+                    <td className="text-right">{s.delta.name.toFixed(2)}</td>
+                    <td className="text-right">{s.delta.art.toFixed(2)}</td>
+                    <td className="text-right">{s.delta.whole.toFixed(2)}</td>
+                    <td className="text-right">{s.on.name.goldness.toFixed(2)}</td>
+                    <td className="text-right">{s.on.whole.hueSpread.toFixed(2)}</td>
+                    <td className="truncate max-w-16">
+                      {s.groundTruth ? shortTruth(s.groundTruth) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
