@@ -133,11 +133,13 @@ export default function ScanSettingsSheet({
       onClick={onClose}
     >
       <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+        className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-3">
+        {/* Sticky: this is the app's longest sheet, so the close button must
+            stay reachable however far down you scroll. */}
+        <div className="sticky top-0 z-10 -mx-5 px-5 -mt-1 pt-1 pb-2 mb-1 bg-surface flex items-center justify-between">
           <h2 className="text-lg font-semibold">Scan settings</h2>
           <button
             type="button"
