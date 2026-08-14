@@ -45,7 +45,7 @@ export default function RarityPickSheet({
   useBackClose(onClose);
   const cameraAnswers = useMemo(() => foilToAnswers(foil), [foil]);
   const [answers, setAnswers] = useState<TraitAnswers>(cameraAnswers);
-  const [guideFor, setGuideFor] = useState<string | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const questions = useMemo(
     () => usefulQuestions(candidates.map((c) => c.rarity)),
     [candidates]
@@ -96,7 +96,7 @@ export default function RarityPickSheet({
           </span>
           <button
             type="button"
-            onClick={() => setGuideFor(candidates[0]?.rarity ?? "")}
+            onClick={() => setGuideOpen(true)}
             className="text-amber-300/90 mt-0.5"
           >
             📖 What do these look like?
@@ -201,8 +201,8 @@ export default function RarityPickSheet({
         </div>
       </div>
 
-      {guideFor !== null && (
-        <RarityGuideSheet focus={guideFor} onClose={() => setGuideFor(null)} />
+      {guideOpen && (
+        <RarityGuideSheet focus={candidates[0]?.rarity} onClose={() => setGuideOpen(false)} />
       )}
     </div>
   );

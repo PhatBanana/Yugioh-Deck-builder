@@ -125,7 +125,7 @@ export default function ScanSettingsSheet({
       onClick={onClose}
     >
       <div
-        className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+        className="sheet w-full sm:max-w-md rounded-t-3xl p-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" />

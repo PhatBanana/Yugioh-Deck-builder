@@ -74,9 +74,9 @@ async function latestPublishedBuild(): Promise<AppUpdate | null> {
 // latest build" was reported even when the request had failed outright —
 // indistinguishable, and misleading exactly when something is wrong.
 export type UpdateCheck =
-  | { status: "update"; update: AppUpdate; installed: number }
-  | { status: "current"; installed: number; latest: number | null }
-  | { status: "skipped"; installed: number } // throttled, not actually checked
+  | { status: "update"; update: AppUpdate }
+  | { status: "current"; installed: number }
+  | { status: "skipped" } // throttled, not actually checked
   | { status: "unsupported" } // web/dev build — no versionCode to compare
   | { status: "error"; message: string };
 
@@ -88,15 +88,15 @@ export async function checkForUpdateResult(force = false): Promise<UpdateCheck> 
 
   if (!force) {
     const last = Number(await getSyncMeta("update_checked_at")) || 0;
-    if (Date.now() - last < CHECK_EVERY_MS) return { status: "skipped", installed };
+    if (Date.now() - last < CHECK_EVERY_MS) return { status: "skipped" };
   }
   try {
     const latest = await latestPublishedBuild();
     await setSyncMeta("update_checked_at", String(Date.now()));
     if (latest && latest.build > installed) {
-      return { status: "update", update: latest, installed };
+      return { status: "update", update: latest };
     }
-    return { status: "current", installed, latest: latest?.build ?? null };
+    return { status: "current", installed };
   } catch (err) {
     return {
       status: "error",

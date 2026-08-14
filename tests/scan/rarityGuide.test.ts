@@ -4,6 +4,7 @@ import {
   guideReferenceUrl,
   RARITY_GUIDE,
 } from "../../shared/scan/rarityGuide";
+import { rarityAbbrev } from "../../shared/scan/setCode";
 import { traitsFor } from "../../shared/scan/rarityTraits";
 
 describe("RARITY_GUIDE", () => {
@@ -28,8 +29,16 @@ describe("RARITY_GUIDE", () => {
       expect(e.tell.length).toBeGreaterThan(20);
       expect(e.era).toBeTruthy();
       expect(e.frequency).toBeTruthy();
-      expect(e.abbrev).toMatch(/^[A-Z]+$/);
     }
+  });
+
+  it("uses the SAME abbreviations as every chip and picker in the app", () => {
+    // The guide once had its own abbreviation logic and showed "SR" where
+    // the picker beside it showed "ScR" — they must come from one helper.
+    for (const e of RARITY_GUIDE) {
+      expect(e.abbrev).toBe(rarityAbbrev(e.rarity));
+    }
+    expect(RARITY_GUIDE.find((e) => e.rarity === "Secret Rare")?.abbrev).toBe("ScR");
   });
 
   it("keeps its traits in sync with the narrowing table", () => {

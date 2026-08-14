@@ -43,10 +43,10 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const startedRef = useRef(false);
 
-  // Own the camera for as long as the lab is open. The lab is reached from
-  // the Scan tab's idle screen, so the scan loop is never running underneath.
+  // Own the camera for as long as the lab is open (the page-transparency
+  // class is ScanPage's job — one owner). The lab is reached from the Scan
+  // tab's idle screen, so the scan loop is never running underneath.
   useEffect(() => {
-    const root = document.documentElement;
     let cancelled = false;
     void startPreview().then(
       () => {
@@ -55,13 +55,11 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
           return;
         }
         startedRef.current = true;
-        root.classList.add("camera-scanning"); // makes html/body/#root transparent
       },
       () => !cancelled && setPreviewFailed(true)
     );
     return () => {
       cancelled = true;
-      root.classList.remove("camera-scanning");
       if (startedRef.current) void stopPreview();
     };
   }, []);
@@ -96,7 +94,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   // Re-run the classifier over the log with the live thresholds, so slider
   // tweaks show immediately how many tagged samples they'd get right.
   const rescored = useMemo(
-    () => samples.map((s) => ({ s, v: classifyTorchDelta(s.delta, s.on, thresholds, s.off) })),
+    () => samples.map((s) => ({ s, v: classifyTorchDelta(s.delta, s.on, s.off, thresholds) })),
     [samples, thresholds]
   );
   const tagged = rescored.filter(({ s }) => s.groundTruth);

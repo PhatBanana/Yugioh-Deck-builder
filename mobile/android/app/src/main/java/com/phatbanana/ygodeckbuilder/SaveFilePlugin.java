@@ -3,7 +3,6 @@ package com.phatbanana.ygodeckbuilder;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
-import android.util.Base64;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -28,10 +27,8 @@ public class SaveFilePlugin extends Plugin {
   public void save(PluginCall call) {
     String fileName = call.getString("fileName", "export.txt");
     String mimeType = call.getString("mimeType", "application/octet-stream");
-    String text = call.getString("text");
-    String base64 = call.getString("base64");
-    if (text == null && base64 == null) {
-      call.reject("Provide 'text' or 'base64' content");
+    if (call.getString("text") == null) {
+      call.reject("Provide 'text' content");
       return;
     }
 
@@ -55,11 +52,7 @@ public class SaveFilePlugin extends Plugin {
     }
     Uri uri = result.getData().getData();
     try (OutputStream out = getContext().getContentResolver().openOutputStream(uri, "wt")) {
-      String text = call.getString("text");
-      byte[] bytes = text != null
-        ? text.getBytes(StandardCharsets.UTF_8)
-        : Base64.decode(call.getString("base64"), Base64.DEFAULT);
-      out.write(bytes);
+      out.write(call.getString("text").getBytes(StandardCharsets.UTF_8));
       out.flush();
       JSObject ret = new JSObject();
       ret.put("saved", true);

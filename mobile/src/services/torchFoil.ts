@@ -63,7 +63,7 @@ export async function captureTorchDiff(): Promise<TorchDiffSample | null> {
       off: off.stats,
       on: on.stats,
       delta,
-      verdict: classifyTorchDelta(delta, on.stats, undefined, off.stats),
+      verdict: classifyTorchDelta(delta, on.stats, off.stats),
       cardFound: off.cardFound && on.cardFound,
       exposureLocked,
       ms: Date.now() - started,

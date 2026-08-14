@@ -304,7 +304,12 @@ html.camera-scanning #root {
     @apply fixed inset-0 bg-black/60 backdrop-blur-[2px];
   }
   .sheet {
-    @apply bg-surface border border-line-strong/60 shadow-2xl shadow-black/60;
+    /* The height cap + scroll lives HERE so no sheet can repeat the
+       "content grows past the viewport and overflows off the top,
+       unreachable" bug (bottom sheets anchor to the bottom, so overflow
+       escapes upward). Individual sheets may still override with a
+       smaller max-h utility. */
+    @apply bg-surface border border-line-strong/60 shadow-2xl shadow-black/60 max-h-[92vh] overflow-y-auto;
   }
   /* Grab handle for bottom sheets. */
   .sheet-handle {
