@@ -19,6 +19,7 @@ import {
   RELEASES_PAGE,
 } from "../services/appUpdate";
 import { toast } from "./Toaster";
+import { todayISO } from "../lib/util";
 
 // Bottom sheet for exporting the collection/decks as a JSON file and
 // restoring from one (file pick or paste) — plus app/data upkeep (card
@@ -68,7 +69,7 @@ export default function BackupSheet({
   async function exportCsv() {
     try {
       const csv = await createCollectionCsv();
-      const name = `ygo-collection-${new Date().toISOString().slice(0, 10)}.csv`;
+      const name = `ygo-collection-${todayISO()}.csv`;
       const outcome = await exportTextFile(name, "text/csv", csv);
       if (outcome === "saved") toast("CSV saved", "success");
       else if (outcome === "failed") toast("Couldn't save the CSV", "error");

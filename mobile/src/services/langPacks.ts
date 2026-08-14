@@ -1,3 +1,4 @@
+import { DATA_PACK_LANGS } from "@shared/datapacks/transform";
 import { db, type MAltName } from "../db";
 import { fetchLangPack } from "./dataPacks";
 import { invalidateCandidateCache } from "./scanner";
@@ -13,23 +14,28 @@ export interface LangInfo {
   latin: boolean;
 }
 
-export const LANGS: LangInfo[] = [
-  { code: "de", label: "German", latin: true },
-  { code: "fr", label: "French", latin: true },
-  { code: "it", label: "Italian", latin: true },
-  { code: "es", label: "Spanish", latin: true },
-  { code: "pt", label: "Portuguese", latin: true },
-  { code: "ja", label: "Japanese", latin: false },
-  { code: "ko", label: "Korean", latin: false },
-];
+// Typed against the pack manifest: a language added to DATA_PACK_LANGS fails
+// compilation here until it gets a label, instead of silently never showing up.
+const LANG_META: Record<(typeof DATA_PACK_LANGS)[number], { label: string; latin: boolean }> = {
+  de: { label: "German", latin: true },
+  fr: { label: "French", latin: true },
+  it: { label: "Italian", latin: true },
+  es: { label: "Spanish", latin: true },
+  pt: { label: "Portuguese", latin: true },
+  ja: { label: "Japanese", latin: false },
+  ko: { label: "Korean", latin: false },
+};
 
-// Language codes with at least one installed name row.
+// Latin (scannable) languages listed first.
+export const LANGS: LangInfo[] = [...DATA_PACK_LANGS]
+  .map((code) => ({ code, ...LANG_META[code] }))
+  .sort((a, b) => Number(b.latin) - Number(a.latin));
+
+// Language codes with at least one installed name row — one indexed
+// distinct-keys query instead of a count per language.
 export async function installedLangs(): Promise<Set<string>> {
-  const langs = new Set<string>();
-  for (const l of LANGS) {
-    if ((await db.altNames.where("lang").equals(l.code).count()) > 0) langs.add(l.code);
-  }
-  return langs;
+  const keys = await db.altNames.orderBy("lang").uniqueKeys();
+  return new Set(keys.map(String));
 }
 
 // Downloads and installs (or refreshes) one language's name pack.

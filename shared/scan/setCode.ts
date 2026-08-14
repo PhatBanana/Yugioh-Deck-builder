@@ -107,25 +107,3 @@ export function matchPrintingCandidates(
   return printings.filter((p) => canonSetCode(p.code) === wantCanon);
 }
 
-// Matches an OCR'd set code against a card's known printings, returning the
-// printing whose code lines up. When several printings share the code but
-// differ in rarity (a card offered at two rarities in one set), the match is
-// ambiguous — prefer an exact region-included hit, otherwise give up rather
-// than guess a rarity wrong.
-export function matchPrinting(
-  ocrCode: string | null | undefined,
-  printings: PrintingRef[]
-): PrintingRef | null {
-  const hits = matchPrintingCandidates(ocrCode, printings);
-  if (hits.length === 0) return null;
-
-  const rarities = new Set(hits.map((p) => p.rarity));
-  if (rarities.size === 1) return hits[0];
-
-  // Ambiguous rarity: only commit if one printing matches the code exactly
-  // (region and all), so we don't stamp the wrong foil onto the copy.
-  const wantExact = ocrCode!.toUpperCase().replace(/[^A-Z0-9-]/g, "");
-  return (
-    hits.find((p) => p.code.toUpperCase().replace(/[^A-Z0-9-]/g, "") === wantExact) ?? null
-  );
-}

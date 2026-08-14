@@ -24,7 +24,7 @@ import {
 } from "../services/decks";
 import { addManyToWishlist } from "../services/wishlist";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { searchCardIds } from "../services/cardSearch";
+import { searchCardsForPicker } from "../services/deckListImport";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
 import SyncFirstNotice from "../components/SyncFirstNotice";
@@ -34,6 +34,7 @@ import DeckOddsSheet from "../components/DeckOddsSheet";
 import DuelToolsSheet from "../components/DuelToolsSheet";
 import ImportDeckCodeSheet from "../components/ImportDeckCodeSheet";
 import { shareDeck } from "../services/deckShare";
+import { exportTextFile } from "../services/backup";
 import { shareDeckImage } from "../services/deckImage";
 import ImportDeckListSheet from "../components/ImportDeckListSheet";
 import { toast } from "../components/Toaster";
@@ -244,13 +245,8 @@ function AddCardSearch({
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const results = useLiveQuery(async () => {
-    const q = debouncedQuery.trim().toLowerCase();
-    if (q.length < 2) return [] as MCard[];
-    // In-memory name index (card names + installed language packs) — no
-    // 13k-row IndexedDB scan per keystroke.
-    const ids = [...(await searchCardIds(q))];
-    const rows = (await db.cards.bulkGet(ids)).filter((c): c is MCard => !!c);
-    return rows.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 20);
+    // Shared picker search: in-memory name index with typo-tolerant fallback.
+    return searchCardsForPicker(debouncedQuery, 20);
   }, [debouncedQuery], []);
 
   async function add(card: MCard) {
@@ -421,14 +417,12 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   async function exportYdk() {
     const deck = await getDeck(deckId);
     if (!deck) return;
-    const blob = new Blob([deckToYdk(deck)], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${enriched!.ydkName}.ydk`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Exported .ydk", "success");
+    // Same save path as every other export: native Save-as dialog on Android
+    // (a hand-rolled anchor download is the unreliable path in a WebView),
+    // plain download in the browser.
+    const outcome = await exportTextFile(`${enriched!.ydkName}.ydk`, "text/plain", deckToYdk(deck));
+    if (outcome === "saved") toast("Exported .ydk", "success");
+    else if (outcome === "failed") toast("Couldn't save the .ydk", "error");
   }
 
   async function shareCode() {

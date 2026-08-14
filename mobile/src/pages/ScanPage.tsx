@@ -18,6 +18,7 @@ import SyncFirstNotice from "../components/SyncFirstNotice";
 import PasteImport from "../components/PasteImport";
 import DeckImport from "../components/DeckImport";
 import { useBackClose } from "../hooks/useBackClose";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { usePersistentState } from "../hooks/usePersistentState";
 import CardThumb from "../components/CardThumb";
 import { useCardDetail } from "../components/CardDetailModal";
@@ -385,15 +386,20 @@ export default function ScanPage({
     return () => root.classList.remove("camera-scanning");
   }, [cameraView, onImmersive]);
 
-  async function manualSearch(q: string) {
-    setManualQuery(q);
-    if (q.trim().length < 3) {
-      setManualMatches([]);
-      return;
-    }
-    const candidates = await getNameCandidates();
-    setManualMatches(matchCardName(q, candidates, { limit: 6, minScore: 0.4 }));
-  }
+  // Debounced like every other search box — the fuzzy matcher over 13k+
+  // names is far too heavy to run per keystroke.
+  const debouncedManual = useDebouncedValue(manualQuery, 250);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (debouncedManual.trim().length < 3) return [] as NameMatch[];
+      const candidates = await getNameCandidates();
+      return matchCardName(debouncedManual, candidates, { limit: 6, minScore: 0.4 });
+    })().then((m) => !cancelled && setManualMatches(m));
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedManual]);
 
   async function startScan() {
     try {
@@ -487,7 +493,7 @@ export default function ScanPage({
             <input
               type="search"
               value={manualQuery}
-              onChange={(e) => manualSearch(e.target.value)}
+              onChange={(e) => setManualQuery(e.target.value)}
               placeholder="Or add a card by name…"
               className="input-base w-full px-4 py-3 text-sm"
             />

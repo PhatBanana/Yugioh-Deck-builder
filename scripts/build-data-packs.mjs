@@ -10,6 +10,10 @@ import {
   buildLangPack,
   buildLimitRegs,
   buildYugipediaIds,
+  DATA_PACK_LANGS,
+  langPackName,
+  LIMIT_REGS_PACK,
+  YUGIPEDIA_IDS_PACK,
 } from "../shared/datapacks/transform.ts";
 
 // The aggregate is ~94 MB, which is over jsDelivr's 20 MB cap for
@@ -19,7 +23,6 @@ import {
 const AGGREGATE_URL =
   "https://raw.githubusercontent.com/DawnbrandBots/yaml-yugi/aggregate/cards.json";
 const OUT_DIR = "dist-data";
-const LANGS = ["ja", "ko", "de", "fr", "it", "es", "pt"];
 
 console.log(`Fetching ${AGGREGATE_URL} …`);
 const res = await fetch(AGGREGATE_URL);
@@ -79,9 +82,9 @@ const regs = buildLimitRegs(cards);
 if (Object.keys(regs).length < 1000) {
   throw new Error(`limit-regs suspiciously small (${Object.keys(regs).length}) — MD/Speed fields moved?`);
 }
-await write("limit-regs.json", regs);
-await write("yugipedia-ids.json", buildYugipediaIds(cards));
-for (const lang of LANGS) {
-  await write(`langpack-${lang}.json`, buildLangPack(cards, lang));
+await write(LIMIT_REGS_PACK, regs);
+await write(YUGIPEDIA_IDS_PACK, buildYugipediaIds(cards));
+for (const lang of DATA_PACK_LANGS) {
+  await write(langPackName(lang), buildLangPack(cards, lang));
 }
 console.log("done.");

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type MCard, type MTrade } from "../db";
 import { deleteTrade, listTrades, logTrade, type TradeSide } from "../services/trades";
+import { searchCardsForPicker } from "../services/deckListImport";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
@@ -97,12 +98,13 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
 
   const trades = useLiveQuery(() => listTrades(), [], []);
-  const results = useLiveQuery(async () => {
-    const q = debounced.trim().toLowerCase();
-    if (q.length < 2) return [] as MCard[];
-    const rows = await db.cards.filter((c) => c.nameLower.includes(q)).limit(8).toArray();
-    return rows.sort((a, b) => a.name.localeCompare(b.name));
-  }, [debounced], []);
+  // In-memory name index (with typo-tolerant fallback) — not a per-keystroke
+  // 13k-row IndexedDB scan.
+  const results = useLiveQuery(
+    () => searchCardsForPicker(debounced, 8),
+    [debounced],
+    []
+  );
 
   function addTo(card: MCard) {
     const setter = target === "gave" ? setGave : setGot;

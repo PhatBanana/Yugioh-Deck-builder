@@ -1,5 +1,5 @@
 import { canonSetCode, type PrintingRef } from "@shared/scan/setCode";
-import { db, getSyncMeta, setSyncMeta, type MPrintingIndex } from "../db";
+import { db, type MPrintingIndex } from "../db";
 
 // The global rarity/foil index: a set-code -> rarity lookup covering the whole
 // card database, built from the full card dump during a sync (the dump already
@@ -30,12 +30,7 @@ export async function rebuildPrintingIndex(
     await db.printingIndex.clear();
     await db.printingIndex.bulkPut(records);
   });
-  await setSyncMeta("printing_index_count", String(records.length));
   return records.length;
-}
-
-export async function printingIndexReady(): Promise<boolean> {
-  return (Number(await getSyncMeta("printing_index_count")) || 0) > 0;
 }
 
 // The rarities a scanned set code could be, from the local index (offline).

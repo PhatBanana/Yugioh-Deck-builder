@@ -3,11 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckRecommendation, MissingCard } from "@shared/recommendation/types";
 import type { PurchaseSuggestion } from "@shared/recommendation/purchases";
 import { db } from "../db";
-import {
-  getMetaDeckOwnership,
-  getPurchaseSuggestions,
-  getRecommendations,
-} from "../services/recommendations";
+import { getMetaDeckOwnership, getMetaTabData } from "../services/recommendations";
 import { strategyBlurb } from "@shared/metaDecks/strategy";
 import { saveMetaDeckAsDeck } from "../services/decks";
 import {
@@ -278,12 +274,19 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
     if (!cardCount) return; // nothing to recommend until the card DB is synced
     let cancelled = false;
     // Fetch all cached decks so era/strategy/budget filters have a full pool.
-    getRecommendations({ includeSide, limit: 200 })
-      .then((r) => !cancelled && setRecs(r))
-      .catch(() => !cancelled && setRecs([]));
-    getPurchaseSuggestions(8)
-      .then((p) => !cancelled && setPurchases(p))
-      .catch(() => !cancelled && setPurchases([]));
+    // One combined load — recommendations and purchase suggestions share the
+    // same owned-map scan and priced-deck join.
+    getMetaTabData({ includeSide, limit: 200, purchaseLimit: 8 })
+      .then((d) => {
+        if (cancelled) return;
+        setRecs(d.recommendations);
+        setPurchases(d.purchases);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRecs([]);
+        setPurchases([]);
+      });
     return () => {
       cancelled = true;
     };

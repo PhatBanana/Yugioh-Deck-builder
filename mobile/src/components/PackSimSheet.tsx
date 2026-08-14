@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { drawPack, getSetPool, type PackCard, type SetPool } from "../services/packSim";
-import { foilClass } from "../lib/foil";
-import { rarityBucket } from "@shared/scan/rarityVision";
+import { foilClass, rarityRank } from "../lib/foil";
 import { formatUsd } from "../lib/util";
 import { useBackClose } from "../hooks/useBackClose";
 import { useCardDetail } from "./CardDetailModal";
@@ -104,7 +103,8 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
                   <span className="text-neutral-400">
                     Pack value ≈ <span className="text-amber-300 tabular-nums">{formatUsd(packValue)}</span>
                   </span>
-                  {best && rarityRank(best.rarity) > 0 && (
+                  {/* No callout when the "best" pull is just a Common. */}
+                  {best && rarityRank(best.rarity) > 1 && (
                     <span className="text-neutral-400 truncate ml-2">
                       Best pull: <span className="text-amber-200">{best.rarity}</span>
                     </span>
@@ -126,15 +126,3 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
   );
 }
 
-// Ranks rarity tiers for "best pull" (higher = rarer), reusing the foil bucket.
-const BUCKET_RANK: Record<string, number> = {
-  matte: 0,
-  "holo-name": 1,
-  "holo-art": 2,
-  gold: 3,
-  rainbow: 4,
-  unknown: 1,
-};
-function rarityRank(rarity: string): number {
-  return BUCKET_RANK[rarityBucket(rarity)] ?? 1;
-}

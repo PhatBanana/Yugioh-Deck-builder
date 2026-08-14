@@ -4,7 +4,7 @@ import { rankByPrior, type RarityCandidate } from "@shared/scan/rarityPrior";
 import { narrowByVerdict, type TorchVerdict } from "@shared/scan/torchFoil";
 import { isFresh } from "../lib/util";
 import { db, type MCardSets } from "../db";
-import { addPrintingCopy, patchCollectionEntry } from "./collection";
+import { addPrintingCopy } from "./collection";
 import { lookupRaritiesByCode } from "./rarity";
 import { httpGetJson } from "./http";
 
@@ -54,15 +54,6 @@ export async function getCardPrintings(cardId: number): Promise<MCardSets["sets"
     // Offline / API failure: whatever we had cached (possibly nothing).
     return cached?.sets ?? [];
   }
-}
-
-// Sets (or clears) which printing the owned copies are. No-op when the card
-// isn't in the collection — mirrors setCondition.
-export async function setPrinting(
-  cardId: number,
-  printing: { code: string; rarity: string } | undefined
-): Promise<void> {
-  await patchCollectionEntry(cardId, { printing });
 }
 
 // What a scan managed to read off a card, resolved against its printings.

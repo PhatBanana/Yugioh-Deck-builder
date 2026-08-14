@@ -26,17 +26,18 @@ async function loadPricedDecks(): Promise<MetaDeck[]> {
   }));
 }
 
-export async function getRecommendations(options?: {
+// The Meta tab needs both at once — one owned-map scan and one priced-deck
+// join instead of two helpers independently redoing the identical load.
+export async function getMetaTabData(options?: {
   limit?: number;
   includeSide?: boolean;
-}): Promise<DeckRecommendation[]> {
+  purchaseLimit?: number;
+}): Promise<{ recommendations: DeckRecommendation[]; purchases: PurchaseSuggestion[] }> {
   const [owned, decks] = await Promise.all([getOwnedMap(), loadPricedDecks()]);
-  return recommendTopDecks(decks, owned, options);
-}
-
-export async function getPurchaseSuggestions(limit = 8): Promise<PurchaseSuggestion[]> {
-  const [owned, decks] = await Promise.all([getOwnedMap(), loadPricedDecks()]);
-  return rankPurchases(decks, owned, { limit });
+  return {
+    recommendations: recommendTopDecks(decks, owned, options),
+    purchases: rankPurchases(decks, owned, { limit: options?.purchaseLimit ?? 8 }),
+  };
 }
 
 export interface MetaDeckOwnedCard {

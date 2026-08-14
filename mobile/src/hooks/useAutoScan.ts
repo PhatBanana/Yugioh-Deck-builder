@@ -399,13 +399,14 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     }
   }, [commit, withPulse]);
 
-  const undoLast = useCallback(async () => {
-    const last = orderRef.current.pop();
-    if (last == null) return;
-    const id = last.id;
-    // Remove the exact printing this commit filed *before* dropping the
-    // quantity — the drop's reconcile would otherwise trim some other row.
-    if (last.printing) await addPrintingCopy(id, last.printing, -1);
+  // Removes one commit from the session at `idx` in orderRef: the exact
+  // filed printing goes first (the quantity-drop reconcile would otherwise
+  // trim some other row), then the owned count, then the session entry.
+  const removeCommitAt = useCallback(async (idx: number, statusText: string) => {
+    if (idx < 0 || idx >= orderRef.current.length) return;
+    const [commit] = orderRef.current.splice(idx, 1);
+    const id = commit.id;
+    if (commit.printing) await addPrintingCopy(id, commit.printing, -1);
     await addOwned(id, -1);
     setSession((prev) => {
       const entry = prev.find((e) => e.id === id);
@@ -414,27 +415,25 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       return prev.map((e) => (e.id === id ? { ...e, count: e.count - 1 } : e));
     });
     if (lockedIdRef.current === id) lockedIdRef.current = null;
-    setStatus("Removed last card");
+    setStatus(statusText);
   }, []);
+
+  const undoLast = useCallback(
+    () => removeCommitAt(orderRef.current.length - 1, "Removed last card"),
+    [removeCommitAt]
+  );
 
   // Targeted undo for the session review list: drops the most recent commit
   // of this card (so its exact filed printing is removed), not just the last
   // commit overall.
-  const removeOne = useCallback(async (entry: ScannedEntry) => {
-    const idx = orderRef.current.findLastIndex((o) => o.id === entry.id);
-    if (idx < 0) return;
-    const [commit] = orderRef.current.splice(idx, 1);
-    if (commit.printing) await addPrintingCopy(entry.id, commit.printing, -1);
-    await addOwned(entry.id, -1);
-    setSession((prev) => {
-      const e = prev.find((s) => s.id === entry.id);
-      if (!e) return prev;
-      if (e.count <= 1) return prev.filter((s) => s.id !== entry.id);
-      return prev.map((s) => (s.id === entry.id ? { ...s, count: s.count - 1 } : s));
-    });
-    if (lockedIdRef.current === entry.id) lockedIdRef.current = null;
-    setStatus(`Removed ${entry.name}`);
-  }, []);
+  const removeOne = useCallback(
+    (entry: ScannedEntry) =>
+      removeCommitAt(
+        orderRef.current.findLastIndex((o) => o.id === entry.id),
+        `Removed ${entry.name}`
+      ),
+    [removeCommitAt]
+  );
 
   const setPaused = useCallback((paused: boolean) => {
     pausedRef.current = paused;
