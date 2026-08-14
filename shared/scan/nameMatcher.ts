@@ -6,6 +6,12 @@
 export interface NameCandidate {
   id: number;
   name: string;
+  // Cached normalizeName(name), filled in lazily on first match. Candidate
+  // lists are long-lived (13k+ names, cached until a sync/language change),
+  // while matching runs per OCR line per frame — without the cache one scan
+  // tick re-normalized the same immutable strings hundreds of thousands of
+  // times.
+  norm?: string;
 }
 
 export interface NameMatch {
@@ -85,7 +91,7 @@ export function matchCardName(
 
   const matches: NameMatch[] = [];
   for (const c of candidates) {
-    const score = similarity(nq, normalizeName(c.name));
+    const score = similarity(nq, (c.norm ??= normalizeName(c.name)));
     if (score >= minScore) matches.push({ id: c.id, name: c.name, score });
   }
   matches.sort((a, b) => b.score - a.score);

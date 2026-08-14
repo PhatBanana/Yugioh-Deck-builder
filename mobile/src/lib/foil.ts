@@ -19,6 +19,9 @@ export function foilClass(rarity: string | undefined | null): string | null {
   }
 }
 
+// Flashiness rank of a rarity's foil bucket — the single ladder for "which
+// printing is the best pull / best thumbnail". (PackSimSheet once carried its
+// own copy that had already drifted on `unknown`.)
 const TIER: Record<string, number> = {
   rainbow: 5,
   gold: 4,
@@ -27,6 +30,11 @@ const TIER: Record<string, number> = {
   matte: 1,
   unknown: 0,
 };
+
+export function rarityRank(rarity: string | undefined | null): number {
+  if (!rarity) return 0;
+  return TIER[rarityBucket(rarity)] ?? 0;
+}
 
 // The flashiest rarity among a card's owned printings — what its thumbnail's
 // foil should show.

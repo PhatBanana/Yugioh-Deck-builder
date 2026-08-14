@@ -11,6 +11,7 @@ import { startPreview, stopPreview } from "../services/scanner";
 import { exportTextFile } from "../services/backup";
 import { useBackClose } from "../hooks/useBackClose";
 import { toast } from "./Toaster";
+import { todayISO } from "../lib/util";
 
 // Every tier you might be holding, straight from the rarity guide — a short
 // hand-picked list meant you couldn't tag the very cards the classifier is
@@ -84,7 +85,7 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
 
   async function shareLog() {
     const outcome = await exportTextFile(
-      `torch-foil-samples-${new Date().toISOString().slice(0, 10)}.json`,
+      `torch-foil-samples-${todayISO()}.json`,
       "application/json",
       JSON.stringify(samples, null, 2)
     );

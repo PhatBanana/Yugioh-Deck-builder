@@ -3,7 +3,7 @@ import {
   canonSetCode,
   detectEdition,
   extractSetCode,
-  matchPrinting,
+  matchPrintingCandidates,
   rarityAbbrev,
   type PrintingRef,
 } from "../../shared/scan/setCode";
@@ -76,7 +76,10 @@ describe("rarityAbbrev", () => {
   });
 });
 
-describe("matchPrinting", () => {
+// The candidate matcher is what the scan pipeline actually uses (the old
+// single-result matchPrinting wrapper is gone); prior ranking and the visual
+// pass disambiguate multi-rarity hits downstream.
+describe("matchPrintingCandidates", () => {
   const printings: PrintingRef[] = [
     { code: "LOB-EN005", rarity: "Ultra Rare" },
     { code: "SDY-006", rarity: "Common" },
@@ -85,32 +88,25 @@ describe("matchPrinting", () => {
   ];
 
   it("matches on the region-stripped, zero-padded code", () => {
-    expect(matchPrinting("LOB-EN005", printings)?.rarity).toBe("Ultra Rare");
-    expect(matchPrinting("LOB-005", printings)?.rarity).toBe("Ultra Rare");
-    expect(matchPrinting("MP23-EN123", printings)?.rarity).toBe("Secret Rare");
+    expect(matchPrintingCandidates("LOB-EN005", printings).map((p) => p.rarity)).toEqual([
+      "Ultra Rare",
+    ]);
+    expect(matchPrintingCandidates("LOB-005", printings).map((p) => p.rarity)).toEqual([
+      "Ultra Rare",
+    ]);
   });
 
-  it("returns null when nothing matches", () => {
-    expect(matchPrinting("ZZZ-EN999", printings)).toBeNull();
-    expect(matchPrinting(null, printings)).toBeNull();
-    expect(matchPrinting("LOB-EN005", [])).toBeNull();
-  });
-
-  it("prefers an exact region hit when one code carries two rarities", () => {
+  it("returns every printing sharing the code, across regions", () => {
     const dual: PrintingRef[] = [
       { code: "GFTP-EN001", rarity: "Ghost Rare" },
       { code: "GFTP-DE001", rarity: "Secret Rare" },
     ];
-    // Region matches DE exactly -> pick that one, not the ambiguous canon.
-    expect(matchPrinting("GFTP-DE001", dual)?.rarity).toBe("Secret Rare");
+    expect(matchPrintingCandidates("GFTP-FR001", dual)).toHaveLength(2);
   });
 
-  it("gives up on an ambiguous code with no exact region hit", () => {
-    const dual: PrintingRef[] = [
-      { code: "GFTP-EN001", rarity: "Ghost Rare" },
-      { code: "GFTP-DE001", rarity: "Secret Rare" },
-    ];
-    // Region "FR" matches neither exactly but both by canon -> ambiguous.
-    expect(matchPrinting("GFTP-FR001", dual)).toBeNull();
+  it("returns nothing when nothing matches", () => {
+    expect(matchPrintingCandidates("ZZZ-EN999", printings)).toEqual([]);
+    expect(matchPrintingCandidates(null, printings)).toEqual([]);
+    expect(matchPrintingCandidates("LOB-EN005", [])).toEqual([]);
   });
 });

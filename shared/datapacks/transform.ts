@@ -98,3 +98,14 @@ export function buildYugipediaIds(cards: YamlYugiCard[]): Record<string, number>
   }
   return out;
 }
+
+// ---- Pack manifest — the contract between the CI builder (scripts/
+// build-data-packs.mjs) and the app's fetcher (services/dataPacks.ts). Both
+// sides import THESE names; a rename or added language in one place used to
+// mean silent runtime 404s in the other, with nothing failing at build time.
+export const DATA_PACK_LANGS = ["ja", "ko", "de", "fr", "it", "es", "pt"] as const;
+export const LIMIT_REGS_PACK = "limit-regs.json";
+export const YUGIPEDIA_IDS_PACK = "yugipedia-ids.json";
+export function langPackName(lang: string): string {
+  return `langpack-${lang}.json`;
+}

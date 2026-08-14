@@ -124,6 +124,7 @@ function CardRow({
   owned,
   copies,
   img,
+  wished,
   selectable,
   selected,
   onToggleSelect,
@@ -132,6 +133,7 @@ function CardRow({
   owned: number;
   copies?: PrintingCopy[];
   img?: string | null;
+  wished?: boolean; // from the page's one shared wishlist query
   selectable?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: number) => void;
@@ -175,7 +177,7 @@ function CardRow({
       </button>
       {!selectable && (
         <>
-          <WishlistButton cardId={card.id} className="text-xl" />
+          <WishlistButton cardId={card.id} wished={wished} className="text-xl" />
           <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
         </>
       )}
@@ -242,6 +244,14 @@ export default function CardsPage() {
   );
 
   const cardCount = useLiveQuery(() => db.cards.count());
+  // One wishlist query for every heart in the list — an uncontrolled
+  // WishlistButton per row would run 50-150 individual live queries and
+  // re-fire all of them on any wishlist write.
+  const wishedIds = useLiveQuery(
+    async () => new Set((await db.wishlist.toArray()).map((w) => w.cardId)),
+    [],
+    new Set<number>()
+  );
   // One pass over the collection for everything the page derives from it —
   // owned counts, printing breakdowns (rarity summaries + ambiguous count),
   // chosen artworks and binder names. Previously five separate live queries
@@ -743,6 +753,7 @@ export default function CardsPage() {
               owned={ownedMap?.get(card.id) ?? 0}
               copies={copiesMap?.get(card.id)}
               img={artMap?.get(card.id) != null ? artSmallUrl(artMap.get(card.id)!) : undefined}
+              wished={wishedIds.has(card.id)}
               selectable={selectMode}
               selected={selected.has(card.id)}
               onToggleSelect={toggleSelect}
