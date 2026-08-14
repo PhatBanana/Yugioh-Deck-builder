@@ -1,4 +1,10 @@
-import { rarityBucket, type FoilStats } from "./rarityVision";
+import {
+  AMBIENT_RAINBOW_HUE,
+  GLARE_SATURATED,
+  isGlareSaturated,
+  rarityBucket,
+  type FoilStats,
+} from "./rarityVision";
 import type { RarityCandidate } from "./rarityPrior";
 
 // Torch-differential foil classification (experimental).
@@ -26,16 +32,15 @@ export interface TorchThresholds {
   goldness: number; // ON-frame name goldness that marks a gold plate (Ultra)
   hueSpread: number; // ON-frame whole-card hue spread that marks rainbow
   uniform: number; // whole-card delta this close to the max region = uniform
-  // ON-frame specular above this in BOTH name and art = the torch's mirror
+  // ON-frame specular above this in name or art = the torch's mirror
   // reflection off the glossy card face blew out the frame; region deltas no
-  // longer carry foil information. (First real device data: every reading on
-  // an S24 came back 0.5–0.87 in every region — an Ultra's gold name even
-  // read goldness 0.0, because blown-out pixels are white, not gold.)
+  // longer carry foil information. Defaulted from the shared constant in
+  // rarityVision (single source of truth for the device-measured physics),
+  // still overridable by the lab's sliders.
   saturated: number;
-  // OFF-frame (ambient) art hue spread that marks rainbow glitter. The
-  // secret family's speckle shows COLOR VARIANCE in ordinary light — the one
-  // signal that survives when the torch frame is glare-blown. From the same
-  // device data: Quarter Century samples read 0.44/0.61, Ultras 0.0/0.09.
+  // OFF-frame (ambient) art hue spread that marks rainbow glitter — the one
+  // signal that survives when the torch frame is glare-blown. Same shared
+  // constant as the single-frame pass.
   ambientHue: number;
 }
 
@@ -45,8 +50,8 @@ export const DEFAULT_TORCH_THRESHOLDS: TorchThresholds = {
   goldness: 0.25,
   hueSpread: 0.35,
   uniform: 0.7,
-  saturated: 0.45,
-  ambientHue: 0.3,
+  saturated: GLARE_SATURATED,
+  ambientHue: AMBIENT_RAINBOW_HUE,
 };
 
 export type TorchTier =
@@ -83,8 +88,8 @@ export function deltaOf(off: FoilStats, on: FoilStats): RegionDelta {
 export function classifyTorchDelta(
   delta: RegionDelta,
   on: FoilStats,
-  t: TorchThresholds = DEFAULT_TORCH_THRESHOLDS,
-  off?: FoilStats
+  off?: FoilStats,
+  t: TorchThresholds = DEFAULT_TORCH_THRESHOLDS
 ): TorchVerdict {
   const reasons: string[] = [];
   const name = Math.max(0, delta.name);
@@ -107,7 +112,7 @@ export function classifyTorchDelta(
   // still pure glare. The reading that survives is the AMBIENT frame's hue
   // spread: rainbow glitter shows color variance without any torch. Use it
   // if we have it; otherwise admit the reading is unusable.
-  if (Math.max(on.name.specular, on.art.specular) >= t.saturated) {
+  if (isGlareSaturated(on, t.saturated)) {
     const ambient = off?.art.hueSpread ?? 0;
     if (off && ambient >= t.ambientHue) {
       reasons.push(

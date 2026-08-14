@@ -8,6 +8,7 @@
 // example with the app's own foil emulation (see .foil-* in index.css),
 // with a Yugipedia link for anyone wanting real photos.
 
+import { rarityAbbrev } from "./setCode";
 import { traitsFor, type RarityTraits } from "./rarityTraits";
 
 export interface RarityGuideEntry {
@@ -100,21 +101,12 @@ const ENTRIES: Omit<RarityGuideEntry, "traits" | "abbrev">[] = [
   },
 ];
 
-// Short label used on session chips and pickers, mirroring rarityAbbrev's
-// style but kept here so the guide is self-contained.
-function abbrevFor(rarity: string): string {
-  const words = rarity.replace(/'s\b/g, "").split(/\s+/).filter(Boolean);
-  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
-  return words
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 4);
-}
-
+// Abbreviations come from the same helper every chip and picker uses — a
+// local copy here once showed "SR" while the rest of the app showed "ScR"
+// for the same card (and collapsed Super/Secret to the same label).
 export const RARITY_GUIDE: RarityGuideEntry[] = ENTRIES.map((e) => ({
   ...e,
-  abbrev: abbrevFor(e.rarity),
+  abbrev: rarityAbbrev(e.rarity),
   traits: traitsFor(e.rarity),
 }));
 

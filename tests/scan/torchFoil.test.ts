@@ -66,8 +66,8 @@ describe("classifyTorchDelta", () => {
 
   it("thresholds are tunable (a stricter minSignal downgrades to common)", () => {
     const on = stats(region(0.12), region(0.03), region(0.04));
-    const relaxed = classifyTorchDelta(deltaOf(OFF, on), on, DEFAULT_TORCH_THRESHOLDS);
-    const strict = classifyTorchDelta(deltaOf(OFF, on), on, {
+    const relaxed = classifyTorchDelta(deltaOf(OFF, on), on, OFF, DEFAULT_TORCH_THRESHOLDS);
+    const strict = classifyTorchDelta(deltaOf(OFF, on), on, OFF, {
       ...DEFAULT_TORCH_THRESHOLDS,
       minSignal: 0.2,
     });
@@ -96,7 +96,7 @@ describe("classifyTorchDelta on real glare-saturated device data", () => {
       region(0.8667, 0.0503, 0.1527),
       region(0.6179, 0.0362, 0.2151)
     );
-    const v = classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off);
+    const v = classifyTorchDelta(deltaOf(off, on), on, off);
     expect(v.tier).toBe("secret+");
     expect(v.confidence).toBeGreaterThanOrEqual(0.6);
   });
@@ -108,7 +108,7 @@ describe("classifyTorchDelta on real glare-saturated device data", () => {
       region(0.7772, 0.0851, 0.0919),
       region(0.5325, 0.0502, 0.1971)
     );
-    expect(classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off).tier).toBe(
+    expect(classifyTorchDelta(deltaOf(off, on), on, off).tier).toBe(
       "secret+"
     );
   });
@@ -123,7 +123,7 @@ describe("classifyTorchDelta on real glare-saturated device data", () => {
       region(0.6511, 0.0305, 0.1956),
       region(0.5109, 0.0637, 0.2931)
     );
-    const v = classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off);
+    const v = classifyTorchDelta(deltaOf(off, on), on, off);
     expect(v.tier).toBe("unknown");
     expect(v.confidence).toBe(0);
   });
@@ -135,7 +135,7 @@ describe("classifyTorchDelta on real glare-saturated device data", () => {
       region(0.7503, 0.0535, 0.1035),
       region(0.5426, 0.0487, 0.1805)
     );
-    expect(classifyTorchDelta(deltaOf(off, on), on, DEFAULT_TORCH_THRESHOLDS, off).tier).toBe(
+    expect(classifyTorchDelta(deltaOf(off, on), on, off).tier).toBe(
       "unknown"
     );
   });

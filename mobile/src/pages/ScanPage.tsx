@@ -371,22 +371,19 @@ export default function ScanPage({
     <ScanSettingsSheet settings={settings} update={update} onClose={() => setSettingsOpen(false)} />
   ) : null;
 
-  // Both the scan overlay and the foil lab are fullscreen camera views — hide
-  // the app chrome for either.
+  // Both the scan overlay and the foil lab are fullscreen camera views: hide
+  // the app chrome, and toggle the <html> class that makes html/body/#root
+  // transparent so the behind-the-webview preview shows through. One owner
+  // for the class — the lab starts/stops its own preview but never touches
+  // the class, so there's no second writer to race with.
+  const cameraView = scan.scanning || labOpen;
   useEffect(() => {
-    onImmersive(scan.scanning || labOpen);
-  }, [scan.scanning, labOpen, onImmersive]);
-
-  // Toggle on <html> so the CSS can make html/body/#root all transparent,
-  // letting the behind-the-webview camera preview show through. Keyed on
-  // scanning alone — the lab owns the class while it's open, so this effect
-  // must not re-run and clear it out from under the lab.
-  useEffect(() => {
+    onImmersive(cameraView);
     const root = document.documentElement;
-    if (scan.scanning) root.classList.add("camera-scanning");
+    if (cameraView) root.classList.add("camera-scanning");
     else root.classList.remove("camera-scanning");
     return () => root.classList.remove("camera-scanning");
-  }, [scan.scanning]);
+  }, [cameraView, onImmersive]);
 
   async function manualSearch(q: string) {
     setManualQuery(q);

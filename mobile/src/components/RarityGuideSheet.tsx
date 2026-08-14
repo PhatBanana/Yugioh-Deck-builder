@@ -1,12 +1,12 @@
-import { useEffect, useRef } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useRef, useState } from "react";
 import {
+  guideEntryFor,
   guideReferenceUrl,
   RARITY_GUIDE,
   type RarityGuideEntry,
 } from "@shared/scan/rarityGuide";
-import { db } from "../db";
-import { foilClass } from "../lib/foil";
+import { db, type MCard } from "../db";
+import CardThumb from "./CardThumb";
 import { useBackClose } from "../hooks/useBackClose";
 
 // "What does this rarity look like?" — a reference sheet for telling tiers
@@ -18,30 +18,41 @@ export default function RarityGuideSheet({
   focus,
   onClose,
 }: {
-  focus?: string; // rarity to scroll to, when opened from a picker
+  focus?: string; // printed rarity to scroll to, when opened from a picker
   onClose: () => void;
 }) {
   useBackClose(onClose);
   // A real card image makes the foils read properly. Any owned card with art
-  // works; fall back to the first card in the database.
-  const sample = useLiveQuery(async () => {
-    const owned = await db.collection.filter((e) => e.quantity > 0).first();
-    const card = owned ? await db.cards.get(owned.cardId) : undefined;
-    if (card?.img) return card;
-    return db.cards.filter((c) => !!c.img).first();
+  // works; fall back to the first card in the database. One-shot fetch — a
+  // live query here would subscribe unindexed scans to every cards/collection
+  // write for a purely decorative image.
+  const [sample, setSample] = useState<MCard | undefined>();
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const owned = await db.collection.filter((e) => e.quantity > 0).first();
+      const card = owned ? await db.cards.get(owned.cardId) : undefined;
+      return card?.img ? card : db.cards.filter((c) => !!c.img).first();
+    })().then((c) => !cancelled && setSample(c));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  // Printed rarities carry prefixes ("Platinum Secret Rare") — resolve to the
+  // guide tier the shared way instead of hoping for an exact string match.
+  const focusRarity = focus ? guideEntryFor(focus)?.rarity : undefined;
   const focusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (focus && focusRef.current) {
+    if (focusRarity && focusRef.current) {
       focusRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, [focus, sample]);
+  }, [focusRarity, sample]);
 
   return (
     <div className="sheet-backdrop z-[85] flex items-end justify-center" onClick={onClose}>
       <div
-        className="sheet w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" />
@@ -68,8 +79,7 @@ export default function RarityGuideSheet({
               key={entry.rarity}
               entry={entry}
               img={sample?.img ?? null}
-              highlighted={focus?.toLowerCase() === entry.rarity.toLowerCase()}
-              rowRef={focus?.toLowerCase() === entry.rarity.toLowerCase() ? focusRef : undefined}
+              rowRef={entry.rarity === focusRarity ? focusRef : undefined}
             />
           ))}
         </div>
@@ -87,15 +97,12 @@ export default function RarityGuideSheet({
 function GuideRow({
   entry,
   img,
-  highlighted,
   rowRef,
 }: {
   entry: RarityGuideEntry;
   img: string | null;
-  highlighted: boolean;
-  rowRef?: React.RefObject<HTMLDivElement | null>;
+  rowRef?: React.RefObject<HTMLDivElement | null>; // set = this row is focused
 }) {
-  const foil = foilClass(entry.rarity);
   const t = entry.traits;
   const chips: string[] = [];
   if (t.name) chips.push(`${t.name === "plain" ? "plain ink" : t.name} name`);
@@ -103,19 +110,9 @@ function GuideRow({
   if (t.embossed) chips.push("raised texture");
 
   return (
-    <div
-      ref={rowRef}
-      className={`panel p-3 ${highlighted ? "ring-1 ring-amber-400/60" : ""}`}
-    >
+    <div ref={rowRef} className={`panel p-3 ${rowRef ? "ring-1 ring-amber-400/60" : ""}`}>
       <div className="flex gap-3">
-        <span className="relative shrink-0 w-14">
-          {img ? (
-            <img src={img} alt="" className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
-          ) : (
-            <span className="block w-14 h-20 rounded-md bg-raised" />
-          )}
-          {foil && <span aria-hidden className={`foil ${foil}`} />}
-        </span>
+        <CardThumb img={img} w="w-14" h="h-20" rarity={entry.rarity} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <h3 className="text-sm font-semibold text-neutral-100">{entry.rarity}</h3>

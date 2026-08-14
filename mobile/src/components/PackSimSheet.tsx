@@ -52,7 +52,7 @@ export default function PackSimSheet({ setName, onClose }: { setName: string; on
       }}
     >
       <div
-        className="sheet w-full sm:max-w-md max-h-[92vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-handle" />

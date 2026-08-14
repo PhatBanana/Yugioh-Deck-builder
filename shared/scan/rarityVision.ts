@@ -41,21 +41,29 @@ const SPECULAR = 0.16; // a region counts as foiled above this glint fraction
 const RAINBOW = 0.45; // hue spread that reads as rainbow foil
 const GOLD = 0.3; // gold fraction that reads as a gold name plate
 const MARGIN = 0.06; // how much brighter one region must be than another
-// Rainbow glitter shows COLOR VARIANCE in ambient light, glints or not —
-// device data: Quarter Century art hue spread 0.44/0.61 vs Ultra 0.0/0.09.
-const AMBIENT_RAINBOW = 0.4;
-// A name or art region this blown out means the frame is glare (torch/flash
-// mirror off the gloss coat) and per-region comparison is meaningless.
-const SATURATED = 0.45;
+
+// Shared physical facts, exported so the torch classifier tunes off the SAME
+// numbers (they forked once — 0.4 vs 0.3 — with no record of which the data
+// supported). Rainbow glitter shows COLOR VARIANCE in ambient light, glints
+// or not: device data reads Quarter Century art hue spread 0.44/0.61 vs
+// Ultra 0.0/0.09, so 0.35 splits the observed gap. A name or art region
+// blown out past 0.45 means the frame is glare (torch/flash mirror off the
+// gloss coat) and per-region comparison is meaningless.
+export const AMBIENT_RAINBOW_HUE = 0.35;
+export const GLARE_SATURATED = 0.45;
+
+export function isGlareSaturated(s: FoilStats, threshold = GLARE_SATURATED): boolean {
+  return Math.max(s.name.specular, s.art.specular) >= threshold;
+}
 
 export function classifyFoil(s: FoilStats): FoilClass {
   // Hue-based rainbow reads survive both dim ambient frames (low specular)
   // and glare-blown flashed frames, so they come first.
-  if (s.art.hueSpread >= AMBIENT_RAINBOW) return "rainbow";
+  if (s.art.hueSpread >= AMBIENT_RAINBOW_HUE) return "rainbow";
   if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) return "rainbow";
   // Glare-blown and not rainbow: no honest read exists. "matte" here would
   // raise false conflicts against genuinely foiled cards.
-  if (Math.max(s.name.specular, s.art.specular) >= SATURATED) return "unclear";
+  if (isGlareSaturated(s)) return "unclear";
   const nameFoiled = s.name.specular >= SPECULAR;
   if (nameFoiled && s.name.goldness >= GOLD) return "gold-name";
   if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) return "holo-name";
