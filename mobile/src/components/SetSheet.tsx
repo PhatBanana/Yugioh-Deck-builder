@@ -3,11 +3,11 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
 import { getSetCompletion, type SetCompletion } from "../services/sets";
 import { formatUsd } from "../lib/util";
-import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
 import WishlistButton from "./WishlistButton";
 import { useCardDetail } from "./CardDetailModal";
 import PackSimSheet from "./PackSimSheet";
+import BottomSheet from "./BottomSheet";
 
 // Rows rendered per list before "Show more" — a 400-card set shouldn't mount
 // 400 rows (and their hearts) in one go.
@@ -21,7 +21,6 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
   const [missingLimit, setMissingLimit] = useState(PAGE);
   const [ownedLimit, setOwnedLimit] = useState(PAGE);
   const openCard = useCardDetail();
-  useBackClose(onClose);
   // One wishlist query for every heart in the list (instead of one per row).
   const wishedIds = useLiveQuery(
     async () => new Set((await db.wishlist.toArray()).map((w) => w.cardId)),
@@ -41,18 +40,8 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
   const pct = completion && total > 0 ? Math.round((completion.ownedCards.length / total) * 100) : 0;
 
   return (
-    <div className="sheet-backdrop z-[70] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <h2 className="text-lg font-semibold leading-tight">{setName}</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
-          </button>
-        </div>
+    <>
+      <BottomSheet onClose={onClose} title={setName}>
 
         {completion === undefined && <p className="text-sm text-neutral-500 py-6">Loading set…</p>}
         {completion === null && (
@@ -164,8 +153,8 @@ export default function SetSheet({ setName, onClose }: { setName: string; onClos
             )}
           </>
         )}
-      </div>
+      </BottomSheet>
       {packOpen && <PackSimSheet setName={setName} onClose={() => setPackOpen(false)} />}
-    </div>
+    </>
   );
 }

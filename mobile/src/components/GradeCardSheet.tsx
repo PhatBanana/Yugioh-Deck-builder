@@ -5,8 +5,8 @@ import {
   type CardCondition,
 } from "@shared/grading/analyze";
 import { gradeCardPhoto, type GradePhotoResult } from "../services/grader";
-import { useBackClose } from "../hooks/useBackClose";
 import { toast } from "./Toaster";
+import BottomSheet from "./BottomSheet";
 
 function wearLabel(f: number): { text: string; className: string } {
   if (f < 0.03) return { text: "clean", className: "text-emerald-400" };
@@ -91,7 +91,6 @@ export default function GradeCardSheet({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<GradePhotoResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  useBackClose(onClose);
 
   async function onPick(file: File) {
     setBusy(true);
@@ -110,83 +109,69 @@ export default function GradeCardSheet({
   }
 
   return (
-    <div className="sheet-backdrop z-[80] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <h2 className="text-lg font-semibold">Grade condition</h2>
+    <BottomSheet
+      onClose={onClose}
+      title="Grade condition"
+      layer="stacked"
+    >
+      {!result ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-neutral-400 leading-relaxed">
+            Lay the card flat on a plain, contrasting surface (dark card → light table),
+            fill most of the frame, avoid glare, and take a straight-on photo.
+          </p>
           <button
             type="button"
-            onClick={onClose}
-            className="text-neutral-400 text-2xl leading-none px-1"
-            aria-label="Close"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            className="btn-primary w-full py-4"
           >
-            ×
+            {busy ? "Analyzing…" : "📷 Photograph card"}
           </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onPick(f);
+              e.target.value = ""; // allow re-picking the same file
+            }}
+          />
         </div>
-
-        {!result ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-neutral-400 leading-relaxed">
-              Lay the card flat on a plain, contrasting surface (dark card → light table),
-              fill most of the frame, avoid glare, and take a straight-on photo.
-            </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <img
+            src={result.previewUrl}
+            alt="Graded card"
+            className="w-full max-h-56 object-contain rounded-lg bg-canvas"
+          />
+          <ResultView analysis={result.analysis} />
+          <div className="flex gap-2">
             <button
               type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-              className="btn-primary w-full py-4"
+              onClick={() => setResult(null)}
+              className="btn-ghost flex-1 py-2.5 text-sm"
             >
-              {busy ? "Analyzing…" : "📷 Photograph card"}
+              Retake
             </button>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void onPick(f);
-                e.target.value = ""; // allow re-picking the same file
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <img
-              src={result.previewUrl}
-              alt="Graded card"
-              className="w-full max-h-56 object-contain rounded-lg bg-canvas"
-            />
-            <ResultView analysis={result.analysis} />
-            <div className="flex gap-2">
+            {onSaveCondition && (
               <button
                 type="button"
-                onClick={() => setResult(null)}
-                className="btn-ghost flex-1 py-2.5 text-sm"
+                onClick={() => {
+                  onSaveCondition(result.analysis.grade.condition);
+                  onClose();
+                }}
+                className="btn-primary flex-1 py-2.5 text-sm"
               >
-                Retake
+                Save as {result.analysis.grade.condition}
               </button>
-              {onSaveCondition && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSaveCondition(result.analysis.grade.condition);
-                    onClose();
-                  }}
-                  className="btn-primary flex-1 py-2.5 text-sm"
-                >
-                  Save as {result.analysis.grade.condition}
-                </button>
-              )}
-            </div>
+            )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </BottomSheet>
   );
 }
