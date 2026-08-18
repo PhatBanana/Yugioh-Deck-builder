@@ -8,9 +8,9 @@ import {
   type ResolvedLine,
 } from "../services/deckListImport";
 import type { MCard } from "../db";
-import { useBackClose } from "../hooks/useBackClose";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import CardThumb from "./CardThumb";
+import BottomSheet from "./BottomSheet";
 import { toast } from "./Toaster";
 
 // Paste a written deck list (title, Monsters/Spells/Traps/Extra headers,
@@ -25,7 +25,6 @@ export default function ImportDeckListSheet({
   onClose: () => void;
   onImported: (deckId: string) => void;
 }) {
-  useBackClose(onClose);
   const [text, setText] = useState("");
   const [resolved, setResolved] = useState<ResolvedLine[] | null>(null);
   const [name, setName] = useState("");
@@ -66,18 +65,8 @@ export default function ImportDeckListSheet({
   const matchedCount = (resolved?.length ?? 0) - missingCount;
 
   return (
-    <div className="sheet-backdrop z-[70] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold">Import a deck list</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
-          </button>
-        </div>
+    <>
+      <BottomSheet onClose={onClose} title="Import a deck list">
 
         {!resolved ? (
           <>
@@ -159,7 +148,7 @@ export default function ImportDeckListSheet({
             </div>
           </>
         )}
-      </div>
+      </BottomSheet>
 
       {fixing !== null && resolved && (
         <FixMatchOverlay
@@ -171,7 +160,7 @@ export default function ImportDeckListSheet({
           onClose={() => setFixing(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -264,7 +253,6 @@ function FixMatchOverlay({
   onPick: (card: MCard) => void;
   onClose: () => void;
 }) {
-  useBackClose(onClose);
   const [query, setQuery] = useState(line.line.name);
   const debounced = useDebouncedValue(query, 200);
   const [results, setResults] = useState<MCard[]>([]);
@@ -286,56 +274,43 @@ function FixMatchOverlay({
   }, [debounced]);
 
   return (
-    <div
-      className="sheet-backdrop z-[80] flex items-end justify-center"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClose();
-      }}
+    <BottomSheet
+      onClose={onClose}
+      title={`Which card is "${line.line.name}"?`}
+      layer="stacked"
+      panelClass="h-[80vh] flex flex-col"
     >
-      <div
-        className="sheet w-full sm:max-w-md h-[80vh] flex flex-col rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-base font-semibold truncate">Which card is "{line.line.name}"?</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search card names…"
+        className="input-base w-full rounded-lg px-3 py-2 text-sm mb-2"
+      />
+      <div className="flex-1 overflow-y-auto flex flex-col divide-y divide-line/70">
+        {results.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onPick(c)}
+            className="flex items-center gap-2.5 w-full text-left py-1.5"
+          >
+            <CardThumb img={c.img} w="w-9" h="h-[52px]" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm truncate">{c.name}</div>
+              <div className="text-[11px] text-neutral-500 truncate">{c.type}</div>
+            </div>
           </button>
-        </div>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search card names…"
-          className="input-base w-full rounded-lg px-3 py-2 text-sm mb-2"
-        />
-        <div className="flex-1 overflow-y-auto flex flex-col divide-y divide-line/70">
-          {results.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onPick(c)}
-              className="flex items-center gap-2.5 w-full text-left py-1.5"
-            >
-              <CardThumb img={c.img} w="w-9" h="h-[52px]" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm truncate">{c.name}</div>
-                <div className="text-[11px] text-neutral-500 truncate">{c.type}</div>
-              </div>
-            </button>
-          ))}
-          {results.length === 0 && (
-            <p className="empty-state">
-              {searching
-                ? "Searching…"
-                : query.trim().length < 2
-                  ? "Type at least two letters."
-                  : "No cards match — try fewer words."}
-            </p>
-          )}
-        </div>
+        ))}
+        {results.length === 0 && (
+          <p className="empty-state">
+            {searching
+              ? "Searching…"
+              : query.trim().length < 2
+                ? "Type at least two letters."
+                : "No cards match — try fewer words."}
+          </p>
+        )}
       </div>
-    </div>
+    </BottomSheet>
   );
 }

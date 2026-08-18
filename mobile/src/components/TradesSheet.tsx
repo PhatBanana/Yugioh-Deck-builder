@@ -4,10 +4,10 @@ import { db, type MCard, type MTrade } from "../db";
 import { deleteTrade, listTrades, logTrade, type TradeSide } from "../services/trades";
 import { searchCardsForPicker } from "../services/deckListImport";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { useBackClose } from "../hooks/useBackClose";
 import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
 import { formatUsd, signedUsd } from "../lib/util";
+import BottomSheet from "./BottomSheet";
 
 // Trade tracker: history of logged trades with net value, and a form to log a
 // new one (search cards into "You gave" / "You got" piles).
@@ -95,7 +95,6 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
   const [apply, setApply] = useState(true);
   const [query, setQuery] = useState("");
   const debounced = useDebouncedValue(query, 250);
-  useBackClose(onClose);
 
   const trades = useLiveQuery(() => listTrades(), [], []);
   // In-memory name index (with typo-tolerant fallback) — not a per-keystroke
@@ -130,108 +129,95 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="sheet-backdrop z-[70] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Trades</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
+    <BottomSheet onClose={onClose} title="Trades">
+      {!creating && (
+        <>
+          <button type="button" onClick={() => setCreating(true)} className="btn-primary w-full py-2.5 text-sm">
+            ＋ Log a trade
           </button>
-        </div>
+          <div className="flex flex-col gap-2 mt-3">
+            {trades.map((t) => (
+              <TradeRow key={t.id} trade={t} />
+            ))}
+            {trades.length === 0 && (
+              <p className="empty-state">
+                No trades logged yet. Each entry stores both sides valued at the prices on that day.
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
-        {!creating && (
-          <>
-            <button type="button" onClick={() => setCreating(true)} className="btn-primary w-full py-2.5 text-sm">
-              ＋ Log a trade
-            </button>
-            <div className="flex flex-col gap-2 mt-3">
-              {trades.map((t) => (
-                <TradeRow key={t.id} trade={t} />
-              ))}
-              {trades.length === 0 && (
-                <p className="empty-state">
-                  No trades logged yet. Each entry stores both sides valued at the prices on that day.
-                </p>
-              )}
-            </div>
-          </>
-        )}
-
-        {creating && (
-          <div className="flex flex-col gap-3">
-            <div className="seg text-xs">
-              {(["gave", "got"] as const).map((t) => (
+      {creating && (
+        <div className="flex flex-col gap-3">
+          <div className="seg text-xs">
+            {(["gave", "got"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTarget(t)}
+                className={`seg-btn py-1.5 ${target === t ? "seg-on" : ""}`}
+              >
+                {t === "gave" ? "Adding to: You gave" : "Adding to: You got"}
+              </button>
+            ))}
+          </div>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search cards to add…"
+            className="input-base w-full px-4 py-2.5 text-sm"
+          />
+          {results.length > 0 && (
+            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+              {results.map((c) => (
                 <button
-                  key={t}
+                  key={c.id}
                   type="button"
-                  onClick={() => setTarget(t)}
-                  className={`seg-btn py-1.5 ${target === t ? "seg-on" : ""}`}
+                  onClick={() => addTo(c)}
+                  className="pressable flex items-center gap-2 rounded-lg border border-line bg-raised p-1.5 text-left"
                 >
-                  {t === "gave" ? "Adding to: You gave" : "Adding to: You got"}
+                  <CardThumb img={c.img} w="w-7" h="h-10" />
+                  <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
+                  <span className="text-xs text-neutral-500 shrink-0">
+                    {c.price != null ? formatUsd(c.price) : ""}
+                  </span>
                 </button>
               ))}
             </div>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search cards to add…"
-              className="input-base w-full px-4 py-2.5 text-sm"
-            />
-            {results.length > 0 && (
-              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-                {results.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => addTo(c)}
-                    className="pressable flex items-center gap-2 rounded-lg border border-line bg-raised p-1.5 text-left"
-                  >
-                    <CardThumb img={c.img} w="w-7" h="h-10" />
-                    <span className="text-sm flex-1 min-w-0 truncate">{c.name}</span>
-                    <span className="text-xs text-neutral-500 shrink-0">
-                      {c.price != null ? formatUsd(c.price) : ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+          )}
 
-            <div className="flex gap-4">
-              <SideEditor label="You gave" side={gave} onChange={setGave} />
-              <SideEditor label="You got" side={got} onChange={setGot} />
-            </div>
-
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Note (who with, where)…"
-              className="input-base w-full px-3 py-2 text-sm"
-            />
-            <label className="flex items-center gap-2 text-sm text-neutral-300">
-              <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
-              Update my collection quantities
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={gave.length === 0 && got.length === 0}
-                onClick={() => void save()}
-                className="btn-primary flex-1 py-2.5 text-sm"
-              >
-                Save trade
-              </button>
-              <button type="button" onClick={() => setCreating(false)} className="btn-ghost px-4 py-2.5 text-sm">
-                Cancel
-              </button>
-            </div>
+          <div className="flex gap-4">
+            <SideEditor label="You gave" side={gave} onChange={setGave} />
+            <SideEditor label="You got" side={got} onChange={setGot} />
           </div>
-        )}
-      </div>
-    </div>
+
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Note (who with, where)…"
+            className="input-base w-full px-3 py-2 text-sm"
+          />
+          <label className="flex items-center gap-2 text-sm text-neutral-300">
+            <input type="checkbox" checked={apply} onChange={(e) => setApply(e.target.checked)} />
+            Update my collection quantities
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={gave.length === 0 && got.length === 0}
+              onClick={() => void save()}
+              className="btn-primary flex-1 py-2.5 text-sm"
+            >
+              Save trade
+            </button>
+            <button type="button" onClick={() => setCreating(false)} className="btn-ghost px-4 py-2.5 text-sm">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </BottomSheet>
   );
 }

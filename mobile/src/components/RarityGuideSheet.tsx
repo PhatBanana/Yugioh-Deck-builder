@@ -7,7 +7,7 @@ import {
 } from "@shared/scan/rarityGuide";
 import { db, type MCard } from "../db";
 import CardThumb from "./CardThumb";
-import { useBackClose } from "../hooks/useBackClose";
+import BottomSheet from "./BottomSheet";
 
 // "What does this rarity look like?" — a reference sheet for telling tiers
 // apart by eye, with each entry rendered using the app's own foil emulation
@@ -21,7 +21,6 @@ export default function RarityGuideSheet({
   focus?: string; // printed rarity to scroll to, when opened from a picker
   onClose: () => void;
 }) {
-  useBackClose(onClose);
   // A real card image makes the foils read properly. Any owned card with art
   // works; fall back to the first card in the database. One-shot fetch — a
   // live query here would subscribe unindexed scans to every cards/collection
@@ -50,47 +49,30 @@ export default function RarityGuideSheet({
   }, [focusRarity, sample]);
 
   return (
-    <div className="sheet-backdrop z-[85] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold">📖 Rarity guide</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-neutral-400 text-2xl leading-none px-1"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        <p className="text-xs text-neutral-500 mb-3">
-          How to tell rarities apart by eye. The swatches are this app's foil
-          emulation — close, but tilt the real card under a light for the
-          truth. Tap any tier for photos on Yugipedia.
-        </p>
+    <BottomSheet onClose={onClose} title="📖 Rarity guide" layer="above">
+      <p className="text-xs text-neutral-500 mb-3">
+        How to tell rarities apart by eye. The swatches are this app's foil
+        emulation — close, but tilt the real card under a light for the
+        truth. Tap any tier for photos on Yugipedia.
+      </p>
 
-        <div className="flex flex-col gap-2">
-          {RARITY_GUIDE.map((entry) => (
-            <GuideRow
-              key={entry.rarity}
-              entry={entry}
-              img={sample?.img ?? null}
-              rowRef={entry.rarity === focusRarity ? focusRef : undefined}
-            />
-          ))}
-        </div>
-
-        <p className="text-[11px] text-neutral-600 mt-3">
-          Rarity is a foil finish, not different artwork — every printing of a
-          card shares one picture, which is why the same art appears above with
-          different sheens.
-        </p>
+      <div className="flex flex-col gap-2">
+        {RARITY_GUIDE.map((entry) => (
+          <GuideRow
+            key={entry.rarity}
+            entry={entry}
+            img={sample?.img ?? null}
+            rowRef={entry.rarity === focusRarity ? focusRef : undefined}
+          />
+        ))}
       </div>
-    </div>
+
+      <p className="text-[11px] text-neutral-600 mt-3">
+        Rarity is a foil finish, not different artwork — every printing of a
+        card shares one picture, which is why the same art appears above with
+        different sheens.
+      </p>
+    </BottomSheet>
   );
 }
 

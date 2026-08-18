@@ -11,8 +11,8 @@ import {
 import type { FoilClass } from "@shared/scan/rarityVision";
 import { foilClass } from "../lib/foil";
 import { formatUsd } from "../lib/util";
-import { useBackClose } from "../hooks/useBackClose";
 import RarityGuideSheet from "./RarityGuideSheet";
+import BottomSheet from "./BottomSheet";
 
 // One-tap rarity disambiguation: when a set code maps to several rarities,
 // judging the foil by eye is the hard part — so each candidate shows its foil
@@ -42,7 +42,6 @@ export default function RarityPickSheet({
   onPick: (c: RarityCandidate) => void;
   onClose: () => void;
 }) {
-  useBackClose(onClose);
   const cameraAnswers = useMemo(() => foilToAnswers(foil), [foil]);
   const [answers, setAnswers] = useState<TraitAnswers>(cameraAnswers);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -75,33 +74,28 @@ export default function RarityPickSheet({
     }`;
 
   return (
-    <div className="sheet-backdrop z-[80] flex items-end justify-center" onClick={onClose}>
-      <div
-        className="sheet w-full sm:max-w-md max-h-[85vh] overflow-y-auto rounded-t-3xl p-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-handle" />
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-base font-semibold leading-tight truncate pr-2">
-            Which rarity is it?
-          </h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-2xl leading-none px-1" aria-label="Close">
-            ×
-          </button>
-        </div>
-        <p className="text-xs text-neutral-500 mb-2">
-          <span className="block truncate">
+    <>
+      <BottomSheet
+        onClose={onClose}
+        title="Which rarity is it?"
+        layer="stacked"
+        panelClass="max-h-[85vh] overflow-y-auto"
+        subtitle={
+          <>
+            <span className="block truncate">
             {cardName} — this set printed it at {candidates.length} rarities.
             Match the foil on your card.
-          </span>
-          <button
+            </span>
+            <button
             type="button"
             onClick={() => setGuideOpen(true)}
             className="text-amber-300/90 mt-0.5"
-          >
+            >
             📖 What do these look like?
-          </button>
-        </p>
+            </button>
+          </>
+        }
+      >
 
         {(questions.name || questions.artFoiled || questions.embossed) && (
           <div className="panel p-2.5 mb-3 flex flex-col gap-2">
@@ -199,11 +193,11 @@ export default function RarityPickSheet({
             );
           })}
         </div>
-      </div>
+      </BottomSheet>
 
       {guideOpen && (
         <RarityGuideSheet focus={candidates[0]?.rarity} onClose={() => setGuideOpen(false)} />
       )}
-    </div>
+    </>
   );
 }
