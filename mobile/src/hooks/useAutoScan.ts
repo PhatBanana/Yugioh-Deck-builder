@@ -20,6 +20,7 @@ import {
   type ZoomState,
 } from "../services/scanner";
 import { captureTorchDiff } from "../services/torchFoil";
+import { classifyFoilFamily } from "../services/rarityModel";
 import {
   captureTrusted,
   clearPendingCaptures,
@@ -51,8 +52,7 @@ interface CardMarks {
   setCode?: string | null;
   edition?: string;
   foil?: FoilClass;
-  modelRarity?: string | null;
-  frame?: string; // raw frame, for the training-data capture
+  frame?: string; // raw frame, for the foil model + training-data capture
 }
 
 // Auto-add when a single frame is this confident, or when a slightly lower
@@ -231,11 +231,22 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       // Resolve the printing (rarity) in the background — the lookup shouldn't
       // hold up the scan loop.
       if (settingsRef.current.detectPrinting && (marks?.setCode || marks?.edition)) {
-        applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
-          foil: marks.foil,
-          modelRarity: marks.modelRarity,
-          torchVerdict,
-        })
+        (async () => {
+          // The learned foil model (when bundled) replaces the per-tick
+          // heuristic's verdict: one classification of the committed frame's
+          // card crop. Null = no model / no card box / low confidence — keep
+          // the heuristic's reading (the incumbent until a model ships,
+          // deleted after — ADR-0001).
+          let foil = marks.foil;
+          if (marks.frame) {
+            const family = await classifyFoilFamily(marks.frame);
+            if (family) foil = family;
+          }
+          return applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
+            foil,
+            torchVerdict,
+          });
+        })()
           .then((resolved) => {
             // Remember what was filed for this commit so undo removes exactly it.
             if (resolved.rarity !== undefined || resolved.edition !== undefined) {
@@ -295,7 +306,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     }
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity, frame } =
+      const { matches, matchedByPasscode, setCode, edition, foil, frame } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
@@ -314,13 +325,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name, matchedByPasscode, {
-            setCode,
-            edition,
-            foil,
-            modelRarity,
-            frame,
-          });
+          await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, frame });
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -423,18 +428,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity, frame } =
+      const { matches, matchedByPasscode, setCode, edition, foil, frame } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name, matchedByPasscode, {
-          setCode,
-          edition,
-          foil,
-          modelRarity,
-          frame,
-        });
+        await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, frame });
       } else {
         setStatus("No card recognised — try again");
       }

@@ -1,49 +1,66 @@
-// On-device rarity classifier seam (the "real AI" path).
+// On-device foil-family classifier seam.
 //
-// Rarity is ultimately a visual property, so the accurate long-term answer is
-// a learned image classifier running on the device's NPU — a TensorFlow-Lite
-// model driven through ML Kit's custom-model API, which the S24 Ultra runs on
-// its dedicated accelerator. That needs a trained model (and a labelled
-// dataset of card photos across rarities) which we don't have yet, so this is
-// scaffolding: the scan pipeline already asks for a classifier and folds its
-// answer in when present, and returns nothing until a model is dropped in.
+// ADR-0001: the model classifies FOIL FAMILY (matte / holo-name / holo-art /
+// gold-name / rainbow / unclear), never a rarity tier — the set-code index
+// answers "which tiers could this be", vision answers "which finish is
+// physically on the cardstock". Its output feeds the same reconcileRarity
+// narrowing the heuristic foil pass uses today, and replaces that heuristic
+// outright once a model ships (no fallback: the heuristic's failure mode is
+// confident wrongness under glare, which the trained "unclear" abstain class
+// exists to prevent).
 //
-// To enable it:
-//   1. Add a TFLite bridge dependency (e.g. a @capacitor-mlkit custom image
-//      labeler, or a capacitor-tflite plugin).
-//   2. Implement classify() to run the model on the card crop and map its top
-//      label + score to a { rarity, confidence } (rarity strings should match
-//      the card DB's, e.g. "Secret Rare").
-//   3. Return the instance from getRarityClassifier().
-// Nothing else in the scan flow needs to change — reconcileRarity already
-// treats a model answer as the strongest signal.
+// Runtime plan: tfjs-tflite (WASM + XNNPACK) in the webview — the model ships
+// as a public asset inside the APK, preprocessing stays in JS canvas (same
+// code path as training-data capture, no train/serve skew), and inference
+// runs ONCE per committed card, not per scan tick. To enable:
+//   1. `training/` produces a quantized .tflite; copy it to mobile/public/.
+//   2. Add @tensorflow/tfjs-tflite, implement FoilModel.classify() mapping
+//      the softmax to a FoilClass + confidence.
+//   3. Return the instance from getFoilModel().
+// Nothing else in the scan flow changes — commit() already asks.
 
-export interface RarityClassifier {
-  classify(imageDataUrl: string): Promise<{ rarity: string; confidence: number } | null>;
+import type { FoilClass } from "@shared/scan/rarityVision";
+import { cropCardFromFrame } from "./trainingCapture";
+
+export interface FoilModel {
+  // Classifies a card crop into its foil family. "unclear" is the trained
+  // abstain class — a positive "this frame is unreadable" verdict, not an
+  // error. The image is any loadable URL (data or object URL).
+  classify(imageUrl: string): Promise<{ family: FoilClass; confidence: number } | null>;
 }
 
-let cached: RarityClassifier | null | undefined;
+let cached: FoilModel | null | undefined;
 
-// The bundled classifier, or null when none is available on this build/device.
-// Memoised so the (future) native model handle is created once.
-export function getRarityClassifier(): RarityClassifier | null {
+// The bundled model, or null when none is available on this build/device.
+// Memoised so the (future) model handle is created once.
+export function getFoilModel(): FoilModel | null {
   if (cached === undefined) {
-    cached = null; // no on-device rarity model bundled yet
+    cached = null; // no on-device foil model bundled yet
   }
   return cached;
 }
 
-// Minimum confidence before a model answer is trusted over the set code.
+// Below this the model's verdict is treated as no opinion.
 export const MODEL_MIN_CONFIDENCE = 0.6;
 
-// Runs the classifier on a card crop when one exists; a no-op (null) otherwise,
-// so today it costs nothing per scan.
-export async function classifyRarity(imageDataUrl: string): Promise<string | null> {
-  const clf = getRarityClassifier();
-  if (!clf) return null;
+// Runs the model once on a committed frame: crop to the detected card box,
+// classify the crop. Null = no opinion (no model bundled, no card box found,
+// low confidence, or error) — the caller keeps whatever signal it had.
+// A returned "unclear" is a real verdict and flows into reconcileRarity,
+// which already treats it as contributing nothing.
+export async function classifyFoilFamily(frameDataUrl: string): Promise<FoilClass | null> {
+  const model = getFoilModel();
+  if (!model) return null;
   try {
-    const out = await clf.classify(imageDataUrl);
-    return out && out.confidence >= MODEL_MIN_CONFIDENCE ? out.rarity : null;
+    const crop = await cropCardFromFrame(frameDataUrl);
+    if (!crop) return null; // no card box → abstain, never classify garbage
+    const url = URL.createObjectURL(crop);
+    try {
+      const out = await model.classify(url);
+      return out && out.confidence >= MODEL_MIN_CONFIDENCE ? out.family : null;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   } catch {
     return null;
   }

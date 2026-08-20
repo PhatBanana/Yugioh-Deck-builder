@@ -11,8 +11,9 @@
 // It is deliberately a heuristic, not a classifier: a single frame can't see
 // the angle-shift that truly separates, say, Secret from Ultra. So the set
 // code stays authoritative — vision only confirms, flags, or breaks ties. The
-// learned on-device model (see mobile services/rarityModel.ts) plugs in
-// alongside this when one is available.
+// learned on-device foil-family model (mobile services/rarityModel.ts,
+// ADR-0001) outputs this same FoilClass vocabulary and replaces classifyFoil's
+// verdict when bundled; this heuristic is deleted the day that model ships.
 
 // "unclear" = the frame was glare-blown (torch/flash on a glossy card face)
 // and carries no honest foil information — distinct from "matte", which is a

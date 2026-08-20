@@ -14,7 +14,6 @@ import { cardFoilRegions, type FoilRegions } from "@shared/scan/foilRegions";
 import { detectCardBounds } from "@shared/grading/analyze";
 import { db } from "../db";
 import { invalidateSearchIndex } from "./cardSearch";
-import { classifyRarity } from "./rarityModel";
 
 export interface ScanOutcome {
   matches: NameMatch[];
@@ -26,12 +25,13 @@ export interface ScanOutcome {
   // used to infer the copy's printing/rarity. Either may be absent.
   setCode?: string | null;
   edition?: string;
-  // Visual foil class from the frame (second-pass rarity signal), and a
-  // learned-model rarity if an on-device classifier is bundled.
+  // Visual foil class from the frame (second-pass rarity signal). The learned
+  // foil-family model runs once per committed card (see rarityModel.ts), not
+  // here on every tick.
   foil?: FoilClass;
-  modelRarity?: string | null;
   // The raw (uncropped, full-res) frame this outcome was read from, for the
-  // training-data capture at commit time. Transient — dropped with the tick.
+  // foil model and training-data capture at commit time. Transient — dropped
+  // with the tick.
   frame?: string;
 }
 
@@ -373,11 +373,9 @@ async function ocrAndMatch(image: string, foil?: FoilClass): Promise<ScanOutcome
     .filter((l) => l.length >= 3);
 
   // Set code + edition come from the same OCR text regardless of how the card
-  // itself was identified (passcode or name). The on-device model (when
-  // bundled) reads the card crop; today it returns null with no cost.
+  // itself was identified (passcode or name).
   const setCode = extractSetCode(rawLines);
   const edition = detectEdition(rawLines);
-  const modelRarity = await classifyRarity(image);
 
   // Prefer the printed passcode: an exact card-id lookup beats fuzzy name
   // matching whenever the number is legible.
@@ -391,12 +389,11 @@ async function ocrAndMatch(image: string, foil?: FoilClass): Promise<ScanOutcome
         setCode,
         edition,
         foil,
-        modelRarity,
       };
     }
   }
 
   const candidates = await getNameCandidates();
   const matches = matchOcrLines(rawLines, candidates, { limit: 6, minScore: 0.55 });
-  return { matches, rawLines, setCode, edition, foil, modelRarity };
+  return { matches, rawLines, setCode, edition, foil };
 }
