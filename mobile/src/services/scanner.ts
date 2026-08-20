@@ -30,6 +30,9 @@ export interface ScanOutcome {
   // learned-model rarity if an on-device classifier is bundled.
   foil?: FoilClass;
   modelRarity?: string | null;
+  // The raw (uncropped, full-res) frame this outcome was read from, for the
+  // training-data capture at commit time. Transient — dropped with the tick.
+  frame?: string;
 }
 
 let candidateCache: NameCandidate[] | null = null;
@@ -177,8 +180,11 @@ export async function setScreenAwake(on: boolean): Promise<void> {
 export async function captureFrameAndMatch(): Promise<ScanOutcome> {
   if (!previewActive) return { matches: [], rawLines: [] };
   const { value } = await CameraPreview.captureSample({ quality: 92 });
-  const { image, foil } = await prepareFrame(`data:image/jpeg;base64,${value}`);
-  return ocrAndMatch(image, foil);
+  const raw = `data:image/jpeg;base64,${value}`;
+  const { image, foil } = await prepareFrame(raw);
+  const outcome = await ocrAndMatch(image, foil);
+  outcome.frame = raw;
+  return outcome;
 }
 
 // Captures one raw preview frame as a data URL — no crop, OCR or matching.

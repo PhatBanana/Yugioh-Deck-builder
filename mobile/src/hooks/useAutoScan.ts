@@ -20,6 +20,14 @@ import {
   type ZoomState,
 } from "../services/scanner";
 import { captureTorchDiff } from "../services/torchFoil";
+import {
+  captureTrusted,
+  clearPendingCaptures,
+  dropPendingCapture,
+  promotePendingCapture,
+  stashPendingCapture,
+  type TorchFramePair,
+} from "../services/trainingCapture";
 import { DEFAULT_SCAN_SETTINGS, type ScanSettings } from "./useScanSettings";
 import type { TorchVerdict } from "@shared/scan/torchFoil";
 
@@ -44,6 +52,7 @@ interface CardMarks {
   edition?: string;
   foil?: FoilClass;
   modelRarity?: string | null;
+  frame?: string; // raw frame, for the training-data capture
 }
 
 // Auto-add when a single frame is this confident, or when a slightly lower
@@ -203,15 +212,19 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       // where the light reflects. Runs inside the busy tick, so the loop
       // naturally waits (~1s); any failure just falls through.
       let torchVerdict: TorchVerdict | undefined;
+      let torchFrames: TorchFramePair | undefined;
       if (settingsRef.current.detectPrinting && settingsRef.current.torchRarity && marks?.setCode) {
         setStatus("💡 Checking foil — hold still…");
         // A continuously-lit torch would contaminate the "off" frame.
         const continuousTorch =
           torchWantedRef.current && settingsRef.current.flashMode === "continuous";
         if (continuousTorch) await setTorchNative(false);
-        const diff = await captureTorchDiff();
+        // Keep the frame pair when capturing training data — banked for a
+        // future two-frame model.
+        const diff = await captureTorchDiff(settingsRef.current.captureTraining);
         if (continuousTorch) await setTorchNative(true);
         torchVerdict = diff?.verdict;
+        torchFrames = diff?.frames;
         setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       }
 
@@ -233,6 +246,23 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
               };
             }
             tagSession(id, resolved);
+            // Training-data capture (best-effort). Trusted only when the set
+            // code maps to a single rarity — a catalog fact. Several rarities
+            // park the frame instead, promoted if the user confirms in the
+            // picker. (Torch/model confirmations never label training data.)
+            if (settingsRef.current.captureTraining && marks?.frame) {
+              const common = {
+                setCode: resolved.code ?? marks.setCode ?? null,
+                edition: resolved.edition,
+                frame: marks.frame,
+                torchFrames,
+              };
+              if (resolved.rarity && !resolved.candidates) {
+                void captureTrusted({ cardId: id, rarity: resolved.rarity, ...common });
+              } else if (resolved.candidates) {
+                void stashPendingCapture(id, common);
+              }
+            }
           })
           .catch(() => {});
       }
@@ -265,7 +295,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     }
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity, frame } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
@@ -284,7 +314,13 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
+          await commit(top.id, top.name, matchedByPasscode, {
+            setCode,
+            edition,
+            foil,
+            modelRarity,
+            frame,
+          });
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -322,6 +358,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
 
   const stop = useCallback(async () => {
     runningRef.current = false;
+    // Unconfirmed training frames don't outlive the session, by design.
+    clearPendingCaptures();
     if (timerRef.current) clearTimeout(timerRef.current);
     if (torchWantedRef.current) {
       torchWantedRef.current = false;
@@ -385,12 +423,18 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity, frame } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
+        await commit(top.id, top.name, matchedByPasscode, {
+          setCode,
+          edition,
+          foil,
+          modelRarity,
+          frame,
+        });
       } else {
         setStatus("No card recognised — try again");
       }
@@ -406,6 +450,9 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (idx < 0 || idx >= orderRef.current.length) return;
     const [commit] = orderRef.current.splice(idx, 1);
     const id = commit.id;
+    // A removed copy usually means a misread — its parked training frame
+    // must not become a labelled example.
+    dropPendingCapture(id);
     if (commit.printing) await addPrintingCopy(id, commit.printing, -1);
     await addOwned(id, -1);
     setSession((prev) => {
@@ -445,6 +492,9 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const resolveRarity = useCallback(async (entry: ScannedEntry, rarity: RarityCandidate) => {
     const from = { code: entry.code, rarity: entry.rarity, edition: entry.edition };
     const to = { code: rarity.code, rarity: rarity.rarity, edition: entry.edition };
+    // An active user choice is a trusted label — promote this entry's parked
+    // training frame (no-op when nothing was parked).
+    void promotePendingCapture(entry.id, rarity.rarity);
     await refilePrintingCopy(entry.id, from, to, entry.count);
     for (const o of orderRef.current) {
       if (
@@ -470,6 +520,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   useEffect(() => {
     return () => {
       runningRef.current = false;
+      clearPendingCaptures();
       if (timerRef.current) clearTimeout(timerRef.current);
       void stopPreview();
       void setScreenAwake(false);

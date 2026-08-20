@@ -7,6 +7,12 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
+import {
+  clearTrainingData,
+  exportTrainingZip,
+  trainingStats,
+} from "../services/trainingCapture";
+import { confirmDialog } from "./Confirm";
 import { toast } from "./Toaster";
 import BottomSheet from "./BottomSheet";
 
@@ -109,6 +115,87 @@ function LanguagePacks() {
   );
 }
 
+// Capture toggle + dataset footprint + export/clear. The dataset is card
+// photos with confirmed rarities, feeding the foil-classifier training set —
+// on-device only until the user exports it (see CONTEXT.md "Contribution").
+function TrainingData({
+  on,
+  onChange,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  const stats = useLiveQuery(trainingStats, []);
+  const [busy, setBusy] = useState(false);
+
+  async function exportZip() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const outcome = await exportTrainingZip();
+      if (outcome === "empty") toast("No training photos captured yet", "error");
+      else if (outcome === "failed") toast("Export failed — try again", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearAll() {
+    if (busy) return;
+    const ok = await confirmDialog({
+      title: "Delete captured training photos?",
+      message: `${(stats?.count ?? 0).toLocaleString()} card photos will be deleted from this phone. Export first if you want to keep them.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await clearTrainingData();
+      toast("Training photos deleted", "success");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <Toggle
+        label="Capture training photos"
+        hint="Saves a photo of each card whose rarity is certain (or that you confirm) to help train the rarity classifier. Stays on this phone until you export it."
+        on={on}
+        onChange={onChange}
+      />
+      {stats && stats.count > 0 && (
+        <div className="flex items-center justify-between gap-3 pb-3 -mt-1">
+          <span className="text-xs text-neutral-500">
+            {stats.count.toLocaleString()} photo{stats.count === 1 ? "" : "s"} ·{" "}
+            {(stats.bytes / (1024 * 1024)).toFixed(1)} MB
+          </span>
+          <span className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void exportZip()}
+              className={`text-xs px-2.5 py-1 rounded-full border bg-surface border-line text-neutral-300 ${busy ? "opacity-60" : ""}`}
+            >
+              {busy ? "…" : "Export zip"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void clearAll()}
+              className={`text-xs px-2.5 py-1 rounded-full border bg-surface border-line text-red-400 ${busy ? "opacity-60" : ""}`}
+            >
+              Clear
+            </button>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ScanSettingsSheet({
   settings,
   update,
@@ -152,6 +239,12 @@ export default function ScanSettingsSheet({
             hint="After each card is added, the torch flashes once — where the light reflects helps pick which rarity you're holding. Keep the card still until the flash."
             on={settings.torchRarity}
             onChange={(v) => update({ torchRarity: v })}
+          />
+        )}
+        {settings.detectPrinting && (
+          <TrainingData
+            on={settings.captureTraining}
+            onChange={(v) => update({ captureTraining: v })}
           />
         )}
 

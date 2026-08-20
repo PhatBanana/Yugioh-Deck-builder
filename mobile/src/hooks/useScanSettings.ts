@@ -25,6 +25,9 @@ export interface ScanSettings {
   /** Experimental: after each add, flash the torch once and read where the
    *  light reflects (foil signature) to pick between a code's rarities. */
   torchRarity: boolean;
+  /** Save a card photo + its confirmed rarity to the on-device training set
+   *  (for the foil classifier). Stays on the phone until exported. */
+  captureTraining: boolean;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -39,6 +42,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   zoomRatio: 1,
   detectPrinting: true,
   torchRarity: false,
+  captureTraining: true,
 };
 
 const STORAGE_KEY = "ygo-scan-settings";
