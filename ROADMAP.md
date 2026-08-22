@@ -163,8 +163,10 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
       pass; the torch pass stays. Dataset via in-app capture of trusted-label
       card crops (picker confirmations + unambiguous index hits, full-res,
       ~1 GB oldest-out cap, share-sheet export) + synthetic foil pre-training;
-      reproducible `training/` pipeline in-repo. The capture flow is shipped;
-      next: accumulate a dataset, then build `training/`.
+      reproducible `training/` pipeline in-repo. Shipped so far: the capture
+      flow, the synthetic foil renderer (`training/synthetic/`), and the eBay
+      real-photo harvester (`training/harvest/`, needs a free eBay dev keyset).
+      Next: accumulate captures, then `training/` ingest + train + scorecard.
 - [ ] **Sealed-product / barcode scanning** — the camera plugin supports
       barcode scanning; use it to add sealed products or look up by UPC.
       (Needs on-device iteration — barcode formats and a UPC lookup source.)

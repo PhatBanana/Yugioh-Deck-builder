@@ -10,8 +10,10 @@ The model classifies card crops into six families:
 ```
 training/dataset/
 ├── phone/       ← real captures, ingested from the app's zip exports
-└── synthetic/   ← rendered foils (see synthetic/), pre-training only
-    └── <family>/<cardId>-<n>.jpg + manifest.jsonl
+├── synthetic/   ← rendered foils (see synthetic/), pre-training only
+│   └── <family>/<cardId>-<n>.jpg + manifest.jsonl
+└── web/         ← real eBay listing photos (see harvest/), pre-training only
+    └── <family>/<itemId>.jpg + manifest.jsonl
 ```
 
 Ground rules from the design session:
@@ -32,6 +34,21 @@ Ground rules from the design session:
   cd synthetic
   npm install && npx playwright install chromium   # once
   npm run render -- --count 40 --variants 2        # → ../dataset/synthetic/
+  ```
+
+- `harvest/` — pulls real foil-card *photographs* from eBay via the official
+  Browse API (never HTML scraping). Labels are cleaned against the catalog:
+  the listing title's set code is looked up in the YGOPRODeck printing data,
+  and a listing is kept only when the code pins the rarity (or the title
+  names exactly one of the code's rarities) — the seller's claim is never
+  the label. Known bias: pricey cards are photographed in sleeves/toploaders.
+
+  ```bash
+  cd harvest
+  node ebay.mjs --check        # offline self-test, no keys needed
+  # one-time: create a free keyset at https://developer.ebay.com and put
+  # EBAY_CLIENT_ID / EBAY_CLIENT_SECRET in harvest/.env, then:
+  node ebay.mjs --max 400      # → ../dataset/web/
   ```
 
 - `ingest.py` (planned) — unpacks the app's exported zips into
