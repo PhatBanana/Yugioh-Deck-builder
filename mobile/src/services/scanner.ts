@@ -227,6 +227,79 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+// Focused retry for the set code. The full-frame OCR reads card names fine
+// but the set code is ~2mm print — at preview resolution it's a handful of
+// pixels and usually comes back as nothing (observed: sessions of 20 scans
+// with names matched and zero codes read). This re-reads just the code strip
+// — right-aligned under the art box on standard frames — cropped from the
+// raw frame at the detected card's position and upscaled 3× so the glyphs
+// are big enough for ML Kit. One extra OCR pass, run only at commit time
+// and only when the tick's full-frame pass missed the code.
+export async function ocrSetCodeStrip(frameDataUrl: string): Promise<string | null> {
+  try {
+    const img = await loadImage(frameDataUrl);
+    // Find the card in the raw frame (small downscale — bounds don't need
+    // resolution), then map back to full-res pixels.
+    const scale = Math.min(1, 220 / img.width);
+    const dw = Math.max(1, Math.round(img.width * scale));
+    const dh = Math.max(1, Math.round(img.height * scale));
+    const small = document.createElement("canvas");
+    small.width = dw;
+    small.height = dh;
+    const sctx = small.getContext("2d");
+    if (!sctx) return null;
+    sctx.drawImage(img, 0, 0, dw, dh);
+    const bounds = detectCardBounds({
+      data: sctx.getImageData(0, 0, dw, dh).data,
+      width: dw,
+      height: dh,
+    });
+
+    // Card-relative strip: below the art box (art ends at y≈0.62), right
+    // half-ish where the code prints. Generous margins — the crop must
+    // contain the code, OCR does the rest.
+    const STRIP = { x0: 0.3, x1: 0.98, y0: 0.575, y1: 0.725 };
+    let sx: number, sy: number, sw: number, sh: number;
+    if (bounds) {
+      const fx = img.width / dw;
+      const fy = img.height / dh;
+      const left = bounds.left * fx;
+      const top = bounds.top * fy;
+      const cw = (bounds.right - bounds.left) * fx;
+      const ch = (bounds.bottom - bounds.top) * fy;
+      sx = left + STRIP.x0 * cw;
+      sy = top + STRIP.y0 * ch;
+      sw = (STRIP.x1 - STRIP.x0) * cw;
+      sh = (STRIP.y1 - STRIP.y0) * ch;
+    } else {
+      // No card box — assume the framing guide's center placement (the same
+      // assumption the fixed foil regions make) and compose the strip with
+      // the 0.86×0.90 guide crop.
+      sx = img.width * (0.07 + 0.86 * STRIP.x0);
+      sy = img.height * (0.05 + 0.9 * STRIP.y0);
+      sw = img.width * 0.86 * (STRIP.x1 - STRIP.x0);
+      sh = img.height * 0.9 * (STRIP.y1 - STRIP.y0);
+    }
+    if (sw < 40 || sh < 12) return null;
+
+    const UPSCALE = 3;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(sw * UPSCALE);
+    canvas.height = Math.round(sh * UPSCALE);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+    const { results } = await Ocr.process({ image: canvas.toDataURL("image/jpeg", 0.95) });
+    const lines = results.flatMap((r) => r.text.split("\n")).map((l) => l.trim());
+    return extractSetCode(lines);
+  } catch {
+    return null;
+  }
+}
+
 // Trims the outer margins of the frame down to roughly where the card sits
 // inside the on-screen framing guide, and measures the card's foil signature
 // off the same canvas. Cropping the background (table, hands, neighbouring

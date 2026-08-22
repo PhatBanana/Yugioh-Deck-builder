@@ -12,6 +12,7 @@ import {
   captureFrameAndMatch,
   flipCamera,
   getZoomState,
+  ocrSetCodeStrip,
   refocusCamera,
   setScreenAwake,
   setTorch as setTorchNative,
@@ -207,6 +208,15 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setFlash({ name, count: nextCount });
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
+
+      // The tick's full-frame OCR reliably reads names but usually misses the
+      // tiny set code. Retry with a focused, upscaled read of the code strip
+      // on the committed frame — everything downstream (rarity, foil check,
+      // training capture) hangs off this one read.
+      if (settingsRef.current.detectPrinting && marks?.frame && !marks.setCode) {
+        const retried = await ocrSetCodeStrip(marks.frame);
+        if (retried) marks.setCode = retried;
+      }
 
       // Automatic foil check: ambient light rarely shows foil, so when the
       // set code maps to MORE THAN ONE rarity (the offline index answers
