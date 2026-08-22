@@ -12,6 +12,9 @@ export interface CommitTrace {
   codeFromTick: string | null;
   /** Result of the focused strip retry: code, "failed", or "skipped". */
   stripRetry: string | "failed" | "skipped";
+  /** Strip-retry internals: was a real still captured, at what resolution,
+   *  did bounds find the card, and what OCR actually read in the strip. */
+  stripDetail?: { still: boolean; frame: string; cardFound: boolean; lines: string[] };
   /** Rarities the offline index returned for the final code. */
   indexRarities: string[];
   /** Whether the torch foil check fired, and what it concluded. */
@@ -90,9 +93,14 @@ export function traceLine(t: CommitTrace): string {
   const code =
     t.codeFromTick ??
     (t.stripRetry !== "failed" && t.stripRetry !== "skipped" ? `${t.stripRetry} (strip)` : null);
+  const strip = t.stripDetail
+    ? ` [${t.stripDetail.still ? "still" : "sample"} ${t.stripDetail.frame}, card ${t.stripDetail.cardFound ? "✓" : "✗"}, read: ${
+        t.stripDetail.lines.length ? t.stripDetail.lines.slice(0, 4).join(" | ").slice(0, 80) : "nothing"
+      }]`
+    : "";
   const parts = [
     `${t.at} ${t.name}`,
-    `code: ${code ?? `none (tick miss, strip ${t.stripRetry})`}`,
+    `code: ${code ?? `none (tick miss, strip ${t.stripRetry})`}${strip}`,
     `index: ${t.indexRarities.length ? t.indexRarities.join(" / ") : "no match"}`,
     `flash: ${t.torch.fired ? `fired → ${t.torch.tier ?? "?"} (${((t.torch.confidence ?? 0) * 100).toFixed(0)}%)` : t.torch.reason}`,
     `filed: ${t.filed ? `${t.filed.rarity ?? "—"}${t.filed.ambiguous ? " (ambiguous)" : ""}${t.filed.agreement ? ` [${t.filed.agreement}]` : ""}` : "…"}`,

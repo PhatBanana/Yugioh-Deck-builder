@@ -10,6 +10,7 @@ import { formatUsd } from "../lib/util";
 import { toast } from "../components/Toaster";
 import {
   captureFrameAndMatch,
+  captureStillFrame,
   flipCamera,
   getZoomState,
   ocrSetCodeStrip,
@@ -247,13 +248,25 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       };
 
       // The tick's full-frame OCR reliably reads names but usually misses the
-      // tiny set code. Retry with a focused, upscaled read of the code strip
-      // on the committed frame — everything downstream (rarity, foil check,
-      // training capture) hangs off this one read.
+      // tiny set code. Take ONE real still photo (full sensor resolution —
+      // captureSample only returns the preview surface, which on some devices
+      // is viewport-sized and leaves the ~2mm code at a handful of pixels)
+      // and re-read just the code strip from it, upscaled. The still also
+      // replaces the preview frame for training capture, so dataset photos
+      // are genuinely full-res. Everything downstream (rarity, foil check,
+      // capture) hangs off this one read.
       if (settingsRef.current.detectPrinting && marks?.frame && !marks.setCode) {
-        const retried = await ocrSetCodeStrip(marks.frame);
-        trace.stripRetry = retried ?? "failed";
-        if (retried) marks.setCode = retried;
+        const still = await captureStillFrame();
+        if (still) marks.frame = still;
+        const probe = await ocrSetCodeStrip(marks.frame);
+        trace.stripRetry = probe.code ?? "failed";
+        trace.stripDetail = {
+          still: still != null,
+          frame: probe.frame,
+          cardFound: probe.cardFound,
+          lines: probe.lines,
+        };
+        if (probe.code) marks.setCode = probe.code;
       }
 
       // Automatic foil check: ambient light rarely shows foil, so when the

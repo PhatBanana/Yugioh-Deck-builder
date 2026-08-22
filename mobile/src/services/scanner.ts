@@ -195,6 +195,21 @@ export async function captureSampleFrame(): Promise<string | null> {
   return `data:image/jpeg;base64,${value}`;
 }
 
+// Takes a real still photo through the camera's capture pipeline — full
+// sensor resolution, unlike captureSample, which returns the preview surface
+// (device-dependent, can be as small as the CSS viewport). Slower (~hundreds
+// of ms), so it's for once-per-commit work: the set-code strip read and the
+// training-photo capture, both of which die at preview resolution.
+export async function captureStillFrame(): Promise<string | null> {
+  if (!previewActive) return null;
+  try {
+    const { value } = await CameraPreview.capture({ quality: 92 });
+    return value ? `data:image/jpeg;base64,${value}` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Measures a frame's foil stats exactly the way the scan loop does (same
 // center crop, same card-tracked regions with fixed-fraction fallback).
 // Exposed for the torch-diff lab so its numbers match production sampling.
@@ -235,9 +250,24 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 // raw frame at the detected card's position and upscaled 3× so the glyphs
 // are big enough for ML Kit. One extra OCR pass, run only at commit time
 // and only when the tick's full-frame pass missed the code.
-export async function ocrSetCodeStrip(frameDataUrl: string): Promise<string | null> {
+export interface StripProbe {
+  code: string | null;
+  cardFound: boolean; // bounds detection located the card (vs guide fallback)
+  frame: string; // source frame dimensions, e.g. "1080x2340"
+  lines: string[]; // what OCR actually read in the strip (diagnostics)
+}
+
+const NO_PROBE: StripProbe = { code: null, cardFound: false, frame: "?", lines: [] };
+
+export async function ocrSetCodeStrip(frameDataUrl: string): Promise<StripProbe> {
   try {
     const img = await loadImage(frameDataUrl);
+    const probe: StripProbe = {
+      code: null,
+      cardFound: false,
+      frame: `${img.width}x${img.height}`,
+      lines: [],
+    };
     // Find the card in the raw frame (small downscale — bounds don't need
     // resolution), then map back to full-res pixels.
     const scale = Math.min(1, 220 / img.width);
@@ -247,13 +277,14 @@ export async function ocrSetCodeStrip(frameDataUrl: string): Promise<string | nu
     small.width = dw;
     small.height = dh;
     const sctx = small.getContext("2d");
-    if (!sctx) return null;
+    if (!sctx) return NO_PROBE;
     sctx.drawImage(img, 0, 0, dw, dh);
     const bounds = detectCardBounds({
       data: sctx.getImageData(0, 0, dw, dh).data,
       width: dw,
       height: dh,
     });
+    probe.cardFound = bounds != null;
 
     // Card-relative strip around the code line. Measured on real card
     // geometry: the art box ends at y≈0.68 and the code prints in the gap
@@ -281,23 +312,27 @@ export async function ocrSetCodeStrip(frameDataUrl: string): Promise<string | nu
       sw = img.width * 0.86 * (STRIP.x1 - STRIP.x0);
       sh = img.height * 0.9 * (STRIP.y1 - STRIP.y0);
     }
-    if (sw < 40 || sh < 12) return null;
+    if (sw < 40 || sh < 12) return probe;
 
     const UPSCALE = 3;
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(sw * UPSCALE);
     canvas.height = Math.round(sh * UPSCALE);
     const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
+    if (!ctx) return probe;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     const { results } = await Ocr.process({ image: canvas.toDataURL("image/jpeg", 0.95) });
-    const lines = results.flatMap((r) => r.text.split("\n")).map((l) => l.trim());
-    return extractSetCode(lines);
+    probe.lines = results
+      .flatMap((r) => r.text.split("\n"))
+      .map((l) => l.trim())
+      .filter(Boolean);
+    probe.code = extractSetCode(probe.lines);
+    return probe;
   } catch {
-    return null;
+    return NO_PROBE;
   }
 }
 
