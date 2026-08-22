@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { Share } from "@capacitor/share";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   SCAN_DELAY_MAX,
@@ -12,6 +13,7 @@ import {
   exportTrainingZip,
   trainingStats,
 } from "../services/trainingCapture";
+import { clearTraces, getTraces, subscribeTraces, traceLine } from "../services/scanDiag";
 import { confirmDialog } from "./Confirm";
 import { toast } from "./Toaster";
 import BottomSheet from "./BottomSheet";
@@ -196,6 +198,74 @@ function TrainingData({
   );
 }
 
+// Last-scans pipeline trace: for each added card, where the printing chain
+// got to (code read → index → flash → filed → photo). Exists because "the
+// flash/rarity/capture does nothing" is undebuggable from a backup alone.
+function ScanDiagnostics() {
+  const traces = useSyncExternalStore(subscribeTraces, getTraces);
+  const [open, setOpen] = useState(false);
+
+  async function share() {
+    const text = traces.map(traceLine).join("\n\n");
+    try {
+      await Share.share({ title: "Scan diagnostics", text });
+    } catch {
+      // Dismissed — fine.
+    }
+  }
+
+  return (
+    <div className="py-3">
+      <button
+        type="button"
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setOpen(!open)}
+      >
+        <span>
+          <span className="block text-sm">Scan diagnostics</span>
+          <span className="block text-xs text-neutral-500 mt-0.5">
+            What the last {traces.length || "few"} scans read (set code, rarity, flash, photo).
+          </span>
+        </span>
+        <span className="text-neutral-500 text-xs">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="mt-2">
+          {traces.length === 0 ? (
+            <p className="text-xs text-neutral-500">No scans traced yet — add a card first.</p>
+          ) : (
+            <>
+              <div className="flex gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => void share()}
+                  className="text-xs px-2.5 py-1 rounded-full border bg-surface border-line text-neutral-300"
+                >
+                  Share
+                </button>
+                <button
+                  type="button"
+                  onClick={clearTraces}
+                  className="text-xs px-2.5 py-1 rounded-full border bg-surface border-line text-neutral-400"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {traces.map((t, i) => (
+                  <p key={i} className="text-[11px] leading-snug text-neutral-400 break-words">
+                    {traceLine(t)}
+                  </p>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ScanSettingsSheet({
   settings,
   update,
@@ -247,6 +317,7 @@ export default function ScanSettingsSheet({
             onChange={(v) => update({ captureTraining: v })}
           />
         )}
+        <ScanDiagnostics />
 
         <div className="py-3">
           <span className="block text-sm">Flash style</span>
