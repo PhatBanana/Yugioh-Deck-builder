@@ -255,10 +255,11 @@ export async function ocrSetCodeStrip(frameDataUrl: string): Promise<string | nu
       height: dh,
     });
 
-    // Card-relative strip: below the art box (art ends at y≈0.62), right
-    // half-ish where the code prints. Generous margins — the crop must
-    // contain the code, OCR does the rest.
-    const STRIP = { x0: 0.3, x1: 0.98, y0: 0.575, y1: 0.725 };
+    // Card-relative strip around the code line. Measured on real card
+    // geometry: the art box ends at y≈0.68 and the code prints in the gap
+    // above the type line, ≈y 0.685–0.715, right-aligned. The strip brackets
+    // that with margin on both sides for tilt and loose bounds.
+    const STRIP = { x0: 0.3, x1: 0.98, y0: 0.6, y1: 0.8 };
     let sx: number, sy: number, sw: number, sh: number;
     if (bounds) {
       const fx = img.width / dw;
