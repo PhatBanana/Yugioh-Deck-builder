@@ -235,10 +235,10 @@ export default function ScanSettingsSheet({
         />
         {settings.detectPrinting && (
           <Toggle
-            label="Torch rarity check (experimental)"
-            hint="After each card is added, the torch flashes once — where the light reflects helps pick which rarity you're holding. Keep the card still until the flash."
-            on={settings.torchRarity}
-            onChange={(v) => update({ torchRarity: v })}
+            label="Auto foil check (torch)"
+            hint="When a set code could be several rarities, the torch flashes once after the add — where the light reflects picks which one you're holding. Keep the card still until the flash. Single-rarity codes never flash."
+            on={settings.autoFoilCheck}
+            onChange={(v) => update({ autoFoilCheck: v })}
           />
         )}
         {settings.detectPrinting && (

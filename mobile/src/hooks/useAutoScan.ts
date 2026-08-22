@@ -4,6 +4,7 @@ import type { RarityCandidate } from "@shared/scan/rarityPrior";
 import { db } from "../db";
 import { addOwned, addPrintingCopy, refilePrintingCopy } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
+import { lookupRaritiesByCode } from "../services/rarity";
 import { buzz } from "../lib/haptics";
 import { formatUsd } from "../lib/util";
 import { toast } from "../components/Toaster";
@@ -207,25 +208,35 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
 
-      // Experimental torch rarity check: the card is still under the camera
-      // right after a commit, so flash an exposure-locked off/on pair and read
-      // where the light reflects. Runs inside the busy tick, so the loop
-      // naturally waits (~1s); any failure just falls through.
+      // Automatic foil check: ambient light rarely shows foil, so when the
+      // set code maps to MORE THAN ONE rarity (the offline index answers
+      // that instantly), flash an exposure-locked off/on pair and read where
+      // the light reflects — the card is still under the camera right after
+      // a commit. Single-rarity codes never flash; the check runs inside the
+      // busy tick, so the loop naturally waits (~1s); failures fall through.
       let torchVerdict: TorchVerdict | undefined;
       let torchFrames: TorchFramePair | undefined;
-      if (settingsRef.current.detectPrinting && settingsRef.current.torchRarity && marks?.setCode) {
-        setStatus("💡 Checking foil — hold still…");
-        // A continuously-lit torch would contaminate the "off" frame.
-        const continuousTorch =
-          torchWantedRef.current && settingsRef.current.flashMode === "continuous";
-        if (continuousTorch) await setTorchNative(false);
-        // Keep the frame pair when capturing training data — banked for a
-        // future two-frame model.
-        const diff = await captureTorchDiff(settingsRef.current.captureTraining);
-        if (continuousTorch) await setTorchNative(true);
-        torchVerdict = diff?.verdict;
-        torchFrames = diff?.frames;
-        setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
+      if (settingsRef.current.detectPrinting && settingsRef.current.autoFoilCheck && marks?.setCode) {
+        try {
+          const known = await lookupRaritiesByCode(marks.setCode);
+          if (new Set(known.map((k) => k.rarity)).size > 1) {
+            setStatus("💡 Checking foil — hold still…");
+            // A continuously-lit torch would contaminate the "off" frame.
+            const continuousTorch =
+              torchWantedRef.current && settingsRef.current.flashMode === "continuous";
+            if (continuousTorch) await setTorchNative(false);
+            // Keep the frame pair when capturing training data — banked for
+            // a future two-frame model.
+            const diff = await captureTorchDiff(settingsRef.current.captureTraining);
+            if (continuousTorch) await setTorchNative(true);
+            torchVerdict = diff?.verdict;
+            torchFrames = diff?.frames;
+            setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
+          }
+        } catch {
+          // Index not built yet (pre-sync) — skip the flash, the resolution
+          // path below still does its best.
+        }
       }
 
       // Resolve the printing (rarity) in the background — the lookup shouldn't
