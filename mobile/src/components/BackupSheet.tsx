@@ -16,7 +16,6 @@ import {
   installedBuild,
   openUpdate,
   RELEASES_PAGE,
-  type UpdateCheck,
 } from "../services/appUpdate";
 import { toast } from "./Toaster";
 import { todayISO } from "../lib/util";
@@ -39,9 +38,6 @@ export default function BackupSheet({
   const [pending, setPending] = useState<BackupFile | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [checking, setChecking] = useState(false);
-  // Last manual check's outcome, shown persistently — a 3-second toast is a
-  // bad surface for "is my updater even working?".
-  const [lastCheck, setLastCheck] = useState<UpdateCheck | null>(null);
   const [build, setBuild] = useState<number | null>(null);
   // Live so the "last backup" line updates the moment an export succeeds.
   const lastBackup = useLiveQuery(lastBackupAt, [], null);
@@ -110,7 +106,6 @@ export default function BackupSheet({
     setChecking(true);
     try {
       const res = await checkForUpdateResult(true);
-      setLastCheck(res);
       if (res.status === "update") {
         toast(`Update available (v${res.update.versionName})`, "info", {
           label: "Download",
@@ -185,33 +180,6 @@ export default function BackupSheet({
       >
         {checking ? "Checking…" : "🔄 Check for app updates"}
       </button>
-      {lastCheck && lastCheck.status !== "skipped" && (
-        <p className="text-xs mt-1 text-center">
-          {lastCheck.status === "update" && (
-            <span className="text-amber-300">
-              Newer build {lastCheck.update.build} on GitHub —{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => openUpdate(lastCheck.update)}
-              >
-                download
-              </button>
-            </span>
-          )}
-          {lastCheck.status === "current" && (
-            <span className="text-emerald-300/90">
-              Up to date — latest on GitHub is build {lastCheck.latest}
-            </span>
-          )}
-          {lastCheck.status === "unsupported" && (
-            <span className="text-neutral-500">Update checks only work in the installed app</span>
-          )}
-          {lastCheck.status === "error" && (
-            <span className="text-orange-300">{lastCheck.message}</span>
-          )}
-        </p>
-      )}
       <p className="text-[11px] text-neutral-600 mt-1 text-center">
         {build == null ? "Browser build" : `Installed build ${build}`} ·{" "}
         <button

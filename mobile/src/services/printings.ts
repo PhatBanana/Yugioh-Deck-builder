@@ -88,17 +88,16 @@ export async function raritiesForCode(cardId: number, setCode: string): Promise<
 }
 
 // Given a set code and/or edition read off a card while scanning — plus the
-// optional foil family (from the heuristic foil pass or, when bundled, the
-// learned foil model; the caller picks — see ADR-0001) — resolves the copy's
-// printing and stamps it onto the collection entry. The set code leads; the
-// torch pass then the foil family confirm it, flag a conflict, or break a tie
-// when a code maps to two rarities. Best-effort and only writes when the card
-// is in the collection. Returns what it applied for the scan UI.
+// optional visual foil class and any on-device model rarity — resolves the
+// copy's printing and stamps it onto the collection entry. The set code leads;
+// the model (if present) or the foil pass then confirms it, flags a conflict,
+// or breaks a tie when a code maps to two rarities. Best-effort and only writes
+// when the card is in the collection. Returns what it applied for the scan UI.
 export async function applyScannedPrinting(
   cardId: number,
   setCode: string | null,
   edition: string | undefined,
-  opts: { foil?: FoilClass; torchVerdict?: TorchVerdict } = {}
+  opts: { foil?: FoilClass; modelRarity?: string | null; torchVerdict?: TorchVerdict } = {}
 ): Promise<ResolvedPrinting> {
   let chosen: RarityCandidate | undefined;
   let agreement: Agreement | undefined;
@@ -121,7 +120,10 @@ export async function applyScannedPrinting(
       }
       if (!chosen && candidates.length > 0) {
         const rarities = candidates.map((c) => c.rarity);
-        if (opts.foil) {
+        if (opts.modelRarity && rarities.includes(opts.modelRarity)) {
+          chosen = candidates.find((c) => c.rarity === opts.modelRarity);
+          agreement = "confirmed";
+        } else if (opts.foil) {
           const verdict = reconcileRarity(rarities, opts.foil);
           agreement = verdict.agreement;
           if (verdict.rarity) chosen = candidates.find((c) => c.rarity === verdict.rarity);

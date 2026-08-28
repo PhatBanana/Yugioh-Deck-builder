@@ -160,32 +160,6 @@ export interface MSyncMeta {
   value: string;
 }
 
-// One captured training example for the foil-family classifier (see
-// docs/adr/0001 + CONTEXT.md "Capture"). Metadata and pixels live in separate
-// tables so stats/eviction scans never pull megabytes of JPEG into memory.
-// Deliberately excluded from JSON backups — the dataset leaves the phone via
-// its own zip export, not the backup file.
-export interface MTrainingMeta {
-  id?: number; // auto-increment
-  at: string; // ISO timestamp
-  cardId: number;
-  setCode: string | null;
-  rarity: string; // exact printed rarity (relabel-proof)
-  family: string; // FoilFamily — what training consumes
-  source: string; // CaptureSource: "picker-confirm" | "unambiguous-index"
-  edition?: string;
-  torch: boolean; // torch-diff ran on this card (pair frames present)
-  bytes: number; // total blob payload, for the cap
-  device?: string; // capture device (user agent), for dataset splits
-}
-
-export interface MTrainingBlob {
-  id: number; // = MTrainingMeta.id
-  jpeg: Blob; // full-res card crop
-  pairOff?: Blob; // torch-off frame, when the torch pass ran
-  pairOn?: Blob; // torch-on frame, same
-}
-
 // A user-built deck (document-style, cards embedded).
 export interface MDeck {
   id: string;
@@ -241,8 +215,6 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   trades: EntityTable<MTrade, "id">;
   printingIndex: Table<MPrintingIndex, [string, string]>;
   altNames: Table<MAltName, [number, string]>;
-  trainingMeta: EntityTable<MTrainingMeta, "id">;
-  trainingBlobs: EntityTable<MTrainingBlob, "id">;
 };
 
 db.version(1).stores({
@@ -302,13 +274,6 @@ db.version(8).stores({
 // speedLimit / ypId from the data-pack sync are non-indexed field additions.)
 db.version(9).stores({
   altNames: "[cardId+lang], lang, nameLower",
-});
-
-// v10 adds the training-data capture store (foil-family classifier dataset):
-// example metadata + pixel blobs in separate tables.
-db.version(10).stores({
-  trainingMeta: "++id, at",
-  trainingBlobs: "id",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

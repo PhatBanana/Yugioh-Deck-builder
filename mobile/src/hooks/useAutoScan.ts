@@ -4,16 +4,13 @@ import type { RarityCandidate } from "@shared/scan/rarityPrior";
 import { db } from "../db";
 import { addOwned, addPrintingCopy, refilePrintingCopy } from "../services/collection";
 import { applyScannedPrinting } from "../services/printings";
-import { lookupRaritiesByCode } from "../services/rarity";
 import { buzz } from "../lib/haptics";
 import { formatUsd } from "../lib/util";
 import { toast } from "../components/Toaster";
 import {
   captureFrameAndMatch,
-  captureStillFrame,
   flipCamera,
   getZoomState,
-  ocrSetCodeStrip,
   refocusCamera,
   setScreenAwake,
   setTorch as setTorchNative,
@@ -23,16 +20,6 @@ import {
   type ZoomState,
 } from "../services/scanner";
 import { captureTorchDiff } from "../services/torchFoil";
-import { classifyFoilFamily } from "../services/rarityModel";
-import { traceCommit, traceFiled, type CommitTrace } from "../services/scanDiag";
-import {
-  captureTrusted,
-  clearPendingCaptures,
-  dropPendingCapture,
-  promotePendingCapture,
-  stashPendingCapture,
-  type TorchFramePair,
-} from "../services/trainingCapture";
 import { DEFAULT_SCAN_SETTINGS, type ScanSettings } from "./useScanSettings";
 import type { TorchVerdict } from "@shared/scan/torchFoil";
 
@@ -56,7 +43,7 @@ interface CardMarks {
   setCode?: string | null;
   edition?: string;
   foil?: FoilClass;
-  frame?: string; // raw frame, for the foil model + training-data capture
+  modelRarity?: string | null;
 }
 
 // Auto-add when a single frame is this confident, or when a slightly lower
@@ -67,24 +54,6 @@ const AUTO_SCORE = 0.72;
 // Short confirmation beep via Web Audio (no plugin) so a mounted phone can be
 // used hands-free without watching the screen.
 let audioCtx: AudioContext | null = null;
-
-// Autoplay policy: an AudioContext created/resumed OUTSIDE a user gesture may
-// be refused, and commits happen deep in the async scan loop. Prime the
-// context while we're still inside the Start-tap's activation window so the
-// beeps that follow are allowed.
-function primeBeep() {
-  try {
-    const Ctor =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
-    audioCtx ??= new Ctor();
-    void audioCtx.resume();
-  } catch {
-    // No audio — beeps stay silent.
-  }
-}
-
 function playBeep() {
   try {
     const Ctor =
@@ -229,116 +198,31 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
       setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       setTimeout(() => setFlash(null), 900);
 
-      // Diagnostics: trace this commit through the whole printing pipeline
-      // so failures report WHERE the chain stopped (Scan settings → Scan
-      // diagnostics).
-      const trace: CommitTrace = {
-        at: new Date().toTimeString().slice(0, 8),
-        name,
-        codeFromTick: marks?.setCode ?? null,
-        stripRetry: "skipped",
-        indexRarities: [],
-        torch: { fired: false, reason: "pending" },
-        capture: settingsRef.current.captureTraining ? "none" : "off",
-        settings: {
-          detectPrinting: settingsRef.current.detectPrinting,
-          autoFoilCheck: settingsRef.current.autoFoilCheck,
-          captureTraining: settingsRef.current.captureTraining,
-        },
-      };
-
-      // The tick's full-frame OCR reliably reads names but usually misses the
-      // tiny set code. Take ONE real still photo (full sensor resolution —
-      // captureSample only returns the preview surface, which on some devices
-      // is viewport-sized and leaves the ~2mm code at a handful of pixels)
-      // and re-read just the code strip from it, upscaled. The still also
-      // replaces the preview frame for training capture, so dataset photos
-      // are genuinely full-res. Everything downstream (rarity, foil check,
-      // capture) hangs off this one read.
-      if (settingsRef.current.detectPrinting && marks?.frame && !marks.setCode) {
-        const still = await captureStillFrame();
-        if (still) marks.frame = still;
-        const probe = await ocrSetCodeStrip(marks.frame);
-        trace.stripRetry = probe.code ?? "failed";
-        trace.stripDetail = {
-          still: still != null,
-          frame: probe.frame,
-          cardFound: probe.cardFound,
-          lines: probe.lines,
-        };
-        if (probe.code) marks.setCode = probe.code;
-      }
-
-      // Automatic foil check: ambient light rarely shows foil, so when the
-      // set code maps to MORE THAN ONE rarity (the offline index answers
-      // that instantly), flash an exposure-locked off/on pair and read where
-      // the light reflects — the card is still under the camera right after
-      // a commit. Single-rarity codes never flash; the check runs inside the
-      // busy tick, so the loop naturally waits (~1s); failures fall through.
+      // Experimental torch rarity check: the card is still under the camera
+      // right after a commit, so flash an exposure-locked off/on pair and read
+      // where the light reflects. Runs inside the busy tick, so the loop
+      // naturally waits (~1s); any failure just falls through.
       let torchVerdict: TorchVerdict | undefined;
-      let torchFrames: TorchFramePair | undefined;
-      if (!settingsRef.current.detectPrinting) trace.torch.reason = "detectPrinting off";
-      else if (!settingsRef.current.autoFoilCheck) trace.torch.reason = "autoFoilCheck off";
-      else if (!marks?.setCode) trace.torch.reason = "no set code";
-      else {
-        try {
-          const known = await lookupRaritiesByCode(marks.setCode);
-          trace.indexRarities = [...new Set(known.map((k) => k.rarity))];
-          if (trace.indexRarities.length > 1) {
-            setStatus("💡 Checking foil — hold still…");
-            // A continuously-lit torch would contaminate the "off" frame.
-            const continuousTorch =
-              torchWantedRef.current && settingsRef.current.flashMode === "continuous";
-            if (continuousTorch) await setTorchNative(false);
-            // Keep the frame pair when capturing training data — banked for
-            // a future two-frame model.
-            const diff = await captureTorchDiff(settingsRef.current.captureTraining);
-            if (continuousTorch) await setTorchNative(true);
-            torchVerdict = diff?.verdict;
-            torchFrames = diff?.frames;
-            trace.torch = diff
-              ? {
-                  fired: true,
-                  tier: diff.verdict.tier,
-                  confidence: diff.verdict.confidence,
-                  reason: "multi-rarity code",
-                }
-              : { fired: false, reason: "capture failed" };
-            setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
-          } else {
-            trace.torch.reason =
-              trace.indexRarities.length === 1 ? "single-rarity code" : "code not in index";
-          }
-        } catch {
-          // Index not built yet (pre-sync) — skip the flash, the resolution
-          // path below still does its best.
-          trace.torch.reason = "index lookup failed";
-        }
+      if (settingsRef.current.detectPrinting && settingsRef.current.torchRarity && marks?.setCode) {
+        setStatus("💡 Checking foil — hold still…");
+        // A continuously-lit torch would contaminate the "off" frame.
+        const continuousTorch =
+          torchWantedRef.current && settingsRef.current.flashMode === "continuous";
+        if (continuousTorch) await setTorchNative(false);
+        const diff = await captureTorchDiff();
+        if (continuousTorch) await setTorchNative(true);
+        torchVerdict = diff?.verdict;
+        setStatus(byPasscode ? `Added ${name} (card №)` : `Added ${name}`);
       }
 
       // Resolve the printing (rarity) in the background — the lookup shouldn't
       // hold up the scan loop.
-      const willResolve =
-        settingsRef.current.detectPrinting && Boolean(marks?.setCode || marks?.edition);
-      if (!willResolve) trace.filed = { agreement: "not run (no code/edition)" };
-      traceCommit(trace);
       if (settingsRef.current.detectPrinting && (marks?.setCode || marks?.edition)) {
-        (async () => {
-          // The learned foil model (when bundled) replaces the per-tick
-          // heuristic's verdict: one classification of the committed frame's
-          // card crop. Null = no model / no card box / low confidence — keep
-          // the heuristic's reading (the incumbent until a model ships,
-          // deleted after — ADR-0001).
-          let foil = marks.foil;
-          if (marks.frame) {
-            const family = await classifyFoilFamily(marks.frame);
-            if (family) foil = family;
-          }
-          return applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
-            foil,
-            torchVerdict,
-          });
-        })()
+        applyScannedPrinting(id, marks.setCode ?? null, marks.edition, {
+          foil: marks.foil,
+          modelRarity: marks.modelRarity,
+          torchVerdict,
+        })
           .then((resolved) => {
             // Remember what was filed for this commit so undo removes exactly it.
             if (resolved.rarity !== undefined || resolved.edition !== undefined) {
@@ -349,40 +233,8 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
               };
             }
             tagSession(id, resolved);
-            // Training-data capture (best-effort). Trusted only when the set
-            // code maps to a single rarity — a catalog fact. Several rarities
-            // park the frame instead, promoted if the user confirms in the
-            // picker. (Torch/model confirmations never label training data.)
-            let captureOutcome: CommitTrace["capture"] =
-              settingsRef.current.captureTraining ? "none" : "off";
-            if (settingsRef.current.captureTraining && marks?.frame) {
-              const common = {
-                setCode: resolved.code ?? marks.setCode ?? null,
-                edition: resolved.edition,
-                frame: marks.frame,
-                torchFrames,
-              };
-              if (resolved.rarity && !resolved.candidates) {
-                void captureTrusted({ cardId: id, rarity: resolved.rarity, ...common });
-                captureOutcome = "trusted";
-              } else if (resolved.candidates) {
-                void stashPendingCapture(id, common);
-                captureOutcome = "pending";
-              }
-            }
-            traceFiled(
-              name,
-              {
-                rarity: resolved.rarity,
-                agreement: resolved.agreement,
-                ambiguous: resolved.ambiguous,
-              },
-              captureOutcome
-            );
           })
-          .catch(() => {
-            traceFiled(name, { agreement: "lookup failed" }, trace.capture);
-          });
+          .catch(() => {});
       }
     },
     [tagSession]
@@ -413,7 +265,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     }
     busyRef.current = true;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, frame } =
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
 
@@ -432,7 +284,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         if (matchedByPasscode || top.score >= STRONG_SCORE || stable) {
           lockedIdRef.current = top.id;
           pendingIdRef.current = null;
-          await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, frame });
+          await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
         } else {
           pendingIdRef.current = top.id;
           setStatus(`Reading ${top.name}…`);
@@ -450,8 +302,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
-    // Unlock audio while still inside the tap's user-activation window.
-    if (settingsRef.current.beepOnAdd) primeBeep();
     // Fresh session each time, so the end-of-session recap counts only this run.
     orderRef.current = [];
     setSession([]);
@@ -472,8 +322,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
 
   const stop = useCallback(async () => {
     runningRef.current = false;
-    // Unconfirmed training frames don't outlive the session, by design.
-    clearPendingCaptures();
     if (timerRef.current) clearTimeout(timerRef.current);
     if (torchWantedRef.current) {
       torchWantedRef.current = false;
@@ -537,12 +385,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const captureNow = useCallback(async () => {
     if (!runningRef.current) return;
     try {
-      const { matches, matchedByPasscode, setCode, edition, foil, frame } =
+      const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
         await withPulse(captureFrameAndMatch);
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;
-        await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, frame });
+        await commit(top.id, top.name, matchedByPasscode, { setCode, edition, foil, modelRarity });
       } else {
         setStatus("No card recognised — try again");
       }
@@ -558,9 +406,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (idx < 0 || idx >= orderRef.current.length) return;
     const [commit] = orderRef.current.splice(idx, 1);
     const id = commit.id;
-    // A removed copy usually means a misread — its parked training frame
-    // must not become a labelled example.
-    dropPendingCapture(id);
     if (commit.printing) await addPrintingCopy(id, commit.printing, -1);
     await addOwned(id, -1);
     setSession((prev) => {
@@ -600,9 +445,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   const resolveRarity = useCallback(async (entry: ScannedEntry, rarity: RarityCandidate) => {
     const from = { code: entry.code, rarity: entry.rarity, edition: entry.edition };
     const to = { code: rarity.code, rarity: rarity.rarity, edition: entry.edition };
-    // An active user choice is a trusted label — promote this entry's parked
-    // training frame (no-op when nothing was parked).
-    void promotePendingCapture(entry.id, rarity.rarity);
     await refilePrintingCopy(entry.id, from, to, entry.count);
     for (const o of orderRef.current) {
       if (
@@ -628,7 +470,6 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   useEffect(() => {
     return () => {
       runningRef.current = false;
-      clearPendingCaptures();
       if (timerRef.current) clearTimeout(timerRef.current);
       void stopPreview();
       void setScreenAwake(false);

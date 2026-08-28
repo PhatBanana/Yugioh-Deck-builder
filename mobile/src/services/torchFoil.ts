@@ -18,9 +18,6 @@ export interface TorchDiffSample {
   exposureLocked: boolean; // AE lock actually engaged
   ms: number; // total capture time
   groundTruth?: string; // user-tagged real rarity, for tuning
-  // The raw frame pair, present only when requested (training-data capture
-  // banks them for a future two-frame model). Big strings — request sparingly.
-  frames?: { off: string; on: string };
 }
 
 const AE_SETTLE_MS = 400; // let AE settle on the ambient scene before locking
@@ -40,7 +37,7 @@ async function trySetExposureMode(mode: string): Promise<boolean> {
 
 // Runs one off/on measurement pair. The preview must already be running.
 // Returns null when a frame can't be captured or measured.
-export async function captureTorchDiff(keepFrames = false): Promise<TorchDiffSample | null> {
+export async function captureTorchDiff(): Promise<TorchDiffSample | null> {
   const started = Date.now();
   let exposureLocked = false;
   try {
@@ -70,7 +67,6 @@ export async function captureTorchDiff(keepFrames = false): Promise<TorchDiffSam
       cardFound: off.cardFound && on.cardFound,
       exposureLocked,
       ms: Date.now() - started,
-      frames: keepFrames ? { off: offUrl, on: onUrl } : undefined,
     };
   } catch {
     return null;

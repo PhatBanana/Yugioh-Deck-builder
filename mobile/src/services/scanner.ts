@@ -14,6 +14,7 @@ import { cardFoilRegions, type FoilRegions } from "@shared/scan/foilRegions";
 import { detectCardBounds } from "@shared/grading/analyze";
 import { db } from "../db";
 import { invalidateSearchIndex } from "./cardSearch";
+import { classifyRarity } from "./rarityModel";
 
 export interface ScanOutcome {
   matches: NameMatch[];
@@ -25,14 +26,10 @@ export interface ScanOutcome {
   // used to infer the copy's printing/rarity. Either may be absent.
   setCode?: string | null;
   edition?: string;
-  // Visual foil class from the frame (second-pass rarity signal). The learned
-  // foil-family model runs once per committed card (see rarityModel.ts), not
-  // here on every tick.
+  // Visual foil class from the frame (second-pass rarity signal), and a
+  // learned-model rarity if an on-device classifier is bundled.
   foil?: FoilClass;
-  // The raw (uncropped, full-res) frame this outcome was read from, for the
-  // foil model and training-data capture at commit time. Transient — dropped
-  // with the tick.
-  frame?: string;
+  modelRarity?: string | null;
 }
 
 let candidateCache: NameCandidate[] | null = null;
@@ -180,11 +177,8 @@ export async function setScreenAwake(on: boolean): Promise<void> {
 export async function captureFrameAndMatch(): Promise<ScanOutcome> {
   if (!previewActive) return { matches: [], rawLines: [] };
   const { value } = await CameraPreview.captureSample({ quality: 92 });
-  const raw = `data:image/jpeg;base64,${value}`;
-  const { image, foil } = await prepareFrame(raw);
-  const outcome = await ocrAndMatch(image, foil);
-  outcome.frame = raw;
-  return outcome;
+  const { image, foil } = await prepareFrame(`data:image/jpeg;base64,${value}`);
+  return ocrAndMatch(image, foil);
 }
 
 // Captures one raw preview frame as a data URL — no crop, OCR or matching.
@@ -193,21 +187,6 @@ export async function captureSampleFrame(): Promise<string | null> {
   if (!previewActive) return null;
   const { value } = await CameraPreview.captureSample({ quality: 92 });
   return `data:image/jpeg;base64,${value}`;
-}
-
-// Takes a real still photo through the camera's capture pipeline — full
-// sensor resolution, unlike captureSample, which returns the preview surface
-// (device-dependent, can be as small as the CSS viewport). Slower (~hundreds
-// of ms), so it's for once-per-commit work: the set-code strip read and the
-// training-photo capture, both of which die at preview resolution.
-export async function captureStillFrame(): Promise<string | null> {
-  if (!previewActive) return null;
-  try {
-    const { value } = await CameraPreview.capture({ quality: 92 });
-    return value ? `data:image/jpeg;base64,${value}` : null;
-  } catch {
-    return null;
-  }
 }
 
 // Measures a frame's foil stats exactly the way the scan loop does (same
@@ -240,100 +219,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = src;
   });
-}
-
-// Focused retry for the set code. The full-frame OCR reads card names fine
-// but the set code is ~2mm print — at preview resolution it's a handful of
-// pixels and usually comes back as nothing (observed: sessions of 20 scans
-// with names matched and zero codes read). This re-reads just the code strip
-// — right-aligned under the art box on standard frames — cropped from the
-// raw frame at the detected card's position and upscaled 3× so the glyphs
-// are big enough for ML Kit. One extra OCR pass, run only at commit time
-// and only when the tick's full-frame pass missed the code.
-export interface StripProbe {
-  code: string | null;
-  cardFound: boolean; // bounds detection located the card (vs guide fallback)
-  frame: string; // source frame dimensions, e.g. "1080x2340"
-  lines: string[]; // what OCR actually read in the strip (diagnostics)
-}
-
-const NO_PROBE: StripProbe = { code: null, cardFound: false, frame: "?", lines: [] };
-
-export async function ocrSetCodeStrip(frameDataUrl: string): Promise<StripProbe> {
-  try {
-    const img = await loadImage(frameDataUrl);
-    const probe: StripProbe = {
-      code: null,
-      cardFound: false,
-      frame: `${img.width}x${img.height}`,
-      lines: [],
-    };
-    // Find the card in the raw frame (small downscale — bounds don't need
-    // resolution), then map back to full-res pixels.
-    const scale = Math.min(1, 220 / img.width);
-    const dw = Math.max(1, Math.round(img.width * scale));
-    const dh = Math.max(1, Math.round(img.height * scale));
-    const small = document.createElement("canvas");
-    small.width = dw;
-    small.height = dh;
-    const sctx = small.getContext("2d");
-    if (!sctx) return NO_PROBE;
-    sctx.drawImage(img, 0, 0, dw, dh);
-    const bounds = detectCardBounds({
-      data: sctx.getImageData(0, 0, dw, dh).data,
-      width: dw,
-      height: dh,
-    });
-    probe.cardFound = bounds != null;
-
-    // Card-relative strip around the code line. Measured on real card
-    // geometry: the art box ends at y≈0.68 and the code prints in the gap
-    // above the type line, ≈y 0.685–0.715, right-aligned. The strip brackets
-    // that with margin on both sides for tilt and loose bounds.
-    const STRIP = { x0: 0.3, x1: 0.98, y0: 0.6, y1: 0.8 };
-    let sx: number, sy: number, sw: number, sh: number;
-    if (bounds) {
-      const fx = img.width / dw;
-      const fy = img.height / dh;
-      const left = bounds.left * fx;
-      const top = bounds.top * fy;
-      const cw = (bounds.right - bounds.left) * fx;
-      const ch = (bounds.bottom - bounds.top) * fy;
-      sx = left + STRIP.x0 * cw;
-      sy = top + STRIP.y0 * ch;
-      sw = (STRIP.x1 - STRIP.x0) * cw;
-      sh = (STRIP.y1 - STRIP.y0) * ch;
-    } else {
-      // No card box — assume the framing guide's center placement (the same
-      // assumption the fixed foil regions make) and compose the strip with
-      // the 0.86×0.90 guide crop.
-      sx = img.width * (0.07 + 0.86 * STRIP.x0);
-      sy = img.height * (0.05 + 0.9 * STRIP.y0);
-      sw = img.width * 0.86 * (STRIP.x1 - STRIP.x0);
-      sh = img.height * 0.9 * (STRIP.y1 - STRIP.y0);
-    }
-    if (sw < 40 || sh < 12) return probe;
-
-    const UPSCALE = 3;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(sw * UPSCALE);
-    canvas.height = Math.round(sh * UPSCALE);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return probe;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-
-    const { results } = await Ocr.process({ image: canvas.toDataURL("image/jpeg", 0.95) });
-    probe.lines = results
-      .flatMap((r) => r.text.split("\n"))
-      .map((l) => l.trim())
-      .filter(Boolean);
-    probe.code = extractSetCode(probe.lines);
-    return probe;
-  } catch {
-    return NO_PROBE;
-  }
 }
 
 // Trims the outer margins of the frame down to roughly where the card sits
@@ -482,9 +367,11 @@ async function ocrAndMatch(image: string, foil?: FoilClass): Promise<ScanOutcome
     .filter((l) => l.length >= 3);
 
   // Set code + edition come from the same OCR text regardless of how the card
-  // itself was identified (passcode or name).
+  // itself was identified (passcode or name). The on-device model (when
+  // bundled) reads the card crop; today it returns null with no cost.
   const setCode = extractSetCode(rawLines);
   const edition = detectEdition(rawLines);
+  const modelRarity = await classifyRarity(image);
 
   // Prefer the printed passcode: an exact card-id lookup beats fuzzy name
   // matching whenever the number is legible.
@@ -498,11 +385,12 @@ async function ocrAndMatch(image: string, foil?: FoilClass): Promise<ScanOutcome
         setCode,
         edition,
         foil,
+        modelRarity,
       };
     }
   }
 
   const candidates = await getNameCandidates();
   const matches = matchOcrLines(rawLines, candidates, { limit: 6, minScore: 0.55 });
-  return { matches, rawLines, setCode, edition, foil };
+  return { matches, rawLines, setCode, edition, foil, modelRarity };
 }

@@ -40,33 +40,17 @@ export function canonSetCode(code: string): string {
   return `${prefix}-${rest}`;
 }
 
-// The set code is ~2mm print — exactly where OCR swaps O↔0 and I/L↔1 in the
-// card number. Repairs those inside the number part only: an optional known
-// region prefix (EN, FR, …) is kept verbatim, the tail's O/I/L become digits.
-// The set prefix (LOB, IOC…) is never touched — its letters are legitimate.
-// Bails to the raw text when the repair doesn't yield a digit-led number
-// (a genuinely lettered tail, not a misread).
-function repairCardNumber(rest: string): string {
-  const region = rest.match(/^([A-Z]{2})(?=[A-Z0-9])/);
-  const keep = region && REGIONS.has(region[1]) ? region[1] : "";
-  const tail = rest.slice(keep.length);
-  const fixed = tail.replace(/[OIL]/g, (c) => (c === "O" ? "0" : "1"));
-  return /^[A-Z]?\d/.test(fixed) ? keep + fixed : rest;
-}
-
 // Pulls a set-code-shaped token out of OCR lines. A set code is a short set
 // prefix, a hyphen, and a card number whose suffix contains at least one digit
 // (which rules out hyphenated card names like "BLUE-EYES" or "XYZ-DRAGON").
-// Spaces the OCR may insert around the hyphen are removed first; O/I/L
-// misreads inside the number are accepted and repaired (a token still needs
-// one real digit, so hyphenated words never qualify). Returns the matched
-// token (uppercased, number repaired), or null.
+// Spaces the OCR may insert around the hyphen are removed first. Returns the
+// raw matched token (uppercased), or null.
 export function extractSetCode(lines: string[]): string | null {
-  const re = /\b([A-Z0-9]{2,6})-([A-Z]{0,3}[0-9OIL][A-Z0-9]{0,4})\b/;
+  const re = /\b([A-Z0-9]{2,6})-([A-Z]{0,3}\d[A-Z0-9]{0,4})\b/;
   for (const line of lines) {
     const cleaned = line.toUpperCase().replace(/\s*-\s*/g, "-");
     const m = cleaned.match(re);
-    if (m && /\d/.test(m[2])) return `${m[1]}-${repairCardNumber(m[2])}`;
+    if (m) return `${m[1]}-${m[2]}`;
   }
   return null;
 }
