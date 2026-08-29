@@ -11,11 +11,13 @@ The model classifies card crops into six families:
 training/dataset/
 ├── phone/       ← real captures, ingested from the app's zip exports
 ├── flatbed/     ← real scanner scans, filed by the scan-lab workflow
-│   ├── in/                 ← point the scanner software's output here
-│   ├── sorted/<family>/    ← machine-labelled (heuristic reading) — pre-training only
-│   ├── confirmed/<family>/ ← human-labelled in the lab — trusted labels
-│   ├── review/             ← detection failed / undecodable, needs a look
-│   └── manifest.jsonl      ← append-only log of every filing + its readings
+│   ├── in/                  ← point the scanner software's output here
+│   ├── sorted/<rarity>/     ← machine's best-guess rarity — pre-training only
+│   ├── confirmed/<rarity>/  ← set-code catalog fact or human tag — trusted
+│   ├── review/              ← no confident guess / detection failed / undecodable
+│   └── manifest.jsonl       ← append-only log of every filing + its readings,
+│                              incl. the visual foil pattern (family) each
+│                              guess/reading came from, for ingest to bucket by
 ├── synthetic/   ← rendered foils (see synthetic/), pre-training only
 │   └── <family>/<cardId>-<n>.jpg + manifest.jsonl
 └── web/         ← real eBay listing photos (see harvest/), pre-training only
@@ -34,13 +36,16 @@ Ground rules from the design session:
 
 - Flatbed workflow (`tools/scan-lab.html` + `tools/scan-lab-server.mjs`) —
   the in/out loop for a real scanner. Start the server, point the scanner
-  software at the workspace's `in/` folder, and every settled scan is read,
-  classified with a visible reasoning trail, and filed into
-  `sorted/<family>/`; tagging the true rarity in the page refiles the scan
-  under `confirmed/<family>/` as a trusted label (variable-finish rarities —
-  starfoil, mosaic… — are refused, same rule as the app's capture flow).
-  The server never decodes a pixel; all foil math lives in the page's mirror
-  of the app's reading code.
+  software at the workspace's `in/` folder, and every settled scan is read
+  and filed into `sorted/<guessed rarity>/` (e.g. `sorted/Ultra Rare/`) —
+  folders name the actual rarity, not the visual pattern that suggested it.
+  Typing the printed set code asks the YGOPRODeck catalog what that code was
+  actually printed as — one match pins the rarity outright, several become
+  click-to-tag chips — and either that or a manual tag refiles the scan under
+  `confirmed/<rarity>/` as a trusted label. The server never decodes a pixel;
+  all foil math lives in the page's mirror of the app's reading code, and the
+  visual pattern (foil family) behind every guess still rides along in the
+  manifest for `ingest.py` to bucket by when it builds the training set.
 
   ```bash
   node tools/scan-lab-server.mjs            # workspace = training/dataset/flatbed

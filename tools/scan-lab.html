@@ -98,6 +98,7 @@
     color: var(--accent); border-color: #6b5518; background: #1a1710;
   }
   button.sug:hover { border-color: var(--accent); }
+  button.sug.top { border-color: var(--accent); background: #241e10; font-weight: 600; }
   button.cat {
     font-size: 12px; padding: 3px 10px; border-radius: 999px;
     color: #38bdf8; border-color: #1c4a63; background: #0f171d;
@@ -119,9 +120,10 @@
     torch-lab fixtures. Everything runs locally — nothing uploads. Opened off
     disk it's a drag-and-drop inspector; started via
     <code>node tools/scan-lab-server.mjs</code> it becomes an in/out workflow:
-    scans dropped in the <code>in/</code> folder are read, classified and
-    filed into per-family folders, and tagging the true rarity refiles the
-    scan under <code>confirmed/</code> as a human-trusted label.
+    scans dropped in the <code>in/</code> folder are read and filed into
+    <code>sorted/&lt;guessed rarity&gt;/</code> — e.g. <code>sorted/Ultra Rare/</code>
+    — and typing the set code or tagging the true rarity refiles the scan
+    under <code>confirmed/&lt;rarity&gt;/</code> as a trusted label.
   </p>
 
   <p id="standalone" class="note" style="color:var(--warn); margin:0 0 12px" hidden>
@@ -187,14 +189,16 @@
     too or the readings stop being comparable.
   </p>
   <p class="note" style="margin-top:8px">
-    <b>Two verdicts are computed.</b> The pill (and the filing) uses the
-    <b>scanner profile</b> — much lower glint bars, because a flatbed holds
-    exposure below clipping and foil never blows out the way it does on a
-    phone. The <b>phone-threshold read</b> shown under the reasons applies the
-    app's exact thresholds to the same numbers, for comparing against phone
+    <b>Two readings are computed.</b> The "guesses" chips and the filing use
+    the <b>scanner profile</b> — much lower glint bars, because a flatbed
+    holds exposure below clipping and foil never blows out the way it does on
+    a phone. The <b>phone-threshold read</b> shown in "why" applies the app's
+    exact thresholds to the same numbers, for comparing against phone
     fixtures. Scanner thresholds are provisional and get retuned from the
     tagged readings accumulating in the manifest. A flat scan also can't see
-    embossing or angle-shift — Ultimate Rares read as their glint pattern.
+    embossing or angle-shift — Ultimate Rares read as their glint pattern, and
+    the guess is only a guess: type the printed set code whenever you can, it
+    settles the rarity outright instead of leaving it to the pixels.
   </p>
 </main>
 
@@ -445,21 +449,10 @@ const FOIL_BUCKET = {
   "holo-art": "holo-art", matte: "matte", unclear: "unknown",
 };
 
-// Mirror of foilFamilyFor() in shared/scan/trainingCapture.ts — maps a tagged
-// rarity to the folder a confirmed scan files under. Variable-finish families
-// (starfoil, mosaic…) return null: a trusted rarity whose finish varies is
-// not a trusted family label.
-function foilFamilyFor(rarity) {
-  if (/(starfoil|mosaic|shatterfoil|parallel|duel terminal)/i.test(rarity)) return null;
-  const bucket = rarityBucket(rarity);
-  if (bucket === "unknown") return null;
-  return bucket === "gold" ? "gold-name" : bucket;
-}
-
 const RARITIES = [
-  "Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare",
-  "Prismatic Secret Rare", "Gold Rare", "Collector's Rare", "Starlight Rare",
-  "Quarter Century Secret Rare", "Ghost Rare",
+  "Common", "Short Print", "Rare", "Super Rare", "Ultra Rare", "Secret Rare",
+  "Ultimate Rare", "Prismatic Secret Rare", "Gold Rare", "Collector's Rare",
+  "Starlight Rare", "Quarter Century Secret Rare", "Ghost Rare",
 ];
 
 // ---------------------------------------------------------------------------
@@ -684,6 +677,14 @@ function agreement(row) {
     : { cls: "bad", text: `disagrees — tag reads ${rb}` };
 }
 
+// The folder a card with no confirmed rarity files under — its best rarity
+// guess, so the folders on disk read "Ultra Rare", not foil-pattern jargon.
+// No guess (some glint but no decisive pattern) means the reading isn't
+// trustworthy enough to name a rarity at all — that goes to review/ instead.
+function sortedFolderFor(row) {
+  return row.suggest?.length ? row.suggest[0] : null;
+}
+
 function applyTruth(row, truth, source) {
   row.truth = truth;
   row.truthSource = source; // "human" (a person chose) or "catalog" (code pinned it)
@@ -719,7 +720,6 @@ function render(row) {
       }</div>
     ${statsTable(row.stats, row.border)}
     <div class="verdict">
-      <span class="pill">reads as <b>${row.verdict}</b></span>
       ${row.dir ? `<span class="pill ${row.dir.startsWith("confirmed/") ? "ok" : ""}">filed: ${row.dir}/</span>` : ""}
       <span class="pill ${a.cls}">${a.text}</span>
       <label class="field">truth
@@ -730,16 +730,20 @@ function render(row) {
       </label>
     </div>
     <div class="verdict" style="margin-top:6px">
+      ${row.suggest?.length
+        ? `<span class="note">guesses:</span>
+           ${row.suggest.map((r, i) => `<button type="button" class="sug${i === 0 ? " top" : ""}" data-r="${r}">${r}</button>`).join("")}`
+        : `<span class="note" style="color:var(--warn)">no confident guess — type the set code or tag by hand</span>`}
+    </div>
+    <div class="verdict" style="margin-top:6px">
       <label class="field">code
         <input class="setcode" value="${row.setCode ?? ""}" placeholder="RA05-EN091" />
       </label>
       ${catalogHtml(row)}
     </div>
-    ${row.suggest?.length ? `<div class="verdict" style="margin-top:6px">
-      <span class="note">suggests:</span>
-      ${row.suggest.map((r) => `<button type="button" class="sug" data-r="${r}">${r}</button>`).join("")}
-    </div>` : ""}
-    <div class="reasons">why: <ul>${(row.reasons ?? []).map((r) => `<li>${r}</li>`).join("")}</ul>
+    <div class="reasons">
+      <div style="margin-bottom:4px">visual pattern: <b>${row.verdict}</b>${row.verdict === "unclear" ? "" : " foil"}</div>
+      why: <ul>${(row.reasons ?? []).map((r) => `<li>${r}</li>`).join("")}</ul>
       <div style="margin-top:6px;color:var(--dim)">phone-threshold read (for fixture comparison): ${row.phoneVerdict}</div>
     </div>`;
   row.el.querySelector("select").onchange = (e) => applyTruth(row, e.target.value, "human");
@@ -935,12 +939,14 @@ async function add(file, dir = null) {
       void refileAfterRemeasure(row, "rotated");
     };
     dump();
-    // Workflow mode: file the scan the moment it's read. A confident auto
-    // box goes straight to sorted/<family>; an unsure one parks in review/
-    // until a box is dragged.
+    // Workflow mode: file the scan the moment it's read. A confident auto box
+    // with a rarity guess goes straight to sorted/<rarity>; no box, or no
+    // confident guess, parks in review/ until a box is dragged or the code
+    // is typed.
     if (row.dir === "in") {
-      if (row.box.auto) await moveRow(row, `sorted/${row.verdict}`, entryFor(row, "auto"));
-      else await moveRow(row, "review", entryFor(row, "needs-box"));
+      const guess = row.box.auto ? sortedFolderFor(row) : null;
+      if (guess) await moveRow(row, `sorted/${guess}`, entryFor(row, "auto"));
+      else await moveRow(row, "review", entryFor(row, row.box.auto ? "no-confident-guess" : "needs-box"));
     }
   } catch (err) {
     const i = rows.indexOf(row); // -1 if ✕ was clicked mid-decode
@@ -1027,7 +1033,8 @@ async function api(pathname, opts) {
 function entryFor(row, action) {
   return {
     action,
-    verdict: row.verdict,
+    guess: row.suggest?.[0] ?? null, // rarity the sorted/ folder name came from
+    verdict: row.verdict, // visual foil pattern the guess/family was read from
     phoneVerdict: row.phoneVerdict,
     reasons: row.reasons,
     truth: row.truth || undefined,
@@ -1069,23 +1076,22 @@ async function moveRow(row, to, entry) {
   }
 }
 
-// A human rarity tag is a trusted label — refile under confirmed/<family>.
+// A tag (human click or catalog fact) is a trusted label — refile under
+// confirmed/<the exact rarity string>, so the folder answers "is this an
+// Ultra Rare" directly instead of naming the visual pattern that suggested it.
 async function confirmRow(row) {
-  const family = foilFamilyFor(row.truth);
-  if (!family) {
-    $wsnote.textContent = `"${row.truth}" has a variable finish — no single family folder, kept in ${row.dir}/`;
-    return;
-  }
-  await moveRow(row, `confirmed/${family}`, entryFor(row, "override"));
+  await moveRow(row, `confirmed/${row.truth}`, entryFor(row, "override"));
 }
 
 // After a manual box, a rotate, or anything else that re-measures: keep the
-// machine-filed location in step with the new reading. A human-confirmed
-// label always wins — those never refile automatically.
+// machine-filed location in step with the new reading. A confirmed label
+// always wins — those never refile automatically.
 async function refileAfterRemeasure(row, action) {
   if (!row.dir || row.dir.startsWith("confirmed/")) return;
   if (row.dir !== "review" && !row.dir.startsWith("sorted/")) return;
-  await moveRow(row, `sorted/${row.verdict}`, entryFor(row, action));
+  const guess = sortedFolderFor(row);
+  if (guess) await moveRow(row, `sorted/${guess}`, entryFor(row, action));
+  else await moveRow(row, "review", entryFor(row, action));
 }
 
 async function refreshState() {
@@ -1094,12 +1100,13 @@ async function refreshState() {
   const sep = st.root.includes("\\") ? "\\" : "/";
   $wsroot.textContent = st.root;
   $wsin.textContent = st.root + sep + "in";
-  const fams = st.families.map((f) => {
-    const s = st.counts[`sorted/${f}`] ?? 0, c = st.counts[`confirmed/${f}`] ?? 0;
-    return s + c ? `${f} ${s}+${c}` : null;
-  }).filter(Boolean).join(" · ");
+  const rarities = new Set([...Object.keys(st.counts.sorted), ...Object.keys(st.counts.confirmed)]);
+  const line = [...rarities].map((r) => {
+    const s = st.counts.sorted[r] ?? 0, c = st.counts.confirmed[r] ?? 0;
+    return s + c ? `${r} ${s}+${c}` : null;
+  }).filter(Boolean).sort().join(" · ");
   $wscounts.textContent =
-    `Filed (sorted+confirmed): ${fams || "nothing yet"} · review: ${st.counts.review ?? 0}`;
+    `Filed (guessed+confirmed): ${line || "nothing yet"} · review: ${st.counts.review ?? 0}`;
   $process.textContent = `Process inbox (${st.inbox.length})`;
   $process.disabled = st.inbox.length === 0 && inFlight.size === 0;
   return st;

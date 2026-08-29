@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 // The file-moving half of the scan-lab in/out workflow. Serves scan-lab.html
 // over http://127.0.0.1 and exposes a tiny API the page uses to read the
-// inbox and file scans into per-family folders. All image logic stays in the
+// inbox and file scans into per-rarity folders. All image logic stays in the
 // page — this server never decodes a pixel, so there is no third copy of the
-// foil math to drift out of sync.
+// foil math to drift out of sync. Rarity names aren't known in advance (any
+// catalog string is valid — "Ultra Rare", "Quarter Century Secret Rare",
+// "Short Print"…), so sorted/ and confirmed/ subfolders are created on demand
+// rather than from a fixed list.
 //
 //   node tools/scan-lab-server.mjs [--root <dir>] [--port 8787] [--no-open]
 //
 // Folder layout under --root (created on start):
-//   in/                 ← point the scanner software's output here
-//   sorted/<family>/    ← machine-labelled by the page's foil reading
-//   confirmed/<family>/ ← human-labelled (a rarity was tagged) — trusted
-//   review/             ← card detection failed, or the file didn't decode
-//   manifest.jsonl      ← append-only log of every move + its readings
+//   in/                  ← point the scanner software's output here
+//   sorted/<rarity>/     ← machine's best guess at the printed rarity
+//   confirmed/<rarity>/  ← a human tag or a set-code catalog fact — trusted
+//   review/              ← no confident guess, needs a box, or didn't decode
+//   manifest.jsonl       ← append-only log of every move + its readings
 
 import http from "node:http";
 import fs from "node:fs";
@@ -24,13 +27,7 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = path.join(HERE, "scan-lab.html");
 
-const FAMILIES = ["matte", "holo-name", "holo-art", "gold-name", "rainbow", "unclear"];
-const DIRS = [
-  "in",
-  "review",
-  ...FAMILIES.map((f) => `sorted/${f}`),
-  ...FAMILIES.map((f) => `confirmed/${f}`),
-];
+const TOP_DIRS = ["in", "review", "sorted", "confirmed"];
 const IMAGE_EXT = /\.(png|jpe?g|bmp|tiff?|webp)$/i;
 const MIME = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
@@ -48,12 +45,19 @@ const root = path.resolve(argVal("--root") ?? path.join(HERE, "..", "training", 
 const port = Number(argVal("--port")) || 8787;
 const noOpen = args.includes("--no-open");
 
-for (const d of DIRS) fs.mkdirSync(path.join(root, d), { recursive: true });
+for (const d of TOP_DIRS) fs.mkdirSync(path.join(root, d), { recursive: true });
 
 // --- helpers ----------------------------------------------------------------
 const safeName = (n) =>
   typeof n === "string" && n.length > 0 && !/[/\\]/.test(n) && !n.includes("..");
-const validDir = (d) => DIRS.includes(d);
+// "in" and "review" are fixed; sorted/<rarity> and confirmed/<rarity> accept
+// any single path segment — rarity strings come straight from the YGOPRODeck
+// catalog and aren't known ahead of time.
+function validDir(d) {
+  if (d === "in" || d === "review") return true;
+  const m = /^(sorted|confirmed)\/(.+)$/.exec(d ?? "");
+  return !!m && safeName(m[2]);
+}
 
 function json(res, code, body) {
   res.writeHead(code, { "Content-Type": "application/json" });
@@ -82,9 +86,16 @@ async function listImages(dir) {
   return out.sort((a, b) => a.mtimeMs - b.mtimeMs);
 }
 
+// Every distinct rarity folder under sorted/ or confirmed/.
+async function subfolders(base) {
+  const entries = await fsp.readdir(path.join(root, base), { withFileTypes: true }).catch(() => []);
+  return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+}
+
 // Move with collision-safe renaming; returns the final file name. rename()
 // covers the normal case, copy+unlink covers a --root on another drive.
 async function moveFile(fromDir, toDir, name) {
+  await fsp.mkdir(path.join(root, toDir), { recursive: true }); // rarity folders are made on demand
   const src = path.join(root, fromDir, name);
   const ext = path.extname(name);
   const base = name.slice(0, name.length - ext.length);
@@ -123,12 +134,17 @@ const server = http.createServer(async (req, res) => {
       // only list inbox files whose mtime has settled.
       const now = Date.now();
       const inbox = (await listImages("in")).filter((f) => now - f.mtimeMs > 1500);
-      const counts = {};
-      for (const d of DIRS) {
-        if (d === "in") continue;
-        counts[d] = (await listImages(d)).length;
-      }
-      json(res, 200, { root, families: FAMILIES, inbox, counts });
+      const countAll = async (base) => {
+        const out = {};
+        for (const rarity of await subfolders(base)) {
+          out[rarity] = (await listImages(`${base}/${rarity}`)).length;
+        }
+        return out;
+      };
+      const [sorted, confirmed, review] = await Promise.all([
+        countAll("sorted"), countAll("confirmed"), listImages("review"),
+      ]);
+      json(res, 200, { root, inbox, counts: { sorted, confirmed, review: review.length } });
       return;
     }
 
