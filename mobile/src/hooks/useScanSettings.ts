@@ -22,9 +22,15 @@ export interface ScanSettings {
   /** Read the set code + edition off each card to tag its printing/rarity.
    *  Costs a per-card printings lookup (cached after first fetch). */
   detectPrinting: boolean;
-  /** Experimental: after each add, flash the torch once and read where the
-   *  light reflects (foil signature) to pick between a code's rarities. */
-  torchRarity: boolean;
+  /** Automatic foil check: when a scanned set code maps to more than one
+   *  rarity, flash the torch once and read where the light reflects to pick
+   *  between them. Single-rarity codes never flash. (Replaces the old opt-in
+   *  torchRarity toggle — ambient light rarely shows foil, so waiting for the
+   *  user to notice and reach for the torch meant foil went undetected.) */
+  autoFoilCheck: boolean;
+  /** Save a card photo + its confirmed rarity to the on-device training set
+   *  (for the foil classifier). Stays on the phone until exported. */
+  captureTraining: boolean;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -38,7 +44,8 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   flashMode: "continuous",
   zoomRatio: 1,
   detectPrinting: true,
-  torchRarity: false,
+  autoFoilCheck: true,
+  captureTraining: true,
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

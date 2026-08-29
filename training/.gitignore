@@ -1,0 +1,5 @@
+dataset/
+node_modules/
+tmp/
+cache/
+.env
