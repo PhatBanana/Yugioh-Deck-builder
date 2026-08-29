@@ -20,6 +20,13 @@ npm-debug.log*
 # editor / local
 .claude/settings.local.json
 
+# card scans dropped next to the scan-lab page — photos never enter git
+# (the real workflow inbox lives under training/dataset/, already ignored)
+/tools/in/
+/tools/sorted/
+/tools/confirmed/
+/tools/review/
+
 # leftover local data from the old desktop build (never committed)
 /data/app.db
 /data/app.db-*

@@ -114,6 +114,13 @@
     scan under <code>confirmed/</code> as a human-trusted label.
   </p>
 
+  <p id="standalone" class="note" style="color:var(--warn); margin:0 0 12px" hidden>
+    <b>Standalone mode — no server detected.</b> Drag-and-drop works, but
+    nothing is watched or filed into folders. For the in/out workflow run
+    <code>node tools/scan-lab-server.mjs</code> and open the
+    <code>http://127.0.0.1:…</code> address it prints (not this file:// page).
+  </p>
+
   <div id="ws" hidden>
     <div class="wsline"><b>Workspace</b> <code id="wsroot"></code></div>
     <div class="wsline">Scanner inbox: <code id="wsin"></code></div>
@@ -982,7 +989,10 @@ async function processInbox() {
   try {
     await refreshState();
   } catch {
-    return; // opened off disk, or the server isn't running — standalone mode
+    // Opened off disk, or the server isn't running — drag-and-drop still
+    // works, but SAY so instead of silently not watching anything.
+    document.getElementById("standalone").hidden = false;
+    return;
   }
   $ws.hidden = false;
   $process.onclick = () => {
