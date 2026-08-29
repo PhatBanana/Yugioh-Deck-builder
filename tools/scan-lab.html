@@ -249,6 +249,27 @@ function readFoilStats(ctx, box) {
   return { name: at(REGIONS.name), art: at(REGIONS.art), whole: at(REGIONS.whole) };
 }
 
+// Scanner-profile-only region, NOT mirrored from the phone: the card frame
+// beside/below the art box. Whole-face foils (Starlight, Quarter Century,
+// Prismatic…) foil the border; every other rarity leaves it flat ink — which
+// makes it the one region where busy artwork can't lie. Verified on a 9-scan
+// catalog-checked batch: both Starlight scans light the border up, all four
+// commons leave it dead.
+const BORDER_STRIPS = [
+  [0.03, 0.16, 0.10, 0.52], // left frame beside the art
+  [0.90, 0.16, 0.97, 0.52], // right frame beside the art
+  [0.08, 0.53, 0.92, 0.585], // band between art box and text box
+];
+function readBorderStat(ctx, box) {
+  const parts = BORDER_STRIPS.map(([x0, y0, x1, y1]) => regionStat(
+    ctx,
+    Math.round(box.x + x0 * box.w), Math.round(box.y + y0 * box.h),
+    Math.round((x1 - x0) * box.w), Math.round((y1 - y0) * box.h)
+  ));
+  const mean = (k) => parts.reduce((s, p) => s + p[k], 0) / parts.length;
+  return { specular: mean("specular"), hueSpread: mean("hueSpread"), goldness: mean("goldness") };
+}
+
 // Mirror of classifyFoil() in shared/scan/rarityVision.ts, so the page can
 // show what the app would have concluded from these same numbers.
 const SPECULAR = 0.16, RAINBOW = 0.45, GOLD = 0.3, MARGIN = 0.06;
@@ -313,34 +334,44 @@ const SCAN = {
   FOIL: 0.03,    // a region reads as foiled
   MARGIN: 0.02,  // dominance margin between regions
   GOLD: 0.5,     // name goldness that reads as gold foil text
-  GOLD_SPREAD: 0.25, // whole-card goldness = pattern foil past the name plate
-  HUE: 0.25,     // hue spread that reads as rainbow at scanner saturation
+  GOLD_MIN: 0.003, // gold text barely glints when flat — Ultra names read ~0.006
+  BUSY_ART: 0.3, // art hue spread above this is artwork, not foil
 };
 
+// v3, retuned twice against a 9-scan batch whose true rarities were pinned by
+// set code + catalog. What that batch proved about flat scans:
+//   · hue spread is a TRAP — sparkly artwork on plain commons reads 0.47–0.66
+//     while real Starlight pattern foil reads 0.01–0.02 (a rainbow foil lying
+//     flat shows one uniform gold tone, not many hues);
+//   · border brightness is ALSO a trap — it measures frame ink colour (tan
+//     Ultra frame 0.14) not foil (Starlight pixel border 0.013); the border
+//     stat is still recorded for future tuning but decides nothing;
+//   · the gold split that held on all five gold-ish cards: pattern-gold faces
+//     (Starlight) glint at name specular 0.07–0.09, flat gold Ultra text at
+//     0–0.006 — clean break at 0.02. Gold names may not glint AT ALL, so
+//     holo-art keeps an Ultra Rare chip.
 function classifyScanTrace(s) {
   const f = (n) => n.toFixed(3);
   const pc = (n) => Math.round(n * 100) + "%";
-  const hue = Math.max(s.art.hueSpread, s.whole.hueSpread);
-  if (hue >= SCAN.HUE) {
+  if (s.name.goldness >= SCAN.GOLD && s.name.specular >= SCAN.GLINT) {
     return {
       verdict: "rainbow",
-      reasons: [`multi-colour foil — hue spread ${f(hue)} ≥ ${SCAN.HUE} at scanner exposure`],
-      suggest: ["Secret Rare", "Quarter Century Secret Rare", "Prismatic Secret Rare",
-                "Starlight Rare", "Collector's Rare", "Ghost Rare"],
+      reasons: [
+        `gold-pattern name plate — ${pc(s.name.goldness)} gold AND it glints (specular ${f(s.name.specular)} ≥ ${SCAN.GLINT}); flat gold text doesn't glint, pattern foil does`,
+        `whole-face pattern foils (Starlight, Quarter Century…) read uniformly gold-toned when flat`,
+      ],
+      suggest: ["Starlight Rare", "Quarter Century Secret Rare", "Prismatic Secret Rare",
+                "Secret Rare", "Collector's Rare"],
     };
   }
-  if (s.name.specular >= SCAN.GLINT && s.name.goldness >= SCAN.GOLD) {
-    const reasons = [
-      `gold name text — ${pc(s.name.goldness)} of the name glint is gold (≥ ${pc(SCAN.GOLD)}), specular ${f(s.name.specular)}`,
-    ];
-    let suggest = ["Ultra Rare"];
-    if (s.whole.goldness >= SCAN.GOLD_SPREAD) {
-      reasons.push(
-        `gold reaches past the name plate (whole goldness ${pc(s.whole.goldness)}) — whole-face pattern foil, Quarter Century / Prismatic / Gold territory`
-      );
-      suggest = ["Quarter Century Secret Rare", "Gold Rare", "Prismatic Secret Rare", "Ultra Rare"];
-    }
-    return { verdict: "gold-name", reasons, suggest };
+  if (s.name.goldness >= SCAN.GOLD && s.name.specular >= SCAN.GOLD_MIN) {
+    return {
+      verdict: "gold-name",
+      reasons: [
+        `gold name text — ${pc(s.name.goldness)} of the name glint is gold (≥ ${pc(SCAN.GOLD)}), specular only ${f(s.name.specular)} (flat gold foil barely glints)`,
+      ],
+      suggest: ["Ultra Rare", "Gold Rare"],
+    };
   }
   if (s.name.specular >= SCAN.FOIL && s.name.specular >= s.art.specular + SCAN.MARGIN) {
     return {
@@ -353,13 +384,22 @@ function classifyScanTrace(s) {
     };
   }
   if (s.art.specular >= SCAN.FOIL && s.art.specular >= s.name.specular + SCAN.MARGIN) {
+    if (s.art.hueSpread > SCAN.BUSY_ART) {
+      return {
+        verdict: "unclear",
+        reasons: [
+          `art is bright (specular ${f(s.art.specular)}) but in many colours (hue spread ${f(s.art.hueSpread)} > ${SCAN.BUSY_ART}) — that's busy artwork, not foil; foil sheen reads one uniform tone when flat`,
+        ],
+        suggest: ["Common", "Super Rare"],
+      };
+    }
     return {
       verdict: "holo-art",
       reasons: [
-        `art glints (${f(s.art.specular)}) and outshines the name (${f(s.name.specular)})`,
-        `caveat: bright artwork (white bursts, light skies) reads the same as foil at scanner exposure — a Common with bright art lands here too`,
+        `art glints in one uniform tone (specular ${f(s.art.specular)}, hue spread ${f(s.art.hueSpread)}) and outshines the name (${f(s.name.specular)})`,
+        `caveat: an Ultra Rare's gold name may not glint at all when flat, and bright white artwork on a Common reads the same — check the suggestion`,
       ],
-      suggest: ["Super Rare", "Ultimate Rare", "Common"],
+      suggest: ["Super Rare", "Ultra Rare", "Ultimate Rare", "Common"],
     };
   }
   if (s.name.specular < SCAN.GLINT && s.art.specular < SCAN.GLINT) {
@@ -580,6 +620,7 @@ function measure(row) {
   row.stats = readFoilStats(ctx, row.box);
   // The scanner profile decides the verdict and the filing; the phone-
   // threshold read rides along for comparison against phone fixtures.
+  row.border = readBorderStat(ctx, row.box);
   const t = classifyScanTrace(row.stats);
   row.verdict = t.verdict;
   row.reasons = t.reasons;
@@ -609,17 +650,18 @@ function draw(row) {
   row.scale = scale;
 }
 
-function statsTable(s) {
-  const line = (k) => `
+function statsTable(s, border) {
+  const row = (k, st) => `
     <tr>
       <td>${k}</td>
-      <td class="${s[k].specular >= GLARE_SATURATED ? "hi" : ""}">${pct(s[k].specular)}</td>
-      <td class="${s[k].hueSpread >= AMBIENT_RAINBOW_HUE ? "hi" : ""}">${r3(s[k].hueSpread)}</td>
-      <td class="${s[k].goldness >= GOLD ? "hi" : ""}">${pct(s[k].goldness)}</td>
+      <td class="${st.specular >= GLARE_SATURATED ? "hi" : ""}">${pct(st.specular)}</td>
+      <td class="${st.hueSpread >= AMBIENT_RAINBOW_HUE ? "hi" : ""}">${r3(st.hueSpread)}</td>
+      <td class="${st.goldness >= GOLD ? "hi" : ""}">${pct(st.goldness)}</td>
     </tr>`;
   return `<table class="stats">
     <tr><th>region</th><th>specular</th><th>hueSpread</th><th>goldness</th></tr>
-    ${line("name")}${line("art")}${line("whole")}
+    ${row("name", s.name)}${row("art", s.art)}${row("whole", s.whole)}
+    ${border ? row("border", border) : ""}
   </table>`;
 }
 
@@ -640,7 +682,7 @@ function render(row) {
       card ${row.box.w} × ${row.box.h} ${
         row.box.manual ? "(manual)" : row.box.auto ? "(auto)" : "(unsure — drag a box)"
       }</div>
-    ${statsTable(row.stats)}
+    ${statsTable(row.stats, row.border)}
     <div class="verdict">
       <span class="pill">reads as <b>${row.verdict}</b></span>
       ${row.dir ? `<span class="pill ${row.dir.startsWith("confirmed/") ? "ok" : ""}">filed: ${row.dir}/</span>` : ""}
@@ -735,6 +777,7 @@ function dump() {
       folder: r.dir ?? null,
       stats: {
         name: mapStat(r.stats.name), art: mapStat(r.stats.art), whole: mapStat(r.stats.whole),
+        border: r.border ? mapStat(r.border) : undefined,
       },
       imageSize: { w: r.canvas.width, h: r.canvas.height },
       cardBox: { x: r.box.x, y: r.box.y, w: r.box.w, h: r.box.h, auto: r.box.auto },
@@ -902,6 +945,7 @@ function entryFor(row, action) {
     rarity: action === "override" ? row.truth : undefined,
     stats: row.stats && {
       name: mapStat(row.stats.name), art: mapStat(row.stats.art), whole: mapStat(row.stats.whole),
+      border: row.border ? mapStat(row.border) : undefined,
     },
     imageSize: row.canvas && { w: row.canvas.width, h: row.canvas.height },
     cardBox: row.box && { x: row.box.x, y: row.box.y, w: row.box.w, h: row.box.h, auto: row.box.auto },
