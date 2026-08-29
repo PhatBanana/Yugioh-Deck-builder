@@ -10,6 +10,12 @@ The model classifies card crops into six families:
 ```
 training/dataset/
 ├── phone/       ← real captures, ingested from the app's zip exports
+├── flatbed/     ← real scanner scans, filed by the scan-lab workflow
+│   ├── in/                 ← point the scanner software's output here
+│   ├── sorted/<family>/    ← machine-labelled (heuristic reading) — pre-training only
+│   ├── confirmed/<family>/ ← human-labelled in the lab — trusted labels
+│   ├── review/             ← detection failed / undecodable, needs a look
+│   └── manifest.jsonl      ← append-only log of every filing + its readings
 ├── synthetic/   ← rendered foils (see synthetic/), pre-training only
 │   └── <family>/<cardId>-<n>.jpg + manifest.jsonl
 └── web/         ← real eBay listing photos (see harvest/), pre-training only
@@ -25,6 +31,25 @@ Ground rules from the design session:
   git; the code and scorecard results are committed, the photos are not.
 
 ## Pieces
+
+- Flatbed workflow (`tools/scan-lab.html` + `tools/scan-lab-server.mjs`) —
+  the in/out loop for a real scanner. Start the server, point the scanner
+  software at the workspace's `in/` folder, and every settled scan is read,
+  classified with a visible reasoning trail, and filed into
+  `sorted/<family>/`; tagging the true rarity in the page refiles the scan
+  under `confirmed/<family>/` as a trusted label (variable-finish rarities —
+  starfoil, mosaic… — are refused, same rule as the app's capture flow).
+  The server never decodes a pixel; all foil math lives in the page's mirror
+  of the app's reading code.
+
+  ```bash
+  node tools/scan-lab-server.mjs            # workspace = training/dataset/flatbed
+  node tools/scan-lab-server.mjs --root D:\scans --port 8787 --no-open
+  ```
+
+  Caveats: one card per file (crop multi-card platen scans first), and a
+  flat straight-on scan cannot see embossing or angle-shift — Ultimate Rares
+  read as their glint pattern, so tag those by hand.
 
 - `synthetic/` — renders catalog card images with the app's own foil overlay
   CSS (`mobile/src/foil.css`, imported verbatim) into labelled training

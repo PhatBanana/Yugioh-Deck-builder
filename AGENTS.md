@@ -13,12 +13,15 @@ superseded it.)
 - `tests/` — Vitest unit tests for `shared/`. Run `npm test` at the repo root.
 - `data/static-meta-decks.json` — bundled fallback deck snapshot, imported by
   the app as `@data/*`.
-- `tools/` — standalone single-file HTML utilities, opened straight off disk
-  (no build, no server). `scan-lab.html` reads flatbed/sheet-fed card scans and
-  reports the same foil numbers the phone measures; it mirrors `regionStat` /
-  `readFoilStats` in `mobile/src/services/scanner.ts` and `classifyFoil` in
-  `shared/scan/rarityVision.ts`, so those three must change together or the
-  readings stop being comparable.
+- `tools/` — standalone HTML utilities. `scan-lab.html` reads flatbed/sheet-fed
+  card scans and reports the same foil numbers the phone measures; it mirrors
+  `regionStat` / `readFoilStats` in `mobile/src/services/scanner.ts`,
+  `classifyFoil` in `shared/scan/rarityVision.ts` and `foilFamilyFor` in
+  `shared/scan/trainingCapture.ts`, so those must change together or the
+  readings stop being comparable. Opened off disk it's a drag-and-drop
+  inspector; served by `scan-lab-server.mjs` (zero-dep Node, pure file
+  plumbing — no image logic) it becomes the training-data in/out workflow
+  documented in `training/README.md`.
 
 Every push to `main` builds a debug APK via GitHub Actions and attaches it to
 the rolling `apk-latest` release (see `.github/workflows/android.yml`).

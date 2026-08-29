@@ -82,6 +82,17 @@
   }
   .note { color: var(--dim); font-size: 12px; max-width: 75ch; }
   .note b { color: var(--muted); font-weight: 600; }
+
+  #ws {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px; margin-bottom: 16px;
+  }
+  #ws .wsline { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+  #ws .wsline b { color: var(--text); }
+  #ws code { word-break: break-all; }
+  .reasons { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .reasons li { margin: 2px 0; }
+  .reasons ul { margin: 4px 0 0; padding-left: 18px; }
 </style>
 </head>
 <body>
@@ -90,8 +101,24 @@
   <p class="lede">
     Reads flatbed / sheet-fed card scans and reports the same foil numbers the
     phone measures, so scanner readings can be compared directly against the
-    torch-lab fixtures. Everything runs locally in this page — nothing uploads.
+    torch-lab fixtures. Everything runs locally — nothing uploads. Opened off
+    disk it's a drag-and-drop inspector; started via
+    <code>node tools/scan-lab-server.mjs</code> it becomes an in/out workflow:
+    scans dropped in the <code>in/</code> folder are read, classified and
+    filed into per-family folders, and tagging the true rarity refiles the
+    scan under <code>confirmed/</code> as a human-trusted label.
   </p>
+
+  <div id="ws" hidden>
+    <div class="wsline"><b>Workspace</b> <code id="wsroot"></code></div>
+    <div class="wsline">Scanner inbox: <code id="wsin"></code></div>
+    <div class="wsline" id="wscounts"></div>
+    <div class="bar" style="margin:10px 0 0">
+      <button id="process" class="primary">Process inbox</button>
+      <label class="field"><input type="checkbox" id="watch" checked /> watch inbox</label>
+      <span class="note" id="wsnote"></span>
+    </div>
+  </div>
 
   <div id="drop">
     <b>Drop card scans here</b> — or click to pick files<br />
@@ -208,15 +235,48 @@ function readFoilStats(ctx, box) {
 const SPECULAR = 0.16, RAINBOW = 0.45, GOLD = 0.3, MARGIN = 0.06;
 const AMBIENT_RAINBOW_HUE = 0.35, GLARE_SATURATED = 0.45;
 
-function classifyFoil(s) {
-  if (s.art.hueSpread >= AMBIENT_RAINBOW_HUE) return "rainbow";
-  if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) return "rainbow";
-  if (Math.max(s.name.specular, s.art.specular) >= GLARE_SATURATED) return "unclear";
+// Same decision path as classifyFoil, but each branch also says WHY it fired,
+// with the measured numbers next to the thresholds — the same style as the
+// torch classifier's reasons in shared/scan/torchFoil.ts. Note the limits of
+// a flat scan: embossing (Ultimate Rare's raised texture) is invisible to a
+// single straight-on frame, so those cards read as their glint pattern only.
+function classifyFoilTrace(s) {
+  const f = (n) => n.toFixed(2);
+  if (s.art.hueSpread >= AMBIENT_RAINBOW_HUE) {
+    return { verdict: "rainbow", reasons: [
+      `rainbow sheen — art hue spread ${f(s.art.hueSpread)} ≥ ${AMBIENT_RAINBOW_HUE}`,
+    ] };
+  }
+  if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) {
+    return { verdict: "rainbow", reasons: [
+      `glints across the whole card (specular ${f(s.whole.specular)} ≥ ${SPECULAR})`,
+      `…in many colours (hue spread ${f(s.whole.hueSpread)} ≥ ${RAINBOW})`,
+    ] };
+  }
+  if (Math.max(s.name.specular, s.art.specular) >= GLARE_SATURATED) {
+    return { verdict: "unclear", reasons: [
+      `glare-blown — brightest region reads specular ${f(Math.max(s.name.specular, s.art.specular))} ≥ ${GLARE_SATURATED}, no honest foil read exists`,
+    ] };
+  }
+  const reasons = [];
   const nameFoiled = s.name.specular >= SPECULAR;
-  if (nameFoiled && s.name.goldness >= GOLD) return "gold-name";
-  if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) return "holo-name";
-  if (s.art.specular >= SPECULAR && s.art.specular >= s.name.specular + MARGIN) return "holo-art";
-  return "matte";
+  if (nameFoiled) reasons.push(`name plate glints (specular ${f(s.name.specular)} ≥ ${SPECULAR})`);
+  if (nameFoiled && s.name.goldness >= GOLD) {
+    reasons.push(`gold text — ${Math.round(s.name.goldness * 100)}% of the name glint sits in the gold hue band (≥ ${GOLD * 100}%)`);
+    return { verdict: "gold-name", reasons };
+  }
+  if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) {
+    reasons.push(`name outshines art (${f(s.name.specular)} vs ${f(s.art.specular)}) and isn't gold — silver plate`);
+    return { verdict: "holo-name", reasons };
+  }
+  if (s.art.specular >= SPECULAR && s.art.specular >= s.name.specular + MARGIN) {
+    reasons.push(`art glints (specular ${f(s.art.specular)} ≥ ${SPECULAR}) and outshines the name (${f(s.name.specular)})`);
+    return { verdict: "holo-art", reasons };
+  }
+  reasons.push(nameFoiled
+    ? `…but neither gold nor clearly brighter than the art (${f(s.name.specular)} vs ${f(s.art.specular)}) — nothing decisive, falls through to matte`
+    : `nothing shines — name ${f(s.name.specular)}, art ${f(s.art.specular)}, both under the ${SPECULAR} glint bar`);
+  return { verdict: "matte", reasons };
 }
 
 // Mirror of rarityBucket() — lets the page flag a scan whose reading disagrees
@@ -235,6 +295,17 @@ const FOIL_BUCKET = {
   rainbow: "rainbow", "gold-name": "gold", "holo-name": "holo-name",
   "holo-art": "holo-art", matte: "matte", unclear: "unknown",
 };
+
+// Mirror of foilFamilyFor() in shared/scan/trainingCapture.ts — maps a tagged
+// rarity to the folder a confirmed scan files under. Variable-finish families
+// (starfoil, mosaic…) return null: a trusted rarity whose finish varies is
+// not a trusted family label.
+function foilFamilyFor(rarity) {
+  if (/(starfoil|mosaic|shatterfoil|parallel|duel terminal)/i.test(rarity)) return null;
+  const bucket = rarityBucket(rarity);
+  if (bucket === "unknown") return null;
+  return bucket === "gold" ? "gold-name" : bucket;
+}
 
 const RARITIES = [
   "Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare",
@@ -408,7 +479,9 @@ const r3 = (n) => Math.round(n * 1000) / 1000;
 function measure(row) {
   const ctx = row.canvas.getContext("2d", { willReadFrequently: true });
   row.stats = readFoilStats(ctx, row.box);
-  row.verdict = classifyFoil(row.stats);
+  const t = classifyFoilTrace(row.stats);
+  row.verdict = t.verdict;
+  row.reasons = t.reasons;
 }
 
 function draw(row) {
@@ -467,6 +540,7 @@ function render(row) {
     ${statsTable(row.stats)}
     <div class="verdict">
       <span class="pill">reads as <b>${row.verdict}</b></span>
+      ${row.dir ? `<span class="pill ${row.dir.startsWith("confirmed/") ? "ok" : ""}">filed: ${row.dir}/</span>` : ""}
       <span class="pill ${a.cls}">${a.text}</span>
       <label class="field">truth
         <select>
@@ -474,9 +548,13 @@ function render(row) {
           ${RARITIES.map((r) => `<option ${r === row.truth ? "selected" : ""}>${r}</option>`).join("")}
         </select>
       </label>
-    </div>`;
+    </div>
+    <div class="reasons">why: <ul>${(row.reasons ?? []).map((r) => `<li>${r}</li>`).join("")}</ul></div>`;
   row.el.querySelector("select").onchange = (e) => {
     row.truth = e.target.value;
+    // In workflow mode a human tag is a trusted label — refile the scan under
+    // confirmed/<family of the tagged rarity>.
+    if (row.dir && row.truth) void confirmRow(row);
     render(row);
     dump();
   };
@@ -524,6 +602,7 @@ function wireCrop(row) {
     draw(row);
     render(row);
     dump();
+    void refileAfterRemeasure(row, "manual-box");
   };
 }
 
@@ -536,6 +615,8 @@ function dump() {
       file: r.file,
       truth: r.truth || null,
       verdict: r.verdict,
+      reasons: r.reasons,
+      folder: r.dir ?? null,
       stats: {
         name: mapStat(r.stats.name), art: mapStat(r.stats.art), whole: mapStat(r.stats.whole),
       },
@@ -554,7 +635,7 @@ function dump() {
 }
 const mapStat = (s) => ({ specular: r3(s.specular), hueSpread: r3(s.hueSpread), goldness: r3(s.goldness) });
 
-async function add(file) {
+async function add(file, dir = null) {
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<div class="preview"><canvas></canvas>
@@ -568,7 +649,7 @@ async function add(file) {
   $cards.appendChild(el);
   // Claim the slot now, in the order files were given. Decoding finishes out
   // of order, and the exported JSON has to line up with what's on screen.
-  const row = { file: file.name, el, truth: "", pending: true };
+  const row = { file: file.name, el, truth: "", pending: true, dir };
   rows.push(row);
   // Remove works whether the decode succeeded or not — duplex scans hand you
   // every card back as its own image, and those rows are pure noise.
@@ -600,14 +681,27 @@ async function add(file) {
       draw(row);
       render(row);
       dump();
+      void refileAfterRemeasure(row, "rotated");
     };
     dump();
+    // Workflow mode: file the scan the moment it's read. A confident auto
+    // box goes straight to sorted/<family>; an unsure one parks in review/
+    // until a box is dragged.
+    if (row.dir === "in") {
+      if (row.box.auto) await moveRow(row, `sorted/${row.verdict}`, entryFor(row, "auto"));
+      else await moveRow(row, "review", entryFor(row, "needs-box"));
+    }
   } catch (err) {
     const i = rows.indexOf(row); // -1 if ✕ was clicked mid-decode
     if (i !== -1) rows.splice(i, 1);
     el.querySelector(".body").innerHTML =
       `<div class="fname">${file.name}</div><div class="sub" style="color:var(--bad)">${err.message}</div>`;
     dump();
+    // An undecodable inbox file must still leave in/, or the watcher would
+    // retry it forever.
+    if (dir === "in") {
+      void rawMove(file.name, "in", "review", { action: "decode-failed", error: err.message });
+    }
   }
 }
 
@@ -651,6 +745,143 @@ $save.onclick = () => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
+
+// ---------------------------------------------------------------------------
+// Workflow mode — only active when the page is served by scan-lab-server.mjs.
+// The server is dumb file plumbing; every reading and every filing decision
+// is made here, and every move is logged to the workspace's manifest.jsonl.
+// ---------------------------------------------------------------------------
+const $ws = document.getElementById("ws");
+const $wsroot = document.getElementById("wsroot");
+const $wsin = document.getElementById("wsin");
+const $wscounts = document.getElementById("wscounts");
+const $wsnote = document.getElementById("wsnote");
+const $process = document.getElementById("process");
+const $watch = document.getElementById("watch");
+
+let workspace = null; // last /api/state payload, null = standalone mode
+const inFlight = new Set(); // inbox names being processed right now
+
+async function api(pathname, opts) {
+  const res = await fetch(pathname, opts);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || res.statusText);
+  }
+  return res.json();
+}
+
+// What gets written to the manifest next to a move — the full reading, so the
+// dataset is auditable without reopening every image.
+function entryFor(row, action) {
+  return {
+    action,
+    verdict: row.verdict,
+    reasons: row.reasons,
+    truth: row.truth || undefined,
+    rarity: action === "override" ? row.truth : undefined,
+    stats: row.stats && {
+      name: mapStat(row.stats.name), art: mapStat(row.stats.art), whole: mapStat(row.stats.whole),
+    },
+    imageSize: row.canvas && { w: row.canvas.width, h: row.canvas.height },
+    cardBox: row.box && { x: row.box.x, y: row.box.y, w: row.box.w, h: row.box.h, auto: row.box.auto },
+    dpi: Number($dpi.value) || null,
+  };
+}
+
+async function rawMove(name, from, to, entry) {
+  const res = await api("/api/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, from, to, entry }),
+  });
+  void refreshState().catch(() => {});
+  return res.name; // final name — the server suffixes on collision
+}
+
+async function moveRow(row, to, entry) {
+  if (!row.dir || row.moving || row.dir === to) return;
+  row.moving = true;
+  try {
+    row.file = await rawMove(row.file, row.dir, to, entry);
+    row.dir = to;
+    render(row);
+    dump();
+  } catch (err) {
+    $wsnote.textContent = `move failed: ${err.message}`;
+  } finally {
+    row.moving = false;
+  }
+}
+
+// A human rarity tag is a trusted label — refile under confirmed/<family>.
+async function confirmRow(row) {
+  const family = foilFamilyFor(row.truth);
+  if (!family) {
+    $wsnote.textContent = `"${row.truth}" has a variable finish — no single family folder, kept in ${row.dir}/`;
+    return;
+  }
+  await moveRow(row, `confirmed/${family}`, entryFor(row, "override"));
+}
+
+// After a manual box, a rotate, or anything else that re-measures: keep the
+// machine-filed location in step with the new reading. A human-confirmed
+// label always wins — those never refile automatically.
+async function refileAfterRemeasure(row, action) {
+  if (!row.dir || row.dir.startsWith("confirmed/")) return;
+  if (row.dir !== "review" && !row.dir.startsWith("sorted/")) return;
+  await moveRow(row, `sorted/${row.verdict}`, entryFor(row, action));
+}
+
+async function refreshState() {
+  const st = await api("/api/state");
+  workspace = st;
+  const sep = st.root.includes("\\") ? "\\" : "/";
+  $wsroot.textContent = st.root;
+  $wsin.textContent = st.root + sep + "in";
+  const fams = st.families.map((f) => {
+    const s = st.counts[`sorted/${f}`] ?? 0, c = st.counts[`confirmed/${f}`] ?? 0;
+    return s + c ? `${f} ${s}+${c}` : null;
+  }).filter(Boolean).join(" · ");
+  $wscounts.textContent =
+    `Filed (sorted+confirmed): ${fams || "nothing yet"} · review: ${st.counts.review ?? 0}`;
+  $process.textContent = `Process inbox (${st.inbox.length})`;
+  $process.disabled = st.inbox.length === 0 && inFlight.size === 0;
+  return st;
+}
+
+async function processInbox() {
+  const st = await refreshState();
+  for (const f of st.inbox) {
+    if (inFlight.has(f.name)) continue;
+    inFlight.add(f.name);
+    void (async () => {
+      const res = await fetch(`/api/file?dir=in&name=${encodeURIComponent(f.name)}`);
+      if (!res.ok) throw new Error(`couldn't read ${f.name}`);
+      const blob = await res.blob();
+      await add(new File([blob], f.name, { type: blob.type }), "in");
+    })().catch((err) => { $wsnote.textContent = `${f.name}: ${err.message}`; })
+      .finally(() => inFlight.delete(f.name));
+  }
+}
+
+(async () => {
+  try {
+    await refreshState();
+  } catch {
+    return; // opened off disk, or the server isn't running — standalone mode
+  }
+  $ws.hidden = false;
+  $process.onclick = () => {
+    $wsnote.textContent = "";
+    void processInbox().catch((err) => { $wsnote.textContent = err.message; });
+  };
+  // Watch: the scanner drops files into in/ on its own schedule — pick each
+  // one up as soon as its write has settled.
+  setInterval(() => {
+    if ($watch.checked) void processInbox().catch(() => {});
+  }, 3000);
+})();
 </script>
 </body>
 </html>
