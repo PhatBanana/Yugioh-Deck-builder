@@ -56,6 +56,9 @@
     background: #000; cursor: crosshair; touch-action: none;
   }
   .preview .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+  .pbar { display: flex; gap: 6px; margin-top: 8px; }
+  .pbar button { font-size: 12px; padding: 4px 10px; }
+  .pbar .del { margin-left: auto; color: var(--bad); }
   .fname { font-weight: 600; word-break: break-all; margin-bottom: 2px; }
   .sub { color: var(--dim); font-size: 12px; margin-bottom: 10px; }
 
@@ -243,13 +246,39 @@ const RARITIES = [
 // Card detection — a scan is a card on the scanner's backing, so find the
 // bounding box of everything that isn't the background colour.
 // ---------------------------------------------------------------------------
-function detectCard(ctx, W, H) {
-  const step = Math.max(1, Math.floor(Math.min(W, H) / 400)); // coarse pass
-  const { data } = ctx.getImageData(0, 0, W, H);
-  const px = (x, y) => { const o = (y * W + x) * 4; return [data[o], data[o + 1], data[o + 2]]; };
+// A Yu-Gi-Oh card is 59 × 86 mm — height/width ≈ 1.457. Anything detected far
+// off that shape is not the card outline.
+const aspectOk = (w, h) => { const a = h / w; return a >= 1.25 && a <= 1.7; };
+
+function rotate90(canvas) {
+  const cv = document.createElement("canvas");
+  cv.width = canvas.height; cv.height = canvas.width;
+  // First getContext wins the attributes, and measure() reads this canvas.
+  const c = cv.getContext("2d", { willReadFrequently: true });
+  c.translate(cv.width, 0);
+  c.rotate(Math.PI / 2);
+  c.drawImage(canvas, 0, 0);
+  return cv;
+}
+
+function detectCard(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const full = { x: 0, y: 0, w: W, h: H };
+  // Detection runs on a downscaled copy: getImageData on a full 600 dpi page
+  // scan is a several-hundred-MB pixel copy for no accuracy gain. The foil
+  // measurement still reads the full-resolution canvas.
+  const scale = Math.min(1, 1200 / Math.max(W, H));
+  const w = Math.max(1, Math.round(W * scale));
+  const h = Math.max(1, Math.round(H * scale));
+  const small = document.createElement("canvas");
+  small.width = w; small.height = h;
+  const sctx = small.getContext("2d", { willReadFrequently: true });
+  sctx.drawImage(canvas, 0, 0, w, h);
+  const { data } = sctx.getImageData(0, 0, w, h);
+  const px = (x, y) => { const o = (y * w + x) * 4; return [data[o], data[o + 1], data[o + 2]]; };
 
   // Background = median of the four corners, sampled just inside the edge.
-  const corners = [[2, 2], [W - 3, 2], [2, H - 3], [W - 3, H - 3]].map(([x, y]) => px(x, y));
+  const corners = [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3]].map(([x, y]) => px(x, y));
   const bg = [0, 1, 2].map((i) => {
     const v = corners.map((c) => c[i]).sort((a, b) => a - b);
     return (v[1] + v[2]) / 2;
@@ -261,42 +290,66 @@ function detectCard(ctx, W, H) {
 
   // A row/column counts as card if enough of its samples differ — ignores
   // dust, roller marks and JPEG noise at the edges.
+  const step = Math.max(1, Math.floor(Math.min(w, h) / 400));
   const rowHit = (y) => {
     let n = 0, seen = 0;
-    for (let x = 0; x < W; x += step) { seen++; if (differs(x, y)) n++; }
+    for (let x = 0; x < w; x += step) { seen++; if (differs(x, y)) n++; }
     return n / seen > 0.2;
   };
   const colHit = (x) => {
     let n = 0, seen = 0;
-    for (let y = 0; y < H; y += step) { seen++; if (differs(x, y)) n++; }
+    for (let y = 0; y < h; y += step) { seen++; if (differs(x, y)) n++; }
     return n / seen > 0.2;
   };
 
-  let top = 0, bottom = H - 1, left = 0, right = W - 1;
-  while (top < H - 1 && !rowHit(top)) top += step;
+  let top = 0, bottom = h - 1, left = 0, right = w - 1;
+  while (top < h - 1 && !rowHit(top)) top += step;
   while (bottom > top && !rowHit(bottom)) bottom -= step;
-  while (left < W - 1 && !colHit(left)) left += step;
+  while (left < w - 1 && !colHit(left)) left += step;
   while (right > left && !colHit(right)) right -= step;
 
-  const w = right - left, h = bottom - top;
-  // Nothing convincing found (blank scan, or card fills the frame already).
-  if (w < W * 0.15 || h < H * 0.15) return { x: 0, y: 0, w: W, h: H, auto: false };
-  return { x: left, y: top, w, h, auto: true };
+  const bw = right - left, bh = bottom - top;
+  // A convincing hit must be card-sized AND card-shaped. Shape matters most
+  // when scanner software already auto-cropped the scan to the card edges:
+  // the "background" sampled from the corners is then the card face itself,
+  // and edge-walking locks onto the name/art boxes — confidently wrong
+  // regions with nothing visibly off.
+  if (bw > w * 0.15 && bh > h * 0.15 && aspectOk(bw, bh)) {
+    return {
+      x: Math.round(left / scale), y: Math.round(top / scale),
+      w: Math.round(bw / scale), h: Math.round(bh / scale), auto: true,
+    };
+  }
+  // Edge-to-edge scan (auto-crop): the whole image IS the card.
+  if (aspectOk(W, H)) return { ...full, auto: true };
+  return { ...full, auto: false };
 }
 
 // ---------------------------------------------------------------------------
 // Decoding — browsers handle PNG/BMP/JPEG natively; TIFF needs UTIF.
 // ---------------------------------------------------------------------------
 let utifPromise = null;
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("no TIFF decoder"));
+    document.head.appendChild(s);
+  });
+}
 function loadUtif() {
+  // pako first: UTIF leans on it for deflate-compressed TIFFs, which some
+  // scan software emits. LZW/uncompressed decode without it, but the failure
+  // would otherwise be per-file and baffling.
   if (!utifPromise) {
-    utifPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/UTIF.js/3.1.0/UTIF.min.js";
-      s.onload = () => resolve(window.UTIF);
-      s.onerror = () => reject(new Error("no TIFF decoder"));
-      document.head.appendChild(s);
-    });
+    utifPromise = loadScript("https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js")
+      .then(() => loadScript("https://cdn.jsdelivr.net/npm/utif2@4.1.0/UTIF.js"))
+      .then(() => window.UTIF)
+      .catch((err) => {
+        utifPromise = null; // offline now ≠ offline later — allow a retry
+        throw err;
+      });
   }
   return utifPromise;
 }
@@ -408,7 +461,9 @@ function render(row) {
   row.el.querySelector(".body").innerHTML = `
     <div class="fname">${row.file}</div>
     <div class="sub">${row.canvas.width} × ${row.canvas.height} px ·
-      card ${row.box.w} × ${row.box.h} ${row.box.auto ? "(auto)" : "(manual)"}</div>
+      card ${row.box.w} × ${row.box.h} ${
+        row.box.manual ? "(manual)" : row.box.auto ? "(auto)" : "(unsure — drag a box)"
+      }</div>
     ${statsTable(row.stats)}
     <div class="verdict">
       <span class="pill">reads as <b>${row.verdict}</b></span>
@@ -431,23 +486,39 @@ function render(row) {
 function wireCrop(row) {
   const view = row.el.querySelector("canvas");
   let start = null;
-  view.onpointerdown = (e) => {
+  const frac = (e) => {
     const r = view.getBoundingClientRect();
-    start = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+  };
+  view.onpointerdown = (e) => {
+    start = frac(e);
     view.setPointerCapture(e.pointerId);
+  };
+  view.onpointermove = (e) => {
+    if (!start) return;
+    const cur = frac(e);
+    draw(row);
+    const c = view.getContext("2d");
+    c.strokeStyle = "#f87171";
+    c.lineWidth = 1.5;
+    c.setLineDash([6, 4]);
+    c.strokeRect(
+      Math.min(start.x, cur.x) * view.width, Math.min(start.y, cur.y) * view.height,
+      Math.abs(cur.x - start.x) * view.width, Math.abs(cur.y - start.y) * view.height
+    );
+    c.setLineDash([]);
   };
   view.onpointerup = (e) => {
     if (!start) return;
-    const r = view.getBoundingClientRect();
-    const end = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    const end = frac(e);
     const x0 = Math.min(start.x, end.x), x1 = Math.max(start.x, end.x);
     const y0 = Math.min(start.y, end.y), y1 = Math.max(start.y, end.y);
     start = null;
-    if (x1 - x0 < 0.05 || y1 - y0 < 0.05) return; // a tap, not a drag
+    if (x1 - x0 < 0.05 || y1 - y0 < 0.05) { draw(row); return; } // a tap, not a drag
     row.box = {
       x: Math.round(x0 * row.canvas.width), y: Math.round(y0 * row.canvas.height),
       w: Math.round((x1 - x0) * row.canvas.width), h: Math.round((y1 - y0) * row.canvas.height),
-      auto: false,
+      auto: false, manual: true,
     };
     measure(row);
     draw(row);
@@ -487,26 +558,53 @@ async function add(file) {
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<div class="preview"><canvas></canvas>
-      <div class="hint">Drag on the image to set the card area by hand.</div>
+      <div class="pbar">
+        <button type="button" class="rot" hidden>⟳ Rotate</button>
+        <button type="button" class="del">✕ Remove</button>
+      </div>
+      <div class="hint">Drag on the image to set the card area by hand.
+        If the name bar isn't at the top, rotate until it is.</div>
     </div><div class="body">Reading…</div>`;
   $cards.appendChild(el);
   // Claim the slot now, in the order files were given. Decoding finishes out
   // of order, and the exported JSON has to line up with what's on screen.
   const row = { file: file.name, el, truth: "", pending: true };
   rows.push(row);
+  // Remove works whether the decode succeeded or not — duplex scans hand you
+  // every card back as its own image, and those rows are pure noise.
+  el.querySelector(".del").onclick = () => {
+    const i = rows.indexOf(row);
+    if (i !== -1) rows.splice(i, 1);
+    el.remove();
+    dump();
+  };
   try {
-    const canvas = await decode(file);
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    let canvas = await decode(file);
+    // The regions assume an upright portrait card. A sideways feed is
+    // detectable (cards are taller than wide) and auto-corrected; an
+    // upside-down one isn't — that's what the rotate button is for.
+    if (canvas.width > canvas.height) canvas = rotate90(canvas);
     row.canvas = canvas;
-    row.box = detectCard(ctx, canvas.width, canvas.height);
+    row.box = detectCard(canvas);
     measure(row);
     row.pending = false;
     draw(row);
     render(row);
     wireCrop(row);
+    const $rot = el.querySelector(".rot");
+    $rot.hidden = false;
+    $rot.onclick = () => {
+      row.canvas = rotate90(row.canvas);
+      row.box = detectCard(row.canvas);
+      measure(row);
+      draw(row);
+      render(row);
+      dump();
+    };
     dump();
   } catch (err) {
-    rows.splice(rows.indexOf(row), 1);
+    const i = rows.indexOf(row); // -1 if ✕ was clicked mid-decode
+    if (i !== -1) rows.splice(i, 1);
     el.querySelector(".body").innerHTML =
       `<div class="fname">${file.name}</div><div class="sub" style="color:var(--bad)">${err.message}</div>`;
     dump();
@@ -530,7 +628,18 @@ document.getElementById("clear").onclick = () => {
 };
 $dpi.onchange = dump;
 $copy.onclick = async () => {
-  await navigator.clipboard.writeText($out.value);
+  try {
+    await navigator.clipboard.writeText($out.value);
+  } catch {
+    // A page opened straight off disk (file://) isn't a secure context, so
+    // navigator.clipboard doesn't exist there — which is exactly how this
+    // tool is meant to be used. The legacy path still copies.
+    $out.focus();
+    $out.select();
+    document.execCommand("copy");
+    $out.setSelectionRange(0, 0);
+    $out.blur();
+  }
   $copy.textContent = "Copied";
   setTimeout(() => ($copy.textContent = "Copy JSON"), 1200);
 };
