@@ -98,6 +98,16 @@
     color: var(--accent); border-color: #6b5518; background: #1a1710;
   }
   button.sug:hover { border-color: var(--accent); }
+  button.cat {
+    font-size: 12px; padding: 3px 10px; border-radius: 999px;
+    color: #38bdf8; border-color: #1c4a63; background: #0f171d;
+  }
+  button.cat:hover { border-color: #38bdf8; }
+  input.setcode {
+    font: inherit; font-size: 12px; color: var(--text); background: var(--raised);
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px;
+    width: 130px; text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
@@ -674,8 +684,33 @@ function agreement(row) {
     : { cls: "bad", text: `disagrees — tag reads ${rb}` };
 }
 
+function applyTruth(row, truth, source) {
+  row.truth = truth;
+  row.truthSource = source; // "human" (a person chose) or "catalog" (code pinned it)
+  // In workflow mode a tag is a trusted label — refile the scan under
+  // confirmed/<family of the tagged rarity>.
+  if (row.dir && row.truth) void confirmRow(row);
+  render(row);
+  dump();
+}
+
+// What the typed set code says this printing can be — the same authority the
+// phone gives the OCR'd code. Rendered from row.catalog, filled by lookupSetCode.
+function catalogHtml(row) {
+  const c = row.catalog;
+  if (!c) return "";
+  if (c.state === "loading") return `<span class="note">checking catalog…</span>`;
+  if (c.state === "error") return `<span class="note" style="color:var(--warn)">${c.msg}</span>`;
+  if (!c.entries.length) return `<span class="note" style="color:var(--warn)">no printings under that code</span>`;
+  return `<span class="note">catalog says ${c.cardName}:</span>
+    ${c.entries.map((e) => `<button type="button" class="cat" data-r="${e.rarity}">${e.rarity}</button>`).join("")}`;
+}
+
 function render(row) {
   const a = agreement(row);
+  // The truth select must be able to show a catalog rarity outside the
+  // built-in list (Short Print, Platinum Secret…).
+  const options = RARITIES.includes(row.truth) || !row.truth ? RARITIES : [row.truth, ...RARITIES];
   row.el.querySelector(".body").innerHTML = `
     <div class="fname">${row.file}</div>
     <div class="sub">${row.canvas.width} × ${row.canvas.height} px ·
@@ -690,9 +725,15 @@ function render(row) {
       <label class="field">truth
         <select>
           <option value="">— untagged —</option>
-          ${RARITIES.map((r) => `<option ${r === row.truth ? "selected" : ""}>${r}</option>`).join("")}
+          ${options.map((r) => `<option ${r === row.truth ? "selected" : ""}>${r}</option>`).join("")}
         </select>
       </label>
+    </div>
+    <div class="verdict" style="margin-top:6px">
+      <label class="field">code
+        <input class="setcode" value="${row.setCode ?? ""}" placeholder="RA05-EN091" />
+      </label>
+      ${catalogHtml(row)}
     </div>
     ${row.suggest?.length ? `<div class="verdict" style="margin-top:6px">
       <span class="note">suggests:</span>
@@ -701,19 +742,65 @@ function render(row) {
     <div class="reasons">why: <ul>${(row.reasons ?? []).map((r) => `<li>${r}</li>`).join("")}</ul>
       <div style="margin-top:6px;color:var(--dim)">phone-threshold read (for fixture comparison): ${row.phoneVerdict}</div>
     </div>`;
-  const applyTruth = (truth) => {
-    row.truth = truth;
-    // In workflow mode a human tag is a trusted label — refile the scan under
-    // confirmed/<family of the tagged rarity>.
-    if (row.dir && row.truth) void confirmRow(row);
+  row.el.querySelector("select").onchange = (e) => applyTruth(row, e.target.value, "human");
+  // Suggestion chips guess from the reading; catalog chips are the printed
+  // facts for the typed code. Either way a click tags the truth.
+  for (const btn of row.el.querySelectorAll("button.sug, button.cat")) {
+    btn.onclick = () => applyTruth(row, btn.dataset.r, "human");
+  }
+  const $code = row.el.querySelector("input.setcode");
+  $code.onchange = () => {
+    const code = $code.value.trim().toUpperCase();
+    row.setCode = code || undefined;
+    if (code) void lookupSetCode(row);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Set-code catalog lookup (YGOPRODeck, allows cross-origin reads). The code
+// printed on the card pins its possible rarities exactly — the same authority
+// the phone's OCR'd code has. One printed rarity = a catalog fact, so it tags
+// the truth automatically; several = chips for the human to pick from.
+// ---------------------------------------------------------------------------
+const codeCache = new Map();
+function fetchCode(code) {
+  if (codeCache.has(code)) return codeCache.get(code);
+  const p = (async () => {
+    const si = await fetch(
+      "https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=" + encodeURIComponent(code)
+    );
+    const info = si.ok ? await si.json() : null;
+    if (!info?.id) throw new Error("code not in catalog — check for OCR-style typos (O vs 0)");
+    const ci = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?id=" + info.id);
+    if (!ci.ok) throw new Error("catalog lookup failed");
+    const card = (await ci.json()).data?.[0];
+    const seen = new Set();
+    const entries = (card?.card_sets ?? [])
+      .filter((s) => s.set_code?.toUpperCase() === code)
+      .filter((s) => !seen.has(s.set_rarity) && seen.add(s.set_rarity))
+      .map((s) => ({ rarity: s.set_rarity, setName: s.set_name }));
+    return { cardName: card?.name ?? info.name, entries };
+  })();
+  p.catch(() => codeCache.delete(code)); // offline now ≠ offline later
+  codeCache.set(code, p);
+  return p;
+}
+
+async function lookupSetCode(row) {
+  row.catalog = { state: "loading" };
+  render(row);
+  try {
+    const res = await fetchCode(row.setCode);
+    row.catalog = { state: "done", ...res };
     render(row);
     dump();
-  };
-  row.el.querySelector("select").onchange = (e) => applyTruth(e.target.value);
-  // Suggestion chips: one click tags the truth. Still a human decision — the
-  // chip only pre-lists what this reading is usually printed as.
-  for (const btn of row.el.querySelectorAll("button.sug")) {
-    btn.onclick = () => applyTruth(btn.dataset.r);
+    // Exactly one printed rarity and nothing tagged yet: the code settles it.
+    if (res.entries.length === 1 && !row.truth) {
+      applyTruth(row, res.entries[0].rarity, "catalog");
+    }
+  } catch (err) {
+    row.catalog = { state: "error", msg: err.message };
+    render(row);
   }
 }
 
@@ -771,6 +858,8 @@ function dump() {
     cards: rows.filter((r) => !r.pending).map((r) => ({
       file: r.file,
       truth: r.truth || null,
+      truthSource: r.truthSource,
+      setCode: r.setCode,
       verdict: r.verdict,
       phoneVerdict: r.phoneVerdict,
       reasons: r.reasons,
@@ -942,6 +1031,8 @@ function entryFor(row, action) {
     phoneVerdict: row.phoneVerdict,
     reasons: row.reasons,
     truth: row.truth || undefined,
+    truthSource: row.truthSource,
+    setCode: row.setCode,
     rarity: action === "override" ? row.truth : undefined,
     stats: row.stats && {
       name: mapStat(row.stats.name), art: mapStat(row.stats.art), whole: mapStat(row.stats.whole),
