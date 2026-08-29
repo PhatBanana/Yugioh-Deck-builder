@@ -348,8 +348,11 @@ function classifyScanTrace(s) {
   if (s.art.specular >= SCAN.FOIL && s.art.specular >= s.name.specular + SCAN.MARGIN) {
     return {
       verdict: "holo-art",
-      reasons: [`art glints (${f(s.art.specular)}) and outshines the name (${f(s.name.specular)})`],
-      suggest: ["Super Rare", "Ultimate Rare"],
+      reasons: [
+        `art glints (${f(s.art.specular)}) and outshines the name (${f(s.name.specular)})`,
+        `caveat: bright artwork (white bursts, light skies) reads the same as foil at scanner exposure — a Common with bright art lands here too`,
+      ],
+      suggest: ["Super Rare", "Ultimate Rare", "Common"],
     };
   }
   if (s.name.specular < SCAN.GLINT && s.art.specular < SCAN.GLINT) {
@@ -742,6 +745,9 @@ function dump() {
 const mapStat = (s) => ({ specular: r3(s.specular), hueSpread: r3(s.hueSpread), goldness: r3(s.goldness) });
 
 async function add(file, dir = null) {
+  // Insurance against forEach(add)-style calls leaking an index in as `dir` —
+  // that exact bug once broke every file after the first in a multi-drop.
+  if (typeof dir !== "string") dir = null;
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<div class="preview"><canvas></canvas>
@@ -814,13 +820,13 @@ async function add(file, dir = null) {
 const $drop = document.getElementById("drop");
 const $file = document.getElementById("file");
 $drop.onclick = () => $file.click();
-$file.onchange = (e) => { [...e.target.files].forEach(add); e.target.value = ""; };
+$file.onchange = (e) => { [...e.target.files].forEach((f) => add(f)); e.target.value = ""; };
 $drop.ondragover = (e) => { e.preventDefault(); $drop.classList.add("over"); };
 $drop.ondragleave = () => $drop.classList.remove("over");
 $drop.ondrop = (e) => {
   e.preventDefault();
   $drop.classList.remove("over");
-  [...e.dataTransfer.files].filter((f) => /image|\.tiff?$/i.test(f.type + f.name)).forEach(add);
+  [...e.dataTransfer.files].filter((f) => /image|\.tiff?$/i.test(f.type + f.name)).forEach((f) => add(f));
 };
 
 document.getElementById("clear").onclick = () => {
