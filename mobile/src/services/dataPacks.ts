@@ -1,7 +1,9 @@
 import {
+  JP_PRINTINGS_PACK,
   langPackName,
   LIMIT_REGS_PACK,
   YUGIPEDIA_IDS_PACK,
+  type JpPrintingsPack,
   type LimitRegEntry,
 } from "@shared/datapacks/transform";
 import { httpGetJson } from "./http";
@@ -13,7 +15,7 @@ import { httpGetJson } from "./http";
 const BASE =
   "https://github.com/PhatBanana/Yugioh-Deck-builder/releases/download/data-latest";
 
-export type { LimitRegEntry };
+export type { JpPrintingsPack, LimitRegEntry };
 
 export async function fetchLimitRegs(): Promise<Record<string, LimitRegEntry>> {
   return httpGetJson<Record<string, LimitRegEntry>>(`${BASE}/${LIMIT_REGS_PACK}`);
@@ -25,4 +27,8 @@ export async function fetchYugipediaIds(): Promise<Record<string, number>> {
 
 export async function fetchLangPack(lang: string): Promise<Record<string, string>> {
   return httpGetJson<Record<string, string>>(`${BASE}/${langPackName(lang)}`);
+}
+
+export async function fetchJpPrintings(): Promise<JpPrintingsPack> {
+  return httpGetJson<JpPrintingsPack>(`${BASE}/${JP_PRINTINGS_PACK}`);
 }

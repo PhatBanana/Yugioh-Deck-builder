@@ -215,6 +215,7 @@ export const db = new Dexie("ygo-deck-builder") as Dexie & {
   trades: EntityTable<MTrade, "id">;
   printingIndex: Table<MPrintingIndex, [string, string]>;
   altNames: Table<MAltName, [number, string]>;
+  jpPrintings: Table<MPrintingIndex, [string, string]>;
 };
 
 db.version(1).stores({
@@ -274,6 +275,14 @@ db.version(8).stores({
 // speedLimit / ypId from the data-pack sync are non-indexed field additions.)
 db.version(9).stores({
   altNames: "[cardId+lang], lang, nameLower",
+});
+
+// v10 adds Japanese (OCG) printings from the downloadable pack. Deliberately
+// NOT part of printingIndex: that table is cleared and rebuilt from scratch on
+// every card sync, which would wipe an installed pack with nothing to say so.
+// Same row shape, so the two merge cleanly at lookup.
+db.version(10).stores({
+  jpPrintings: "[codeCanon+rarity], codeCanon, cardId",
 });
 
 export async function getSyncMeta(key: string): Promise<string | null> {

@@ -12,6 +12,13 @@ export interface YamlYugiCard {
   limit_regulation?: Record<string, string | null | undefined> | null;
   master_duel_rarity?: string | null;
   yugipedia_page_id?: number | null;
+  sets?: Record<string, YamlYugiSet[] | null | undefined> | null;
+}
+
+export interface YamlYugiSet {
+  set_number?: string | null;
+  set_name?: string | null;
+  rarities?: (string | null | undefined)[] | null;
 }
 
 // Maps yaml-yugi's regulation words onto the app's banlist strings (matching
@@ -99,6 +106,59 @@ export function buildYugipediaIds(cards: YamlYugiCard[]): Record<string, number>
   return out;
 }
 
+// Japanese (OCG) printings: set code + rarity per card.
+//
+// The card API the app syncs from carries TCG printings only — an OCG card's
+// set code is read off the scan correctly and then resolves to nothing, so no
+// rarity can be inferred. yaml-yugi has the missing half under `sets.ja`.
+//
+// Rarity strings are interned: ~26k printings draw on a few dozen distinct
+// rarities, and repeating "Quarter Century Secret Rare" in full thousands of
+// times is most of what the pack would weigh. Set codes stay raw — the app
+// canonicalizes them on install with canonSetCode, so that logic lives in one
+// place rather than being baked into the pack.
+export interface JpPrintingsPack {
+  /** Distinct rarity names; entries index into this. */
+  rarities: string[];
+  /** password → [set code, rarity index][] */
+  printings: Record<string, [string, number][]>;
+}
+
+export function buildJpPrintings(cards: YamlYugiCard[]): JpPrintingsPack {
+  const rarities: string[] = [];
+  const rarityIndex = new Map<string, number>();
+  const intern = (rarity: string): number => {
+    const found = rarityIndex.get(rarity);
+    if (found !== undefined) return found;
+    rarityIndex.set(rarity, rarities.length);
+    rarities.push(rarity);
+    return rarities.length - 1;
+  };
+
+  const printings: Record<string, [string, number][]> = {};
+  for (const c of cards) {
+    if (c.password == null) continue;
+    const rows: [string, number][] = [];
+    const seen = new Set<string>();
+    for (const set of c.sets?.ja ?? []) {
+      const code = set?.set_number?.trim();
+      if (!code) continue;
+      // A set number printed at several rarities becomes one row each — the
+      // same ambiguity the rarity picker already handles for TCG codes.
+      for (const rarity of set?.rarities ?? []) {
+        const name = rarity?.trim();
+        if (!name) continue;
+        const key = `${code}|${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push([code, intern(name)]);
+      }
+    }
+    if (rows.length > 0) printings[String(c.password)] = rows;
+  }
+  return { rarities, printings };
+}
+
 // ---- Pack manifest — the contract between the CI builder (scripts/
 // build-data-packs.mjs) and the app's fetcher (services/dataPacks.ts). Both
 // sides import THESE names; a rename or added language in one place used to
@@ -106,6 +166,7 @@ export function buildYugipediaIds(cards: YamlYugiCard[]): Record<string, number>
 export const DATA_PACK_LANGS = ["ja", "ko", "de", "fr", "it", "es", "pt"] as const;
 export const LIMIT_REGS_PACK = "limit-regs.json";
 export const YUGIPEDIA_IDS_PACK = "yugipedia-ids.json";
+export const JP_PRINTINGS_PACK = "jp-printings.json";
 export function langPackName(lang: string): string {
   return `langpack-${lang}.json`;
 }

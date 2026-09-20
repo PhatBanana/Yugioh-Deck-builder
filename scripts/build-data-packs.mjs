@@ -7,10 +7,12 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import {
+  buildJpPrintings,
   buildLangPack,
   buildLimitRegs,
   buildYugipediaIds,
   DATA_PACK_LANGS,
+  JP_PRINTINGS_PACK,
   langPackName,
   LIMIT_REGS_PACK,
   YUGIPEDIA_IDS_PACK,
@@ -64,7 +66,20 @@ if (inSpeed.length < 200 || inSpeed.length > cards.length * 0.5) {
     `schema check: Speed pool is ${inSpeed.length} cards — limit_regulation.speed no longer marks pool membership?`
   );
 }
+// Japanese printings ride sets.ja[].{set_number,rarities}. This is the only
+// source of OCG set codes the app has — the card API it syncs from carries
+// TCG printings exclusively — so a shape change here must fail the run
+// rather than quietly publish a pack that resolves nothing.
+const withJaSets = cards.filter((c) => Array.isArray(c?.sets?.ja) && c.sets.ja.length > 0);
+if (withJaSets.length < cards.length * 0.5) {
+  throw new Error(`schema check: only ${withJaSets.length} cards carry sets.ja`);
+}
+const jaSample = withJaSets[0].sets.ja[0];
+if (typeof jaSample?.set_number !== "string" || !Array.isArray(jaSample?.rarities)) {
+  throw new Error("schema check: sets.ja entries lost set_number/rarities");
+}
 console.log(`Master Duel pool: ${inMd.length}; Speed Duel pool: ${inSpeed.length}.`);
+console.log(`Cards with Japanese printings: ${withJaSets.length}.`);
 
 // ---- Build + write ---------------------------------------------------------
 await mkdir(OUT_DIR, { recursive: true });
@@ -84,6 +99,14 @@ if (Object.keys(regs).length < 1000) {
 }
 await write(LIMIT_REGS_PACK, regs);
 await write(YUGIPEDIA_IDS_PACK, buildYugipediaIds(cards));
+
+const jp = buildJpPrintings(cards);
+const jpRows = Object.values(jp.printings).reduce((n, rows) => n + rows.length, 0);
+if (jpRows < 10000) {
+  throw new Error(`jp-printings suspiciously small (${jpRows} printings) — sets.ja moved?`);
+}
+await write(JP_PRINTINGS_PACK, jp);
+console.log(`  ${jpRows} Japanese printings across ${jp.rarities.length} rarities.`);
 for (const lang of DATA_PACK_LANGS) {
   await write(langPackName(lang), buildLangPack(cards, lang));
 }
