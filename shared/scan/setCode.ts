@@ -22,6 +22,22 @@ const REGIONS = new Set([
   "EN", "FR", "DE", "IT", "PT", "SP", "EU", "AE", "AU", "JP", "JA", "KR", "TC", "SC",
 ]);
 
+// The region printed in a set code ("EN" in "SDCB-EN001"), or null when the
+// code carries none — either because it was misread, or because it predates
+// region codes ("301-016", an OCG-era number).
+//
+// canonSetCode deliberately throws the region away so a misread still matches.
+// That is right for matching one printing, but it also collapses "RC04-JP001"
+// and "RC04-EN001" onto the same key, so the region is what tells the TCG and
+// OCG printing tables apart.
+export function setCodeRegion(code: string): string | null {
+  const up = code.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  const dash = up.indexOf("-");
+  if (dash <= 0) return null;
+  const region = up.slice(dash + 1).match(/^([A-Z]{2})(?=[A-Z]?\d)/);
+  return region && REGIONS.has(region[1]) ? region[1] : null;
+}
+
 // Canonical form for comparing two set codes: uppercase, region removed, and
 // the card number stripped of zero-padding — so "SDCB-EN001", "SDCB-001" and
 // "SDCB-EN1" all collapse to the same key.

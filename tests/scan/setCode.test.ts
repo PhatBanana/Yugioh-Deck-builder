@@ -5,8 +5,31 @@ import {
   extractSetCode,
   matchPrintingCandidates,
   rarityAbbrev,
+  setCodeRegion,
   type PrintingRef,
 } from "../../shared/scan/setCode";
+
+describe("setCodeRegion", () => {
+  it("reads the printed region", () => {
+    expect(setCodeRegion("SDCB-EN001")).toBe("EN");
+    expect(setCodeRegion("RC04-JP001")).toBe("JP");
+    expect(setCodeRegion("rc04-ja001")).toBe("JA");
+  });
+
+  it("returns null when there is no region to read", () => {
+    // Pre-region OCG numbering, and codes whose region was misread.
+    expect(setCodeRegion("301-016")).toBeNull();
+    expect(setCodeRegion("SDCB-001")).toBeNull();
+    expect(setCodeRegion("SDCB-XX001")).toBeNull();
+    expect(setCodeRegion("NODASH")).toBeNull();
+  });
+
+  it("distinguishes codes that canonSetCode collapses together", () => {
+    // Same canonical key, different printing tables.
+    expect(canonSetCode("RC04-JP001")).toBe(canonSetCode("RC04-EN001"));
+    expect(setCodeRegion("RC04-JP001")).not.toBe(setCodeRegion("RC04-EN001"));
+  });
+});
 
 describe("canonSetCode", () => {
   it("collapses region and zero-padding to one key", () => {

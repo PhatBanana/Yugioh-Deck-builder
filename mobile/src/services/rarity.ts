@@ -1,4 +1,4 @@
-import { canonSetCode, type PrintingRef } from "@shared/scan/setCode";
+import { canonSetCode, setCodeRegion, type PrintingRef } from "@shared/scan/setCode";
 import { db, type MPrintingIndex } from "../db";
 
 // The global rarity/foil index: a set-code -> rarity lookup covering the whole
@@ -39,11 +39,25 @@ export async function rebuildPrintingIndex(
 // candidate carries its per-printing price — a likelihood signal (cheap =
 // plentiful) and shown in the rarity picker. Empty when the index isn't built
 // yet or the code is unknown.
+//
+// Two tables hold printings: the TCG index rebuilt on every card sync, and the
+// Japanese printings from the optional data pack. The printed region picks
+// which one leads — codes like "RC04-JP001" and "RC04-EN001" canonicalize to
+// the same key, so merging both would make plain TCG scans ambiguous. The
+// other table is consulted only when the first has nothing, which covers a
+// misread region and the region-less codes of older OCG sets.
 export async function lookupRaritiesByCode(
   setCode: string | null
 ): Promise<(PrintingRef & { priceUsd: number | null })[]> {
   if (!setCode) return [];
-  const rows = await db.printingIndex.where("codeCanon").equals(canonSetCode(setCode)).toArray();
+  const canon = canonSetCode(setCode);
+  const region = setCodeRegion(setCode);
+  const japanese = region === "JP" || region === "JA";
+  const byCode = (table: typeof db.printingIndex) =>
+    table.where("codeCanon").equals(canon).toArray();
+
+  const first = await byCode(japanese ? db.jpPrintings : db.printingIndex);
+  const rows = first.length > 0 ? first : await byCode(japanese ? db.printingIndex : db.jpPrintings);
   return rows.map((r) => ({ code: r.code, rarity: r.rarity, priceUsd: r.priceUsd }));
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildJpPrintings,
   buildLangPack,
   buildLimitRegs,
   buildYugipediaIds,
@@ -127,5 +128,72 @@ describe("buildYugipediaIds", () => {
     expect(ids["46986414"]).toBe(1132);
     expect(ids["10000"]).toBeUndefined();
     expect(Object.keys(ids)).toHaveLength(2);
+  });
+});
+
+describe("buildJpPrintings", () => {
+  // Shapes copied from the live yaml-yugi aggregate, including the old
+  // region-less set numbers and the multi-rarity entries that make up
+  // roughly a fifth of the Japanese printings.
+  const cards = [
+    {
+      password: 46986414,
+      sets: {
+        ja: [
+          { set_number: "SDMY-JP001", set_name: "Structure Deck", rarities: ["Common"] },
+          { set_number: "301-016", set_name: "The New Ruler", rarities: ["Ultra Rare", "Secret Rare"] },
+        ],
+        en: [{ set_number: "LOB-EN005", set_name: "Legend of Blue Eyes", rarities: ["Ultra Rare"] }],
+      },
+    },
+    {
+      password: 14558127,
+      sets: {
+        ja: [
+          { set_number: "RC04-JP001", set_name: "Rarity Collection", rarities: ["Quarter Century Secret Rare"] },
+        ],
+      },
+    },
+    { password: 999, sets: { en: [{ set_number: "X-EN001", rarities: ["Common"] }] } },
+    { password: null, sets: { ja: [{ set_number: "Y-JP001", rarities: ["Common"] }] } },
+  ];
+
+  it("indexes Japanese printings by password", () => {
+    const pack = buildJpPrintings(cards);
+    expect(Object.keys(pack.printings).sort()).toEqual(["14558127", "46986414"]);
+  });
+
+  it("emits one row per rarity when a set code has several", () => {
+    const { printings, rarities } = buildJpPrintings(cards);
+    const rows = printings["46986414"];
+    expect(rows).toHaveLength(3);
+    const byCode = rows.filter(([code]) => code === "301-016");
+    expect(byCode.map(([, r]) => rarities[r]).sort()).toEqual(["Secret Rare", "Ultra Rare"]);
+  });
+
+  it("interns rarity names rather than repeating them", () => {
+    const pack = buildJpPrintings([...cards, ...cards]);
+    // "Common" appears in several entries but is stored once.
+    expect(pack.rarities.filter((r) => r === "Common")).toHaveLength(1);
+    expect(new Set(pack.rarities).size).toBe(pack.rarities.length);
+  });
+
+  it("ignores TCG-only cards and entries with no usable data", () => {
+    const pack = buildJpPrintings(cards);
+    expect(pack.printings["999"]).toBeUndefined();
+    expect(Object.values(pack.printings).flat()).not.toContainEqual(
+      expect.arrayContaining(["Y-JP001"])
+    );
+  });
+
+  it("degrades to no entry on missing/blank fields rather than throwing", () => {
+    const pack = buildJpPrintings([
+      { password: 1, sets: { ja: [{ set_number: "  ", rarities: ["Common"] }] } },
+      { password: 2, sets: { ja: [{ set_number: "A-JP001", rarities: [] }] } },
+      { password: 3, sets: { ja: [{ set_number: "B-JP001", rarities: [null, " "] }] } },
+      { password: 4, sets: null },
+      { password: 5 },
+    ] as Parameters<typeof buildJpPrintings>[0]);
+    expect(pack.printings).toEqual({});
   });
 });

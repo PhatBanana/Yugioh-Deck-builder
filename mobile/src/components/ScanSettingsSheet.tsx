@@ -7,6 +7,11 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
+import {
+  installJpPrintings,
+  jpPrintingsCount,
+  removeJpPrintings,
+} from "../services/jpPrintings";
 import type { OcrScript } from "../services/ocr";
 import { toast } from "./Toaster";
 import BottomSheet from "./BottomSheet";
@@ -61,6 +66,57 @@ function Toggle({
 
 // Downloadable localized-name packs: each adds a language's card names to
 // search and to the scanner's match pool (~1–2 MB per language).
+// Japanese printings are a separate download from the name packs: names let
+// you find an OCG card, this lets a scanned OCG set code resolve to a rarity.
+function JapanesePrintings() {
+  const count = useLiveQuery(jpPrintingsCount, [], null);
+  const [busy, setBusy] = useState(false);
+  const installed = (count ?? 0) > 0;
+
+  async function toggle() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (installed) {
+        await removeJpPrintings();
+        toast("Japanese printings removed", "success");
+      } else {
+        const n = await installJpPrintings();
+        toast(`${n.toLocaleString()} Japanese printings installed`, "success");
+      }
+    } catch {
+      toast("Couldn't download the printing pack — check your connection", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm">Japanese printings</span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void toggle()}
+          className={`text-xs px-3 py-1.5 rounded-full border shrink-0 disabled:opacity-50 ${
+            installed
+              ? "bg-amber-400/15 border-amber-900/60 text-amber-200"
+              : "bg-surface border-line text-neutral-400"
+          }`}
+        >
+          {busy ? "…" : installed ? "Installed" : "Install (~0.7 MB)"}
+        </button>
+      </div>
+      <span className="block text-xs text-neutral-500 mt-0.5">
+        Set codes on OCG cards (RC04-JP001 and the like) aren't in the card
+        database, so scanning one can't tell what rarity it is. This adds them.
+        {installed && count ? ` ${count.toLocaleString()} printings stored.` : ""}
+      </span>
+    </div>
+  );
+}
+
 function LanguagePacks() {
   const installed = useLiveQuery(installedLangs, []);
   const [busy, setBusy] = useState<string | null>(null);
@@ -227,6 +283,7 @@ export default function ScanSettingsSheet({
       </div>
 
       <LanguagePacks />
+      <JapanesePrintings />
       </div>
     </BottomSheet>
   );
