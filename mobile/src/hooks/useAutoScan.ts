@@ -266,7 +266,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     busyRef.current = true;
     try {
       const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
-        await withPulse(captureFrameAndMatch);
+        await withPulse(() => captureFrameAndMatch(settingsRef.current.ocrScript));
       const top = matches[0];
 
       if (!top || top.score < AUTO_SCORE) {
@@ -386,7 +386,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (!runningRef.current) return;
     try {
       const { matches, matchedByPasscode, setCode, edition, foil, modelRarity } =
-        await withPulse(captureFrameAndMatch);
+        await withPulse(() => captureFrameAndMatch(settingsRef.current.ocrScript));
       const top = matches[0];
       if (top) {
         lockedIdRef.current = top.id;

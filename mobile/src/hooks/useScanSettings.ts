@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { OcrScript } from "../services/ocr";
 
 /** How the torch behaves while scanning. Android exposes no torch dimming
  *  while the camera session owns the light, so glare is reduced by pulsing:
@@ -25,6 +26,9 @@ export interface ScanSettings {
   /** Experimental: after each add, flash the torch once and read where the
    *  light reflects (foil signature) to pick between a code's rarities. */
   torchRarity: boolean;
+  /** Which OCR model reads the card. "japanese" also reads Latin, so it
+   *  handles a mixed collection — it just costs a slightly heavier model. */
+  ocrScript: OcrScript;
 }
 
 export const SCAN_DELAY_MIN = 600;
@@ -39,6 +43,7 @@ export const DEFAULT_SCAN_SETTINGS: ScanSettings = {
   zoomRatio: 1,
   detectPrinting: true,
   torchRarity: false,
+  ocrScript: "latin",
 };
 
 const STORAGE_KEY = "ygo-scan-settings";

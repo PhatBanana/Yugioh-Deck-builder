@@ -1,7 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { CameraPreview } from "@capgo/camera-preview";
 import { KeepAwake } from "@capacitor-community/keep-awake";
-import { Ocr } from "@jcesarmobile/capacitor-ocr";
+import { Ocr, type OcrScript } from "./ocr";
 import {
   extractPasscodes,
   matchOcrLines,
@@ -174,11 +174,11 @@ export async function setScreenAwake(on: boolean): Promise<void> {
 // (rather than throwing) if the preview isn't running so the scan loop can
 // keep polling without crashing. High JPEG quality helps read the small
 // passcode text.
-export async function captureFrameAndMatch(): Promise<ScanOutcome> {
+export async function captureFrameAndMatch(script?: OcrScript): Promise<ScanOutcome> {
   if (!previewActive) return { matches: [], rawLines: [] };
   const { value } = await CameraPreview.captureSample({ quality: 92 });
   const { image, foil } = await prepareFrame(`data:image/jpeg;base64,${value}`);
-  return ocrAndMatch(image, foil);
+  return ocrAndMatch(image, foil, script);
 }
 
 // Captures one raw preview frame as a data URL — no crop, OCR or matching.
@@ -359,8 +359,12 @@ function hueDeg(r: number, g: number, b: number, max: number, min: number): numb
   return hue < 0 ? hue + 360 : hue;
 }
 
-async function ocrAndMatch(image: string, foil?: FoilClass): Promise<ScanOutcome> {
-  const { results } = await Ocr.process({ image });
+async function ocrAndMatch(
+  image: string,
+  foil?: FoilClass,
+  script?: OcrScript
+): Promise<ScanOutcome> {
+  const { results } = await Ocr.process({ image, script });
   const rawLines = results
     .flatMap((r) => r.text.split("\n"))
     .map((l) => l.trim())

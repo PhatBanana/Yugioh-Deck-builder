@@ -6,7 +6,12 @@ superseded it.)
 
 - `mobile/` — the app. Vite + React + TypeScript + Tailwind, wrapped with
   Capacitor for Android. Local storage is IndexedDB via Dexie. Card scanning
-  uses the device camera + on-device ML Kit OCR.
+  uses the device camera + on-device ML Kit OCR, through the app's own
+  Capacitor plugins under
+  `mobile/android/app/src/main/java/com/phatbanana/ygodeckbuilder/`
+  (`OcrPlugin` — Latin and Japanese text recognition; `SaveFilePlugin` — the
+  Save-as dialog). Local plugins must be registered in `MainActivity` before
+  the bridge starts.
 - `shared/` — pure, framework-free core logic (recommendation scoring, deck
   validation, `.ydk`/list parsing, meta-deck HTML parsing, OCR name matching).
   Imported by the app as `@shared/*`. Keep this free of DOM/DB/network code.

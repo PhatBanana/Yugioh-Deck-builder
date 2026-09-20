@@ -7,12 +7,18 @@ import {
   type ScanSettings,
 } from "../hooks/useScanSettings";
 import { installedLangs, installLangPack, LANGS, removeLangPack } from "../services/langPacks";
+import type { OcrScript } from "../services/ocr";
 import { toast } from "./Toaster";
 import BottomSheet from "./BottomSheet";
 
 const FLASH_MODES: { id: FlashMode; label: string }[] = [
   { id: "continuous", label: "Steady" },
   { id: "pulse", label: "Pulse (less glare)" },
+];
+
+const OCR_SCRIPTS: { id: OcrScript; label: string }[] = [
+  { id: "latin", label: "Latin" },
+  { id: "japanese", label: "Japanese (日本語)" },
 ];
 
 function Toggle({
@@ -82,8 +88,10 @@ function LanguagePacks() {
       <span className="block text-sm">Card languages</span>
       <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
         Adds a language's card names to search and scanning (~0.5 MB each,
-        Japanese 1.2 MB). Japanese/Korean cards can be found by typed search,
-        but the camera can only read Latin-script text.
+        Japanese 1.2 MB). Install Japanese to scan OCG cards by name — the
+        camera reads them once Text recognition below is set to Japanese.
+        Korean names are searchable by typing, but can't be read by the
+        camera.
       </span>
       <div className="flex flex-wrap gap-1.5">
         {LANGS.map((l) => {
@@ -196,6 +204,27 @@ export default function ScanSettingsSheet({
             <span>Fewer double-reads</span>
           </div>
         </div>
+
+      <div className="py-3">
+        <span className="block text-sm">Text recognition</span>
+        <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
+          Which model reads the card. Japanese reads Latin too, so a mixed
+          collection scans fine on it — it just loads a heavier model. Needs
+          the Japanese card-name pack above to match what it reads.
+        </span>
+        <div className="seg text-xs">
+          {OCR_SCRIPTS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => update({ ocrScript: s.id })}
+              className={`seg-btn py-1.5 ${settings.ocrScript === s.id ? "seg-on" : ""}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <LanguagePacks />
       </div>

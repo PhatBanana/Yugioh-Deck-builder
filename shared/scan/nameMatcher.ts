@@ -20,10 +20,27 @@ export interface NameMatch {
   score: number; // 0..1, higher is better
 }
 
+// Characters worth comparing: ASCII letters/digits, plus the CJK scripts the
+// language packs carry. Everything else — punctuation, spacing, OCR specks,
+// and the accents that Latin prints vary on — is dropped.
+//
+// Script_Extensions (scx) rather than Script, because the marks that carry
+// sound in Japanese — the prolonged ー and the repeat 々 — are script Common
+// and would otherwise be stripped, turning "フール" into "フル". The katakana
+// middle dot is dropped explicitly: it separates words the way a hyphen does
+// in "Blue-Eyes", and OCR misses it just as easily.
+const NOISE = /[^a-z0-9\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}]+|・/gu;
+
 // Lowercase and strip everything except letters/digits so punctuation,
 // spacing and OCR artifacts like stray dots don't affect the comparison.
+//
+// CJK characters survive: a Japanese name reduced to "" matches nothing, and
+// under the old ASCII-only rule every Japanese, Korean and Chinese name in
+// the catalog normalized to exactly that — the empty string. NFKC first,
+// because Japanese prints and OCR mix full-width Latin with half-width kana
+// ("ＡＢＣ" and "ABC" have to compare equal).
 export function normalizeName(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return s.normalize("NFKC").toLowerCase().replace(NOISE, "");
 }
 
 // Every modern Yu-Gi-Oh! card prints its 8-digit passcode in the bottom-left
