@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
   public void onCreate(Bundle savedInstanceState) {
     // Local plugins must register before the bridge initializes.
     registerPlugin(SaveFilePlugin.class);
+    registerPlugin(OcrPlugin.class);
     super.onCreate(savedInstanceState);
   }
 }

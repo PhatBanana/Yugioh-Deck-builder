@@ -21,6 +21,27 @@ describe("normalizeName", () => {
     expect(normalizeName("Ash Blossom & Joyous Spring")).toBe("ashblossomjoyousspring");
     expect(normalizeName("Blue-Eyes  WHITE   Dragon!")).toBe("blueeyeswhitedragon");
   });
+
+  it("keeps Japanese, which used to normalize away to nothing", () => {
+    // The old ASCII-only rule mapped every CJK name to "", so no Japanese
+    // card could ever be matched however cleanly it was read.
+    expect(normalizeName("灰流うらら")).toBe("灰流うらら");
+    expect(normalizeName("メガリス・フール")).toBe("メガリスフール");
+    // The prolonged sound mark carries pronunciation and has to survive; the
+    // middle dot is a separator and goes, like the hyphen in "Blue-Eyes".
+    expect(normalizeName("サイバー・ドラゴン")).toBe("サイバードラゴン");
+    expect(normalizeName("사이버 드래곤")).toBe("사이버드래곤");
+  });
+
+  it("folds the full-width Latin that Japanese prints mix in", () => {
+    expect(normalizeName("ＡＢＣ－１２３")).toBe(normalizeName("ABC-123"));
+    expect(normalizeName("ﾒｶﾞﾘｽ")).toBe(normalizeName("メガリス"));
+  });
+
+  it("still drops accents and punctuation from Latin names", () => {
+    expect(normalizeName("Phul Megalítico")).toBe("phulmegaltico");
+    expect(normalizeName("Dragón de Ojos Azules")).toBe("dragndeojosazules");
+  });
 });
 
 describe("matchCardName", () => {
@@ -51,6 +72,30 @@ describe("matchCardName", () => {
   it("returns nothing for garbage or too-short input", () => {
     expect(matchCardName("zzqqxxwwvv", CATALOG)).toHaveLength(0);
     expect(matchCardName("ab", CATALOG)).toHaveLength(0);
+  });
+});
+
+describe("matchCardName (Japanese)", () => {
+  const jp = [
+    { id: 14558127, name: "灰流うらら" },
+    { id: 23434538, name: "増殖するG" },
+    { id: 46986414, name: "ブラック・マジシャン" },
+  ];
+
+  it("matches a Japanese card name read off the card", () => {
+    const [top] = matchCardName("ブラック・マジシャン", jp);
+    expect(top.id).toBe(46986414);
+    expect(top.score).toBe(1);
+  });
+
+  it("tolerates a misread kana", () => {
+    const [top] = matchCardName("灰流うらち", jp);
+    expect(top?.id).toBe(14558127);
+  });
+
+  it("does not confuse two unrelated Japanese names", () => {
+    const [top] = matchCardName("増殖するG", jp);
+    expect(top.id).toBe(23434538);
   });
 });
 

@@ -18,11 +18,9 @@
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/share": "^8.0.1",
     "@capgo/camera-preview": "^8.11.2",
-    "@jcesarmobile/capacitor-ocr": "^0.3.0",
     "@tailwindcss/vite": "^4.3.2",
     "dexie": "^4.4.4",
     "dexie-react-hooks": "^4.4.0",
-    "fflate": "^0.8.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tailwindcss": "^4.3.2"

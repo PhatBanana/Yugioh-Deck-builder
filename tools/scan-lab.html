@@ -82,33 +82,6 @@
   }
   .note { color: var(--dim); font-size: 12px; max-width: 75ch; }
   .note b { color: var(--muted); font-weight: 600; }
-
-  #ws {
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; padding: 14px; margin-bottom: 16px;
-  }
-  #ws .wsline { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
-  #ws .wsline b { color: var(--text); }
-  #ws code { word-break: break-all; }
-  .reasons { color: var(--muted); font-size: 12px; margin-top: 8px; }
-  .reasons li { margin: 2px 0; }
-  .reasons ul { margin: 4px 0 0; padding-left: 18px; }
-  button.sug {
-    font-size: 12px; padding: 3px 10px; border-radius: 999px;
-    color: var(--accent); border-color: #6b5518; background: #1a1710;
-  }
-  button.sug:hover { border-color: var(--accent); }
-  button.sug.top { border-color: var(--accent); background: #241e10; font-weight: 600; }
-  button.cat {
-    font-size: 12px; padding: 3px 10px; border-radius: 999px;
-    color: #38bdf8; border-color: #1c4a63; background: #0f171d;
-  }
-  button.cat:hover { border-color: #38bdf8; }
-  input.setcode {
-    font: inherit; font-size: 12px; color: var(--text); background: var(--raised);
-    border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px;
-    width: 130px; text-transform: uppercase;
-  }
 </style>
 </head>
 <body>
@@ -117,32 +90,8 @@
   <p class="lede">
     Reads flatbed / sheet-fed card scans and reports the same foil numbers the
     phone measures, so scanner readings can be compared directly against the
-    torch-lab fixtures. Everything runs locally — nothing uploads. Opened off
-    disk it's a drag-and-drop inspector; started via
-    <code>node tools/scan-lab-server.mjs</code> it becomes an in/out workflow:
-    scans dropped in the <code>in/</code> folder are read and filed into
-    <code>sorted/&lt;guessed rarity&gt;/</code> — e.g. <code>sorted/Ultra Rare/</code>
-    — and typing the set code or tagging the true rarity refiles the scan
-    under <code>confirmed/&lt;rarity&gt;/</code> as a trusted label.
+    torch-lab fixtures. Everything runs locally in this page — nothing uploads.
   </p>
-
-  <p id="standalone" class="note" style="color:var(--warn); margin:0 0 12px" hidden>
-    <b>Standalone mode — no server detected.</b> Drag-and-drop works, but
-    nothing is watched or filed into folders. For the in/out workflow run
-    <code>node tools/scan-lab-server.mjs</code> and open the
-    <code>http://127.0.0.1:…</code> address it prints (not this file:// page).
-  </p>
-
-  <div id="ws" hidden>
-    <div class="wsline"><b>Workspace</b> <code id="wsroot"></code></div>
-    <div class="wsline">Scanner inbox: <code id="wsin"></code></div>
-    <div class="wsline" id="wscounts"></div>
-    <div class="bar" style="margin:10px 0 0">
-      <button id="process" class="primary">Process inbox</button>
-      <label class="field"><input type="checkbox" id="watch" checked /> watch inbox</label>
-      <span class="note" id="wsnote"></span>
-    </div>
-  </div>
 
   <div id="drop">
     <b>Drop card scans here</b> — or click to pick files<br />
@@ -164,10 +113,13 @@
 
   <h2>Readings</h2>
   <p id="flat" class="note" hidden style="color:var(--warn)">
-    <b>Every card is reading specular 0.</b> Even the scanner profile's low
-    bars aren't being crossed — the scans may be very dark, or the card area
-    is wrong. Check the region boxes on the previews before trusting any
-    verdict here.
+    <b>Every card is reading specular 0.</b> That is the expected result if the
+    scanner is holding exposure below clipping — the phone's <code>specular</code>
+    counts pixels at luminance ≥ 0.8, a bar tuned for camera glare that a
+    well-exposed scan may never cross. It does not mean the scans are unusable:
+    <code>hueSpread</code> and <code>goldness</code> are still measured over
+    whatever bright pixels exist, and if those separate your rarities the
+    threshold is what needs rethinking, not the scan.
   </p>
   <textarea id="out" readonly placeholder="Add scans to build the JSON."></textarea>
   <p class="note">
@@ -183,22 +135,10 @@
     (luminance ≥ 0.8). <b>hueSpread</b> — circular spread of hues among bright,
     saturated pixels, 0 = one colour, 1 = all over the wheel; this is what
     separates rainbow foils. <b>goldness</b> — fraction of bright pixels in the
-    gold hue band (38–68°). Region boxes and sampling mirror
+    gold hue band (38–68°). Region boxes, sampling and thresholds mirror
     <code>readFoilStats</code> / <code>regionStat</code> in
     <code>mobile/src/services/scanner.ts</code>; if that changes, change this
     too or the readings stop being comparable.
-  </p>
-  <p class="note" style="margin-top:8px">
-    <b>Two readings are computed.</b> The "guesses" chips and the filing use
-    the <b>scanner profile</b> — much lower glint bars, because a flatbed
-    holds exposure below clipping and foil never blows out the way it does on
-    a phone. The <b>phone-threshold read</b> shown in "why" applies the app's
-    exact thresholds to the same numbers, for comparing against phone
-    fixtures. Scanner thresholds are provisional and get retuned from the
-    tagged readings accumulating in the manifest. A flat scan also can't see
-    embossing or angle-shift — Ultimate Rares read as their glint pattern, and
-    the guess is only a guess: type the printed set code whenever you can, it
-    settles the rarity outright instead of leaving it to the pixels.
   </p>
 </main>
 
@@ -263,173 +203,20 @@ function readFoilStats(ctx, box) {
   return { name: at(REGIONS.name), art: at(REGIONS.art), whole: at(REGIONS.whole) };
 }
 
-// Scanner-profile-only region, NOT mirrored from the phone: the card frame
-// beside/below the art box. Whole-face foils (Starlight, Quarter Century,
-// Prismatic…) foil the border; every other rarity leaves it flat ink — which
-// makes it the one region where busy artwork can't lie. Verified on a 9-scan
-// catalog-checked batch: both Starlight scans light the border up, all four
-// commons leave it dead.
-const BORDER_STRIPS = [
-  [0.03, 0.16, 0.10, 0.52], // left frame beside the art
-  [0.90, 0.16, 0.97, 0.52], // right frame beside the art
-  [0.08, 0.53, 0.92, 0.585], // band between art box and text box
-];
-function readBorderStat(ctx, box) {
-  const parts = BORDER_STRIPS.map(([x0, y0, x1, y1]) => regionStat(
-    ctx,
-    Math.round(box.x + x0 * box.w), Math.round(box.y + y0 * box.h),
-    Math.round((x1 - x0) * box.w), Math.round((y1 - y0) * box.h)
-  ));
-  const mean = (k) => parts.reduce((s, p) => s + p[k], 0) / parts.length;
-  return { specular: mean("specular"), hueSpread: mean("hueSpread"), goldness: mean("goldness") };
-}
-
 // Mirror of classifyFoil() in shared/scan/rarityVision.ts, so the page can
 // show what the app would have concluded from these same numbers.
 const SPECULAR = 0.16, RAINBOW = 0.45, GOLD = 0.3, MARGIN = 0.06;
 const AMBIENT_RAINBOW_HUE = 0.35, GLARE_SATURATED = 0.45;
 
-// Same decision path as classifyFoil, but each branch also says WHY it fired,
-// with the measured numbers next to the thresholds — the same style as the
-// torch classifier's reasons in shared/scan/torchFoil.ts. Note the limits of
-// a flat scan: embossing (Ultimate Rare's raised texture) is invisible to a
-// single straight-on frame, so those cards read as their glint pattern only.
-function classifyFoilTrace(s) {
-  const f = (n) => n.toFixed(2);
-  if (s.art.hueSpread >= AMBIENT_RAINBOW_HUE) {
-    return { verdict: "rainbow", reasons: [
-      `rainbow sheen — art hue spread ${f(s.art.hueSpread)} ≥ ${AMBIENT_RAINBOW_HUE}`,
-    ] };
-  }
-  if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) {
-    return { verdict: "rainbow", reasons: [
-      `glints across the whole card (specular ${f(s.whole.specular)} ≥ ${SPECULAR})`,
-      `…in many colours (hue spread ${f(s.whole.hueSpread)} ≥ ${RAINBOW})`,
-    ] };
-  }
-  if (Math.max(s.name.specular, s.art.specular) >= GLARE_SATURATED) {
-    return { verdict: "unclear", reasons: [
-      `glare-blown — brightest region reads specular ${f(Math.max(s.name.specular, s.art.specular))} ≥ ${GLARE_SATURATED}, no honest foil read exists`,
-    ] };
-  }
-  const reasons = [];
+function classifyFoil(s) {
+  if (s.art.hueSpread >= AMBIENT_RAINBOW_HUE) return "rainbow";
+  if (s.whole.specular >= SPECULAR && s.whole.hueSpread >= RAINBOW) return "rainbow";
+  if (Math.max(s.name.specular, s.art.specular) >= GLARE_SATURATED) return "unclear";
   const nameFoiled = s.name.specular >= SPECULAR;
-  if (nameFoiled) reasons.push(`name plate glints (specular ${f(s.name.specular)} ≥ ${SPECULAR})`);
-  if (nameFoiled && s.name.goldness >= GOLD) {
-    reasons.push(`gold text — ${Math.round(s.name.goldness * 100)}% of the name glint sits in the gold hue band (≥ ${GOLD * 100}%)`);
-    return { verdict: "gold-name", reasons };
-  }
-  if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) {
-    reasons.push(`name outshines art (${f(s.name.specular)} vs ${f(s.art.specular)}) and isn't gold — silver plate`);
-    return { verdict: "holo-name", reasons };
-  }
-  if (s.art.specular >= SPECULAR && s.art.specular >= s.name.specular + MARGIN) {
-    reasons.push(`art glints (specular ${f(s.art.specular)} ≥ ${SPECULAR}) and outshines the name (${f(s.name.specular)})`);
-    return { verdict: "holo-art", reasons };
-  }
-  reasons.push(nameFoiled
-    ? `…but neither gold nor clearly brighter than the art (${f(s.name.specular)} vs ${f(s.art.specular)}) — nothing decisive, falls through to matte`
-    : `nothing shines — name ${f(s.name.specular)}, art ${f(s.art.specular)}, both under the ${SPECULAR} glint bar`);
-  return { verdict: "matte", reasons };
-}
-
-// ---------------------------------------------------------------------------
-// Scanner profile — the classifier actually used for filing. A flatbed holds
-// exposure below clipping, so foil that blazes past 0.16 specular on a phone
-// reads well under 0.11 here (a Quarter Century Dark Magician measured name
-// 0.073 / art 0.082 / whole 0.109 with name goldness 0.91). These thresholds
-// are PROVISIONAL, seeded from that first real scan — retune them from the
-// tagged readings that accumulate in confirmed/ + manifest.jsonl.
-// The phone-threshold verdict is still computed and shown alongside, so the
-// fixture-comparison mission of this page is untouched.
-// ---------------------------------------------------------------------------
-const SCAN = {
-  GLINT: 0.02,   // any real glint at scanner exposure
-  FOIL: 0.03,    // a region reads as foiled
-  MARGIN: 0.02,  // dominance margin between regions
-  GOLD: 0.5,     // name goldness that reads as gold foil text
-  GOLD_MIN: 0.003, // gold text barely glints when flat — Ultra names read ~0.006
-  BUSY_ART: 0.3, // art hue spread above this is artwork, not foil
-};
-
-// v3, retuned twice against a 9-scan batch whose true rarities were pinned by
-// set code + catalog. What that batch proved about flat scans:
-//   · hue spread is a TRAP — sparkly artwork on plain commons reads 0.47–0.66
-//     while real Starlight pattern foil reads 0.01–0.02 (a rainbow foil lying
-//     flat shows one uniform gold tone, not many hues);
-//   · border brightness is ALSO a trap — it measures frame ink colour (tan
-//     Ultra frame 0.14) not foil (Starlight pixel border 0.013); the border
-//     stat is still recorded for future tuning but decides nothing;
-//   · the gold split that held on all five gold-ish cards: pattern-gold faces
-//     (Starlight) glint at name specular 0.07–0.09, flat gold Ultra text at
-//     0–0.006 — clean break at 0.02. Gold names may not glint AT ALL, so
-//     holo-art keeps an Ultra Rare chip.
-function classifyScanTrace(s) {
-  const f = (n) => n.toFixed(3);
-  const pc = (n) => Math.round(n * 100) + "%";
-  if (s.name.goldness >= SCAN.GOLD && s.name.specular >= SCAN.GLINT) {
-    return {
-      verdict: "rainbow",
-      reasons: [
-        `gold-pattern name plate — ${pc(s.name.goldness)} gold AND it glints (specular ${f(s.name.specular)} ≥ ${SCAN.GLINT}); flat gold text doesn't glint, pattern foil does`,
-        `whole-face pattern foils (Starlight, Quarter Century…) read uniformly gold-toned when flat`,
-      ],
-      suggest: ["Starlight Rare", "Quarter Century Secret Rare", "Prismatic Secret Rare",
-                "Secret Rare", "Collector's Rare"],
-    };
-  }
-  if (s.name.goldness >= SCAN.GOLD && s.name.specular >= SCAN.GOLD_MIN) {
-    return {
-      verdict: "gold-name",
-      reasons: [
-        `gold name text — ${pc(s.name.goldness)} of the name glint is gold (≥ ${pc(SCAN.GOLD)}), specular only ${f(s.name.specular)} (flat gold foil barely glints)`,
-      ],
-      suggest: ["Ultra Rare", "Gold Rare"],
-    };
-  }
-  if (s.name.specular >= SCAN.FOIL && s.name.specular >= s.art.specular + SCAN.MARGIN) {
-    return {
-      verdict: "holo-name",
-      reasons: [
-        `name glints (${f(s.name.specular)}) and outshines the art (${f(s.art.specular)}), not gold`,
-        `caveat: silver Rare foil and plain white-ink text read the same at scanner exposure — check the suggestion`,
-      ],
-      suggest: ["Rare", "Common"],
-    };
-  }
-  if (s.art.specular >= SCAN.FOIL && s.art.specular >= s.name.specular + SCAN.MARGIN) {
-    if (s.art.hueSpread > SCAN.BUSY_ART) {
-      return {
-        verdict: "unclear",
-        reasons: [
-          `art is bright (specular ${f(s.art.specular)}) but in many colours (hue spread ${f(s.art.hueSpread)} > ${SCAN.BUSY_ART}) — that's busy artwork, not foil; foil sheen reads one uniform tone when flat`,
-        ],
-        suggest: ["Common", "Super Rare"],
-      };
-    }
-    return {
-      verdict: "holo-art",
-      reasons: [
-        `art glints in one uniform tone (specular ${f(s.art.specular)}, hue spread ${f(s.art.hueSpread)}) and outshines the name (${f(s.name.specular)})`,
-        `caveat: an Ultra Rare's gold name may not glint at all when flat, and bright white artwork on a Common reads the same — check the suggestion`,
-      ],
-      suggest: ["Super Rare", "Ultra Rare", "Ultimate Rare", "Common"],
-    };
-  }
-  if (s.name.specular < SCAN.GLINT && s.art.specular < SCAN.GLINT) {
-    return {
-      verdict: "matte",
-      reasons: [`no glints at scanner exposure — name ${f(s.name.specular)}, art ${f(s.art.specular)}, both under ${SCAN.GLINT}`],
-      suggest: ["Common"],
-    };
-  }
-  return {
-    verdict: "unclear",
-    reasons: [
-      `some glint (name ${f(s.name.specular)}, art ${f(s.art.specular)}) but no decisive pattern at scanner exposure — tag by hand`,
-    ],
-    suggest: [],
-  };
+  if (nameFoiled && s.name.goldness >= GOLD) return "gold-name";
+  if (nameFoiled && s.name.specular >= s.art.specular + MARGIN) return "holo-name";
+  if (s.art.specular >= SPECULAR && s.art.specular >= s.name.specular + MARGIN) return "holo-art";
+  return "matte";
 }
 
 // Mirror of rarityBucket() — lets the page flag a scan whose reading disagrees
@@ -450,9 +237,9 @@ const FOIL_BUCKET = {
 };
 
 const RARITIES = [
-  "Common", "Short Print", "Rare", "Super Rare", "Ultra Rare", "Secret Rare",
-  "Ultimate Rare", "Prismatic Secret Rare", "Gold Rare", "Collector's Rare",
-  "Starlight Rare", "Quarter Century Secret Rare", "Ghost Rare",
+  "Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare",
+  "Prismatic Secret Rare", "Gold Rare", "Collector's Rare", "Starlight Rare",
+  "Quarter Century Secret Rare", "Ghost Rare",
 ];
 
 // ---------------------------------------------------------------------------
@@ -621,14 +408,7 @@ const r3 = (n) => Math.round(n * 1000) / 1000;
 function measure(row) {
   const ctx = row.canvas.getContext("2d", { willReadFrequently: true });
   row.stats = readFoilStats(ctx, row.box);
-  // The scanner profile decides the verdict and the filing; the phone-
-  // threshold read rides along for comparison against phone fixtures.
-  row.border = readBorderStat(ctx, row.box);
-  const t = classifyScanTrace(row.stats);
-  row.verdict = t.verdict;
-  row.reasons = t.reasons;
-  row.suggest = t.suggest;
-  row.phoneVerdict = classifyFoilTrace(row.stats).verdict;
+  row.verdict = classifyFoil(row.stats);
 }
 
 function draw(row) {
@@ -653,18 +433,17 @@ function draw(row) {
   row.scale = scale;
 }
 
-function statsTable(s, border) {
-  const row = (k, st) => `
+function statsTable(s) {
+  const line = (k) => `
     <tr>
       <td>${k}</td>
-      <td class="${st.specular >= GLARE_SATURATED ? "hi" : ""}">${pct(st.specular)}</td>
-      <td class="${st.hueSpread >= AMBIENT_RAINBOW_HUE ? "hi" : ""}">${r3(st.hueSpread)}</td>
-      <td class="${st.goldness >= GOLD ? "hi" : ""}">${pct(st.goldness)}</td>
+      <td class="${s[k].specular >= GLARE_SATURATED ? "hi" : ""}">${pct(s[k].specular)}</td>
+      <td class="${s[k].hueSpread >= AMBIENT_RAINBOW_HUE ? "hi" : ""}">${r3(s[k].hueSpread)}</td>
+      <td class="${s[k].goldness >= GOLD ? "hi" : ""}">${pct(s[k].goldness)}</td>
     </tr>`;
   return `<table class="stats">
     <tr><th>region</th><th>specular</th><th>hueSpread</th><th>goldness</th></tr>
-    ${row("name", s.name)}${row("art", s.art)}${row("whole", s.whole)}
-    ${border ? row("border", border) : ""}
+    ${line("name")}${line("art")}${line("whole")}
   </table>`;
 }
 
@@ -677,135 +456,30 @@ function agreement(row) {
     : { cls: "bad", text: `disagrees — tag reads ${rb}` };
 }
 
-// The folder a card with no confirmed rarity files under — its best rarity
-// guess, so the folders on disk read "Ultra Rare", not foil-pattern jargon.
-// No guess (some glint but no decisive pattern) means the reading isn't
-// trustworthy enough to name a rarity at all — that goes to review/ instead.
-function sortedFolderFor(row) {
-  return row.suggest?.length ? row.suggest[0] : null;
-}
-
-function applyTruth(row, truth, source) {
-  row.truth = truth;
-  row.truthSource = source; // "human" (a person chose) or "catalog" (code pinned it)
-  // In workflow mode a tag is a trusted label — refile the scan under
-  // confirmed/<family of the tagged rarity>.
-  if (row.dir && row.truth) void confirmRow(row);
-  render(row);
-  dump();
-}
-
-// What the typed set code says this printing can be — the same authority the
-// phone gives the OCR'd code. Rendered from row.catalog, filled by lookupSetCode.
-function catalogHtml(row) {
-  const c = row.catalog;
-  if (!c) return "";
-  if (c.state === "loading") return `<span class="note">checking catalog…</span>`;
-  if (c.state === "error") return `<span class="note" style="color:var(--warn)">${c.msg}</span>`;
-  if (!c.entries.length) return `<span class="note" style="color:var(--warn)">no printings under that code</span>`;
-  return `<span class="note">catalog says ${c.cardName}:</span>
-    ${c.entries.map((e) => `<button type="button" class="cat" data-r="${e.rarity}">${e.rarity}</button>`).join("")}`;
-}
-
 function render(row) {
   const a = agreement(row);
-  // The truth select must be able to show a catalog rarity outside the
-  // built-in list (Short Print, Platinum Secret…).
-  const options = RARITIES.includes(row.truth) || !row.truth ? RARITIES : [row.truth, ...RARITIES];
   row.el.querySelector(".body").innerHTML = `
     <div class="fname">${row.file}</div>
     <div class="sub">${row.canvas.width} × ${row.canvas.height} px ·
       card ${row.box.w} × ${row.box.h} ${
         row.box.manual ? "(manual)" : row.box.auto ? "(auto)" : "(unsure — drag a box)"
       }</div>
-    ${statsTable(row.stats, row.border)}
+    ${statsTable(row.stats)}
     <div class="verdict">
-      ${row.dir ? `<span class="pill ${row.dir.startsWith("confirmed/") ? "ok" : ""}">filed: ${row.dir}/</span>` : ""}
+      <span class="pill">reads as <b>${row.verdict}</b></span>
       <span class="pill ${a.cls}">${a.text}</span>
       <label class="field">truth
         <select>
           <option value="">— untagged —</option>
-          ${options.map((r) => `<option ${r === row.truth ? "selected" : ""}>${r}</option>`).join("")}
+          ${RARITIES.map((r) => `<option ${r === row.truth ? "selected" : ""}>${r}</option>`).join("")}
         </select>
       </label>
-    </div>
-    <div class="verdict" style="margin-top:6px">
-      ${row.suggest?.length
-        ? `<span class="note">guesses:</span>
-           ${row.suggest.map((r, i) => `<button type="button" class="sug${i === 0 ? " top" : ""}" data-r="${r}">${r}</button>`).join("")}`
-        : `<span class="note" style="color:var(--warn)">no confident guess — type the set code or tag by hand</span>`}
-    </div>
-    <div class="verdict" style="margin-top:6px">
-      <label class="field">code
-        <input class="setcode" value="${row.setCode ?? ""}" placeholder="RA05-EN091" />
-      </label>
-      ${catalogHtml(row)}
-    </div>
-    <div class="reasons">
-      <div style="margin-bottom:4px">visual pattern: <b>${row.verdict}</b>${row.verdict === "unclear" ? "" : " foil"}</div>
-      why: <ul>${(row.reasons ?? []).map((r) => `<li>${r}</li>`).join("")}</ul>
-      <div style="margin-top:6px;color:var(--dim)">phone-threshold read (for fixture comparison): ${row.phoneVerdict}</div>
     </div>`;
-  row.el.querySelector("select").onchange = (e) => applyTruth(row, e.target.value, "human");
-  // Suggestion chips guess from the reading; catalog chips are the printed
-  // facts for the typed code. Either way a click tags the truth.
-  for (const btn of row.el.querySelectorAll("button.sug, button.cat")) {
-    btn.onclick = () => applyTruth(row, btn.dataset.r, "human");
-  }
-  const $code = row.el.querySelector("input.setcode");
-  $code.onchange = () => {
-    const code = $code.value.trim().toUpperCase();
-    row.setCode = code || undefined;
-    if (code) void lookupSetCode(row);
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Set-code catalog lookup (YGOPRODeck, allows cross-origin reads). The code
-// printed on the card pins its possible rarities exactly — the same authority
-// the phone's OCR'd code has. One printed rarity = a catalog fact, so it tags
-// the truth automatically; several = chips for the human to pick from.
-// ---------------------------------------------------------------------------
-const codeCache = new Map();
-function fetchCode(code) {
-  if (codeCache.has(code)) return codeCache.get(code);
-  const p = (async () => {
-    const si = await fetch(
-      "https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=" + encodeURIComponent(code)
-    );
-    const info = si.ok ? await si.json() : null;
-    if (!info?.id) throw new Error("code not in catalog — check for OCR-style typos (O vs 0)");
-    const ci = await fetch("https://db.ygoprodeck.com/api/v7/cardinfo.php?id=" + info.id);
-    if (!ci.ok) throw new Error("catalog lookup failed");
-    const card = (await ci.json()).data?.[0];
-    const seen = new Set();
-    const entries = (card?.card_sets ?? [])
-      .filter((s) => s.set_code?.toUpperCase() === code)
-      .filter((s) => !seen.has(s.set_rarity) && seen.add(s.set_rarity))
-      .map((s) => ({ rarity: s.set_rarity, setName: s.set_name }));
-    return { cardName: card?.name ?? info.name, entries };
-  })();
-  p.catch(() => codeCache.delete(code)); // offline now ≠ offline later
-  codeCache.set(code, p);
-  return p;
-}
-
-async function lookupSetCode(row) {
-  row.catalog = { state: "loading" };
-  render(row);
-  try {
-    const res = await fetchCode(row.setCode);
-    row.catalog = { state: "done", ...res };
+  row.el.querySelector("select").onchange = (e) => {
+    row.truth = e.target.value;
     render(row);
     dump();
-    // Exactly one printed rarity and nothing tagged yet: the code settles it.
-    if (res.entries.length === 1 && !row.truth) {
-      applyTruth(row, res.entries[0].rarity, "catalog");
-    }
-  } catch (err) {
-    row.catalog = { state: "error", msg: err.message };
-    render(row);
-  }
+  };
 }
 
 // Drag a replacement card box straight on the preview.
@@ -850,7 +524,6 @@ function wireCrop(row) {
     draw(row);
     render(row);
     dump();
-    void refileAfterRemeasure(row, "manual-box");
   };
 }
 
@@ -862,15 +535,9 @@ function dump() {
     cards: rows.filter((r) => !r.pending).map((r) => ({
       file: r.file,
       truth: r.truth || null,
-      truthSource: r.truthSource,
-      setCode: r.setCode,
       verdict: r.verdict,
-      phoneVerdict: r.phoneVerdict,
-      reasons: r.reasons,
-      folder: r.dir ?? null,
       stats: {
         name: mapStat(r.stats.name), art: mapStat(r.stats.art), whole: mapStat(r.stats.whole),
-        border: r.border ? mapStat(r.border) : undefined,
       },
       imageSize: { w: r.canvas.width, h: r.canvas.height },
       cardBox: { x: r.box.x, y: r.box.y, w: r.box.w, h: r.box.h, auto: r.box.auto },
@@ -887,10 +554,7 @@ function dump() {
 }
 const mapStat = (s) => ({ specular: r3(s.specular), hueSpread: r3(s.hueSpread), goldness: r3(s.goldness) });
 
-async function add(file, dir = null) {
-  // Insurance against forEach(add)-style calls leaking an index in as `dir` —
-  // that exact bug once broke every file after the first in a multi-drop.
-  if (typeof dir !== "string") dir = null;
+async function add(file) {
   const el = document.createElement("div");
   el.className = "card";
   el.innerHTML = `<div class="preview"><canvas></canvas>
@@ -904,7 +568,7 @@ async function add(file, dir = null) {
   $cards.appendChild(el);
   // Claim the slot now, in the order files were given. Decoding finishes out
   // of order, and the exported JSON has to line up with what's on screen.
-  const row = { file: file.name, el, truth: "", pending: true, dir };
+  const row = { file: file.name, el, truth: "", pending: true };
   rows.push(row);
   // Remove works whether the decode succeeded or not — duplex scans hand you
   // every card back as its own image, and those rows are pure noise.
@@ -936,42 +600,27 @@ async function add(file, dir = null) {
       draw(row);
       render(row);
       dump();
-      void refileAfterRemeasure(row, "rotated");
     };
     dump();
-    // Workflow mode: file the scan the moment it's read. A confident auto box
-    // with a rarity guess goes straight to sorted/<rarity>; no box, or no
-    // confident guess, parks in review/ until a box is dragged or the code
-    // is typed.
-    if (row.dir === "in") {
-      const guess = row.box.auto ? sortedFolderFor(row) : null;
-      if (guess) await moveRow(row, `sorted/${guess}`, entryFor(row, "auto"));
-      else await moveRow(row, "review", entryFor(row, row.box.auto ? "no-confident-guess" : "needs-box"));
-    }
   } catch (err) {
     const i = rows.indexOf(row); // -1 if ✕ was clicked mid-decode
     if (i !== -1) rows.splice(i, 1);
     el.querySelector(".body").innerHTML =
       `<div class="fname">${file.name}</div><div class="sub" style="color:var(--bad)">${err.message}</div>`;
     dump();
-    // An undecodable inbox file must still leave in/, or the watcher would
-    // retry it forever.
-    if (dir === "in") {
-      void rawMove(file.name, "in", "review", { action: "decode-failed", error: err.message });
-    }
   }
 }
 
 const $drop = document.getElementById("drop");
 const $file = document.getElementById("file");
 $drop.onclick = () => $file.click();
-$file.onchange = (e) => { [...e.target.files].forEach((f) => add(f)); e.target.value = ""; };
+$file.onchange = (e) => { [...e.target.files].forEach(add); e.target.value = ""; };
 $drop.ondragover = (e) => { e.preventDefault(); $drop.classList.add("over"); };
 $drop.ondragleave = () => $drop.classList.remove("over");
 $drop.ondrop = (e) => {
   e.preventDefault();
   $drop.classList.remove("over");
-  [...e.dataTransfer.files].filter((f) => /image|\.tiff?$/i.test(f.type + f.name)).forEach((f) => add(f));
+  [...e.dataTransfer.files].filter((f) => /image|\.tiff?$/i.test(f.type + f.name)).forEach(add);
 };
 
 document.getElementById("clear").onclick = () => {
@@ -1002,151 +651,6 @@ $save.onclick = () => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
-
-// ---------------------------------------------------------------------------
-// Workflow mode — only active when the page is served by scan-lab-server.mjs.
-// The server is dumb file plumbing; every reading and every filing decision
-// is made here, and every move is logged to the workspace's manifest.jsonl.
-// ---------------------------------------------------------------------------
-const $ws = document.getElementById("ws");
-const $wsroot = document.getElementById("wsroot");
-const $wsin = document.getElementById("wsin");
-const $wscounts = document.getElementById("wscounts");
-const $wsnote = document.getElementById("wsnote");
-const $process = document.getElementById("process");
-const $watch = document.getElementById("watch");
-
-let workspace = null; // last /api/state payload, null = standalone mode
-const inFlight = new Set(); // inbox names being processed right now
-
-async function api(pathname, opts) {
-  const res = await fetch(pathname, opts);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || res.statusText);
-  }
-  return res.json();
-}
-
-// What gets written to the manifest next to a move — the full reading, so the
-// dataset is auditable without reopening every image.
-function entryFor(row, action) {
-  return {
-    action,
-    guess: row.suggest?.[0] ?? null, // rarity the sorted/ folder name came from
-    verdict: row.verdict, // visual foil pattern the guess/family was read from
-    phoneVerdict: row.phoneVerdict,
-    reasons: row.reasons,
-    truth: row.truth || undefined,
-    truthSource: row.truthSource,
-    setCode: row.setCode,
-    rarity: action === "override" ? row.truth : undefined,
-    stats: row.stats && {
-      name: mapStat(row.stats.name), art: mapStat(row.stats.art), whole: mapStat(row.stats.whole),
-      border: row.border ? mapStat(row.border) : undefined,
-    },
-    imageSize: row.canvas && { w: row.canvas.width, h: row.canvas.height },
-    cardBox: row.box && { x: row.box.x, y: row.box.y, w: row.box.w, h: row.box.h, auto: row.box.auto },
-    dpi: Number($dpi.value) || null,
-  };
-}
-
-async function rawMove(name, from, to, entry) {
-  const res = await api("/api/move", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, from, to, entry }),
-  });
-  void refreshState().catch(() => {});
-  return res.name; // final name — the server suffixes on collision
-}
-
-async function moveRow(row, to, entry) {
-  if (!row.dir || row.moving || row.dir === to) return;
-  row.moving = true;
-  try {
-    row.file = await rawMove(row.file, row.dir, to, entry);
-    row.dir = to;
-    render(row);
-    dump();
-  } catch (err) {
-    $wsnote.textContent = `move failed: ${err.message}`;
-  } finally {
-    row.moving = false;
-  }
-}
-
-// A tag (human click or catalog fact) is a trusted label — refile under
-// confirmed/<the exact rarity string>, so the folder answers "is this an
-// Ultra Rare" directly instead of naming the visual pattern that suggested it.
-async function confirmRow(row) {
-  await moveRow(row, `confirmed/${row.truth}`, entryFor(row, "override"));
-}
-
-// After a manual box, a rotate, or anything else that re-measures: keep the
-// machine-filed location in step with the new reading. A confirmed label
-// always wins — those never refile automatically.
-async function refileAfterRemeasure(row, action) {
-  if (!row.dir || row.dir.startsWith("confirmed/")) return;
-  if (row.dir !== "review" && !row.dir.startsWith("sorted/")) return;
-  const guess = sortedFolderFor(row);
-  if (guess) await moveRow(row, `sorted/${guess}`, entryFor(row, action));
-  else await moveRow(row, "review", entryFor(row, action));
-}
-
-async function refreshState() {
-  const st = await api("/api/state");
-  workspace = st;
-  const sep = st.root.includes("\\") ? "\\" : "/";
-  $wsroot.textContent = st.root;
-  $wsin.textContent = st.root + sep + "in";
-  const rarities = new Set([...Object.keys(st.counts.sorted), ...Object.keys(st.counts.confirmed)]);
-  const line = [...rarities].map((r) => {
-    const s = st.counts.sorted[r] ?? 0, c = st.counts.confirmed[r] ?? 0;
-    return s + c ? `${r} ${s}+${c}` : null;
-  }).filter(Boolean).sort().join(" · ");
-  $wscounts.textContent =
-    `Filed (guessed+confirmed): ${line || "nothing yet"} · review: ${st.counts.review ?? 0}`;
-  $process.textContent = `Process inbox (${st.inbox.length})`;
-  $process.disabled = st.inbox.length === 0 && inFlight.size === 0;
-  return st;
-}
-
-async function processInbox() {
-  const st = await refreshState();
-  for (const f of st.inbox) {
-    if (inFlight.has(f.name)) continue;
-    inFlight.add(f.name);
-    void (async () => {
-      const res = await fetch(`/api/file?dir=in&name=${encodeURIComponent(f.name)}`);
-      if (!res.ok) throw new Error(`couldn't read ${f.name}`);
-      const blob = await res.blob();
-      await add(new File([blob], f.name, { type: blob.type }), "in");
-    })().catch((err) => { $wsnote.textContent = `${f.name}: ${err.message}`; })
-      .finally(() => inFlight.delete(f.name));
-  }
-}
-
-(async () => {
-  try {
-    await refreshState();
-  } catch {
-    // Opened off disk, or the server isn't running — drag-and-drop still
-    // works, but SAY so instead of silently not watching anything.
-    document.getElementById("standalone").hidden = false;
-    return;
-  }
-  $ws.hidden = false;
-  $process.onclick = () => {
-    $wsnote.textContent = "";
-    void processInbox().catch((err) => { $wsnote.textContent = err.message; });
-  };
-  // Watch: the scanner drops files into in/ on its own schedule — pick each
-  // one up as soon as its write has settled.
-  setInterval(() => {
-    if ($watch.checked) void processInbox().catch(() => {});
-  }, 3000);
-})();
 </script>
 </body>
 </html>

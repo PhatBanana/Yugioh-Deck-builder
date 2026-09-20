@@ -16,6 +16,3 @@ project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/sh
 
 include ':capgo-camera-preview'
 project(':capgo-camera-preview').projectDir = new File('../node_modules/@capgo/camera-preview/android')
-
-include ':jcesarmobile-capacitor-ocr'
-project(':jcesarmobile-capacitor-ocr').projectDir = new File('../node_modules/@jcesarmobile/capacitor-ocr/android')

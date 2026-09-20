@@ -72,12 +72,6 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - **Session review list**: tap the "N added" counter mid-scan for the full
   list of this session's cards — fix any card's rarity or remove a misread
   copy on the spot (removal targets that card's exact filed printing).
-- **Training-data capture**: scanning saves a full-res card crop + trusted
-  rarity label (unambiguous set codes at commit; picker confirmations promote
-  a parked frame) into an on-device dataset for the foil classifier —
-  1 GB oldest-out cap, torch frame pairs banked when the torch pass runs,
-  photo count/size + zip export (share sheet) + clear in Scan settings.
-  On-device only until exported; excluded from JSON backups.
 - Other add paths: paste a list, or import a whole deck's cards.
 
 ### Decks
@@ -156,28 +150,15 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ## Next up (near-term, concrete)
 
-- [ ] **On-device rarity ML classifier** — design settled (see
-      `docs/adr/0001-rarity-model-classifies-foil-family.md` and the scanning
-      glossary in `CONTEXT.md`): a foil-family classifier (Keras → quantized
-      TFLite, bundled in the APK) replacing the single-frame heuristic foil
-      pass; the torch pass stays. Dataset via in-app capture of trusted-label
-      card crops (picker confirmations + unambiguous index hits, full-res,
-      ~1 GB oldest-out cap, share-sheet export) + synthetic foil pre-training;
-      reproducible `training/` pipeline in-repo. Shipped so far: the capture
-      flow, the synthetic foil renderer (`training/synthetic/`), and the eBay
-      real-photo harvester (`training/harvest/`, needs a free eBay dev keyset).
-      Next: accumulate captures, then `training/` ingest + train + scorecard.
+- [ ] **On-device rarity ML classifier** — train/bundle a TensorFlow-Lite model
+      and wire it into the scan pipeline (the seam already exists in
+      `services/rarityModel.ts`); needs a labelled dataset of card photos.
 - [ ] **Sealed-product / barcode scanning** — the camera plugin supports
       barcode scanning; use it to add sealed products or look up by UPC.
       (Needs on-device iteration — barcode formats and a UPC lookup source.)
 
 ## Later / ideas
 
-- [ ] Crowdsourced training-data uploads: an opt-in (default-off) "contribute
-      scans" toggle posting capture batches to a Cloudflare Worker + R2 bucket
-      (wifi-only, batched, hash-deduped, remote kill switch). Deferred until a
-      real contributor stalls on the manual share-sheet export; adopting it is
-      an ADR moment (first cloud infra in a local-only app).
 - [ ] Cloud sync / multi-device (currently local-only IndexedDB).
 - [ ] Trade suggestions (match your haves against others' wants).
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).

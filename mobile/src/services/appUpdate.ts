@@ -75,9 +75,7 @@ async function latestPublishedBuild(): Promise<AppUpdate | null> {
 // indistinguishable, and misleading exactly when something is wrong.
 export type UpdateCheck =
   | { status: "update"; update: AppUpdate }
-  // `latest` is what GitHub actually showed, so "current" is a verifiable
-  // claim ("latest is N and you have N"), never a shrug.
-  | { status: "current"; installed: number; latest: number }
+  | { status: "current"; installed: number }
   | { status: "skipped" } // throttled, not actually checked
   | { status: "unsupported" } // web/dev build — no versionCode to compare
   | { status: "error"; message: string };
@@ -95,30 +93,15 @@ export async function checkForUpdateResult(force = false): Promise<UpdateCheck> 
   try {
     const latest = await latestPublishedBuild();
     await setSyncMeta("update_checked_at", String(Date.now()));
-    if (!latest) {
-      // The request "succeeded" but no versioned release with an APK was in
-      // it — a rate-limit body or filtered network, not an up-to-date app.
-      // Reporting "current" here is how "never sees updates" hides.
-      return {
-        status: "error",
-        message: "GitHub returned no app releases — likely rate-limited, try again later",
-      };
-    }
-    if (latest.build > installed) {
+    if (latest && latest.build > installed) {
       return { status: "update", update: latest };
     }
-    return { status: "current", installed, latest: latest.build };
+    return { status: "current", installed };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    if (/HTTP 403/.test(msg)) {
-      // Unauthenticated GitHub API: 60 requests/hour PER IP — shared
-      // carrier-NAT addresses exhaust that constantly.
-      return {
-        status: "error",
-        message: "GitHub rate limit hit (shared network IP) — try Wi-Fi or again later",
-      };
-    }
-    return { status: "error", message: msg || "Couldn't reach GitHub" };
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Couldn't reach GitHub",
+    };
   }
 }
 
