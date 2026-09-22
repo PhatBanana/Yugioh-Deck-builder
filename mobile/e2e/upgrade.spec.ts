@@ -87,7 +87,16 @@ test("upgrading from the previous release keeps the collection, decks and wishli
   await expect(page.getByText("Something went wrong")).toHaveCount(0);
   await expect(page.getByText("Welcome 👋")).toHaveCount(0); // cards survived
   const newVersion = await idbVersion(page);
-  expect(newVersion, "schema should have been upgraded").toBeGreaterThan(oldVersion ?? 0);
+  // Equal on most pushes — only a schema-bump commit raises it. The test's
+  // real claim is that data survives either way; the version just must never
+  // go backwards. (Asserting "strictly greater" held locally against an older
+  // release and failed the first CI run, which compares to the previous
+  // commit.)
+  expect(newVersion, "schema version must never go backwards").toBeGreaterThanOrEqual(oldVersion ?? 0);
+  test.info().annotations.push({
+    type: "schema",
+    description: newVersion === oldVersion ? `unchanged (${newVersion})` : `upgraded ${oldVersion} → ${newVersion}`,
+  });
 
   await page.getByRole("button", { name: "Owned", exact: true }).click();
   await expect(page.getByText("2", { exact: true }).first()).toBeVisible(); // quantity kept
