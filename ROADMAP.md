@@ -34,7 +34,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   with era-accurate pull ratios picked from the set's release date (classic
   2002–2019 vs modern guaranteed-foil boosters; approximate), with foils and
   pack value.
-- CSV export; full JSON backup & restore (via the Android share sheet), with
+- CSV export; full JSON backup & restore through a real **Save-as dialog**
+  (choose the folder — Drive, Downloads), with
   **backup freshness tracking**: the sheet shows when you last exported, and
   a throttled reminder nudges when a 10+ card collection hasn't been backed
   up in a week. (A silent auto-backup can't survive "clear app data" under
@@ -56,8 +57,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   is marked ambiguous — the session chip shows "?" and taps open a one-tap
   picker (foil previews, prices, pull odds); unconfirmed copies stay findable
   via the card sheet's confirm pill and an Owned-view filter chip.
-- **Rarity guide**: a reference sheet (Scan settings, or "what do these look
-  like?" in the rarity picker) describing how to spot each tier by eye — the
+- **Rarity guide**: a reference sheet (in the foil lab, or "what do these
+  look like?" in the rarity picker) describing how to spot each tier by eye — the
   tell, era and pull frequency, with a live foil swatch per tier and a
   Yugipedia link for real photos. Its trait chips are unit-tested against the
   same table the picker's narrowing uses, so the two can't drift apart.
@@ -72,6 +73,19 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - **Session review list**: tap the "N added" counter mid-scan for the full
   list of this session's cards — fix any card's rarity or remove a misread
   copy on the spot (removal targets that card's exact filed printing).
+- **Japanese OCR**: the app's own ML Kit plugin replaces the Latin-only
+  third-party one; a "Text recognition" scan setting switches to the Japanese
+  model (which carries the same Latin model, so mixed collections scan fine).
+  Name matching keeps CJK text — it used to normalize every Japanese name to
+  an empty string.
+- **Foil lab** (Scan menu): fullscreen camera that captures a no-flash and a
+  flash frame of the same card and compares them per region — torch glare
+  alone can't separate foils, so the flash-free frame's colour spread is what
+  tells rainbow foil from Ultra. Tag the true rarity, export the readings as
+  JSON; real-device readings are pinned as test fixtures.
+- **`tools/scan-lab.html`**: a standalone page (open off disk, no install)
+  that reads flatbed/sheet-fed scans and reports the same foil numbers the
+  phone measures, for building a labelled reference set.
 - Other add paths: paste a list, or import a whole deck's cards.
 
 ### Decks
@@ -86,7 +100,14 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   vs. brick reading, and pick 2+ for combo odds (opening the whole combo
   together, via inclusion–exclusion).
 - "How it plays" strategy notes (auto-seeded when copied from a meta deck).
-- `.ydk` import/export; duplicate a deck; cover art on deck tiles.
+- `.ydk` import/export (Save-as dialog); duplicate a deck; cover art on deck
+  tiles.
+- **Written deck-list import**: paste a list ("3 Card Name" lines under
+  Monsters/Spells/Traps/Extra headers) and get a preview of every card with
+  its art — typos fuzzy-corrected and flagged, unmatched lines tap-to-pick —
+  before anything saves.
+- **Typo-tolerant card search** in every picker, including misspelled partial
+  names ("Ash Blosom" finds Ash Blossom).
 - **Deck sharing**: share a deck as a compact copy-paste code (via the Android
   share sheet or clipboard) and import one from a pasted code — or as a
   **rendered image** (every copy shown per section, deck-site style, with
@@ -143,22 +164,49 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - **Rulings & errata link**: every card sheet links to the card's Yugipedia
   page by stable page id (name search as fallback).
 - **Card language packs**: downloadable localized names (ja/ko/de/fr/it/es/pt)
-  that widen card search, deck search, and the scanner's OCR matching (camera
-  reads Latin script only; ja/ko benefit typed search).
+  that widen card search, deck search, and the scanner's OCR matching. The
+  camera reads Latin and Japanese; Korean names help typed search only.
+- **Japanese printings pack**: OCG set codes and their rarities (~32k
+  printings, ~0.7 MB) from yaml-yugi, so a scanned `RC04-JP001` resolves to a
+  rarity — the card API carries TCG printings only. Kept in its own table
+  (card syncs rebuild the TCG index), and looked up by the code's printed
+  region so shared codes like RC04-JP001 / RC04-EN001 don't collide.
+- **Headless E2E tests in CI**: Playwright drives the real built app with
+  every network call stubbed from a captured API response — every sheet,
+  stacked-sheet dismissal, deck-list import, Meta tab, scan settings — and
+  fails on any console error. An upgrade test opens the previous commit's
+  bundle then the new one over the same IndexedDB. The APK job waits on it,
+  so a broken UI blocks the release.
 
 ---
 
 ## Next up (near-term, concrete)
 
+- [ ] **Device-test the untested stack.** Everything since roughly build 100
+      has only been verified by unit tests, E2E and CI, never on a phone.
+      Native paths the browser can't reach: Japanese OCR (build 114 swapped the
+      OCR engine every scan depends on), the Save-as dialog, the foil lab's
+      flash/no-flash capture, camera pre-fill in the rarity picker.
+- [ ] **Foil calibration from scanner readings** — waiting on scan-lab JSON
+      for the reference cards (both Dark Magicians, both Ash Blossoms). Tells
+      us whether a flatbed scan can serve as a repeatable measuring bench.
+- [ ] **Bank labelled foil-lab captures** — keep every tagged no-flash/flash
+      pair for export, so tuning works from dozens of fixtures, not a handful.
 - [ ] **On-device rarity ML classifier** — train/bundle a TensorFlow-Lite model
       and wire it into the scan pipeline (the seam already exists in
-      `services/rarityModel.ts`); needs a labelled dataset of card photos.
+      `services/rarityModel.ts`); needs the labelled dataset above.
+- [ ] **Re-enable R8 minification** — switched off after the black-screen
+      crash, which turned out to be corrupted data, not R8. Needs one careful
+      build plus a device check.
 - [ ] **Sealed-product / barcode scanning** — the camera plugin supports
       barcode scanning; use it to add sealed products or look up by UPC.
       (Needs on-device iteration — barcode formats and a UPC lookup source.)
 
 ## Later / ideas
 
+- [ ] Korean (and Chinese) OCR — needs ML Kit's Korean model (the Japanese
+      one bundles Han, so Chinese may partly read already; untested).
+- [ ] Prices for Japanese printings — the pack carries rarities only.
 - [ ] Cloud sync / multi-device (currently local-only IndexedDB).
 - [ ] Trade suggestions (match your haves against others' wants).
 - [ ] iOS build (Capacitor already cross-platform; needs an iOS target + test).
@@ -167,14 +215,24 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ## Known cleanup backlog
 
-Findings from a full code review (2026-08). All items from that review are
-now closed — the last batch (2026-08-07): budget/set sheets paginate with one
-shared wishlist query; card search runs on an in-memory name index (card +
-localized names) instead of per-keystroke IndexedDB scans; price alerts label
-short-history moves "since <date>"; `handSim` (uniformity/no-bias) and
-`recommend` (ranking, key-card weighting, dedupe, costs) are unit-tested.
+The 2026-08 review backlog is closed, and the simplify passes (one of them
+whole-codebase) landed their safe fixes, including the shared `BottomSheet`. Left
+on purpose, each as its own change with a device check rather than batched:
+
+- **Rarity keyword classifiers disagree** — four places map rarity names to
+  foil families and drift on edge cases (Gold Rare is one). Unifying them
+  changes behaviour, so it needs a decision on each disagreement.
+- Near-duplicate sparkline/chart components (price, value, market).
+- Card-id resolution from the remote API exists twice (`collection.ts`,
+  `metaDecks.ts`).
+- Smaller: a shared `.chip` style, a paged-list hook, per-frame canvas reuse
+  in the scanner.
 
 ## Known limitations (by design / data)
+
+- **The E2E suite can't reach native code.** Camera, OCR, the Save-as dialog
+  and the torch run only on a device; the browser tests cover everything
+  above them.
 
 - **No per-rarity artwork.** Every printing of a card shares one catalog image;
   rarity is a foil finish, shown via the foil overlay rather than a different
