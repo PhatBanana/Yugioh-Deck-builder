@@ -99,7 +99,7 @@ export async function searchCardsForPicker(q: string, limit = 15): Promise<MCard
   let cards = (await db.cards.bulkGet(ids)).filter((c): c is MCard => !!c);
   cards.sort((a, b) => a.name.localeCompare(b.name));
   if (cards.length === 0) {
-    const fuzzy = matchCardName(q, await getNameCandidates(), { limit, minScore: 0.4 });
+    const fuzzy = matchCardName(q, await getNameCandidates(), { limit, minScore: 0.4, prefix: true });
     cards = (await db.cards.bulkGet(fuzzy.map((f) => f.id))).filter((c): c is MCard => !!c);
   }
   return cards.slice(0, limit);

@@ -30,10 +30,59 @@ jobs:
       - run: npm ci
       - run: npx vitest run
 
+  # Headless browser tests of the real app (mobile/e2e): the pages and sheets
+  # the unit tests don't reach, run against the built bundle with every
+  # network call stubbed. On a push it also runs the schema-upgrade test:
+  # the previous main commit's bundle, then this one, on the same origin —
+  # proving the IndexedDB upgrade before an APK carries it to a phone.
+  e2e:
+    name: App smoke + upgrade tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the upgrade test builds the previous commit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install app deps and browser
+        working-directory: mobile
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # The last commit main was at — i.e. the build users most recently got.
+      # Skipped when there isn't one (manual runs, a first push).
+      - name: Build the previous release for the upgrade test
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: |
+          git worktree add ../prev "${{ github.event.before }}"
+          cd ../prev/mobile
+          npm ci
+          npm run build
+          echo "OLD_DIST=$(pwd)/dist" >> "$GITHUB_ENV"
+
+      - name: Run E2E tests
+        working-directory: mobile
+        run: npx playwright test
+
+      # Traces make a CI-only failure debuggable. Only on failure, and short
+      # retention — the apk job purges artifacts to bound Actions storage.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: mobile/test-results/
+          retention-days: 3
+
   apk:
     name: Build debug APK
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, e2e]
     steps:
       - uses: actions/checkout@v4
 

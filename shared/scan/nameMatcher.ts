@@ -94,6 +94,30 @@ function similarity(a: string, b: string): number {
 export interface MatchOptions {
   limit?: number;
   minScore?: number;
+  /** Also score the query against the START of each name, for typed search.
+   *  Off for OCR, which reads whole names — see prefixSimilarity. */
+  prefix?: boolean;
+}
+
+// How well a typed partial name matches the start of a card name, typos
+// allowed: "Ash Blosom" against "Ash Blossom & Joyous Spring".
+//
+// The whole-name comparison can't see this. It rejects any pair whose lengths
+// differ by more than half (the right call for OCR, where a short line
+// against a long name is noise), and its containment shortcut needs an exact
+// substring — so a misspelled partial, which is how people actually type into
+// a search box, matched nothing at all.
+//
+// Compares against the name's prefix at the query's length, give or take one
+// character (a dropped or doubled letter shifts the alignment), and discounts
+// the result so a genuine whole-name match still ranks first.
+function prefixSimilarity(q: string, name: string): number {
+  if (q.length < 4 || name.length <= q.length) return 0;
+  let best = Infinity;
+  for (let len = q.length - 1; len <= q.length + 1; len++) {
+    best = Math.min(best, levenshtein(q, name.slice(0, len)));
+  }
+  return 0.9 * (1 - best / q.length);
 }
 
 export function matchCardName(
@@ -108,7 +132,9 @@ export function matchCardName(
 
   const matches: NameMatch[] = [];
   for (const c of candidates) {
-    const score = similarity(nq, (c.norm ??= normalizeName(c.name)));
+    const norm = (c.norm ??= normalizeName(c.name));
+    let score = similarity(nq, norm);
+    if (options.prefix) score = Math.max(score, prefixSimilarity(nq, norm));
     if (score >= minScore) matches.push({ id: c.id, name: c.name, score });
   }
   matches.sort((a, b) => b.score - a.score);
