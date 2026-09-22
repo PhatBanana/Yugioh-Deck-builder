@@ -93,9 +93,10 @@ function CrashScreen({ error, onReload }: { error: Error; onReload: () => void }
     window.location.reload();
   }
 
-  // An older APK opened against a newer database schema: the data is fine,
-  // this build is just too old to read it. Wiping data would be exactly the
-  // wrong move, so say so explicitly.
+  // An older APK opened against a newer database schema that it can't read:
+  // the data is fine, this build is just too old. Wiping data would be exactly
+  // the wrong move, so say so explicitly. (Rare: Dexie 4 normally opens a
+  // newer schema fine — this is the case where even its retry failed.)
   const downgraded = error.name === "VersionError";
 
   return (

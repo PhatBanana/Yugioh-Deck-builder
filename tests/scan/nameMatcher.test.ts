@@ -75,6 +75,40 @@ describe("matchCardName", () => {
   });
 });
 
+describe("matchCardName (prefix, for typed search)", () => {
+  const pool = [
+    { id: 1, name: "Ash Blossom & Joyous Spring" },
+    { id: 2, name: "Dark Magician" },
+    { id: 3, name: "Dark Magician Girl" },
+    { id: 4, name: "Mirrorjade the Iceblade Dragon" },
+  ];
+  const opts = { minScore: 0.4, prefix: true };
+
+  it("finds a card from a misspelled partial name", () => {
+    // The E2E suite caught this: the deck editor's search returned nothing
+    // for "Ash Blosom", because the whole-name comparison drops any pair
+    // whose lengths differ by more than half.
+    expect(matchCardName("Ash Blosom", pool, opts)[0]?.id).toBe(1);
+    expect(matchCardName("Mirriorjade", pool, opts)[0]?.id).toBe(4);
+  });
+
+  it("still ranks the exact whole name above a longer name it prefixes", () => {
+    const [first, second] = matchCardName("Dark Magician", pool, opts);
+    expect(first.id).toBe(2);
+    expect(second.id).toBe(3);
+    expect(first.score).toBeGreaterThan(second.score);
+  });
+
+  it("is opt-in: OCR matching of a short fragment is unchanged", () => {
+    // A short OCR line against a long name is noise, not a partial name.
+    expect(matchCardName("Ash Blosom", pool, { minScore: 0.4 })).toEqual([]);
+  });
+
+  it("ignores very short queries", () => {
+    expect(matchCardName("Das", pool, opts).every((m) => m.score < 0.9)).toBe(true);
+  });
+});
+
 describe("matchCardName (Japanese)", () => {
   const jp = [
     { id: 14558127, name: "灰流うらら" },

@@ -5,8 +5,9 @@ import { expect, syncFreshApp, test } from "./stubs";
 // starts from a fresh profile (empty IndexedDB) and a stubbed card sync, and
 // the shared fixture fails the test on any console error or crash screen.
 
+// Scoped to the bottom nav: the Scan page has its own "📷 Scan" toggle.
 const tab = (page: Page, name: "Cards" | "Scan" | "Decks" | "Meta") =>
-  page.getByRole("button", { name: new RegExp(`^\\S+\\s*${name}$`) }).click();
+  page.getByRole("navigation").getByRole("button", { name: new RegExp(`${name}$`) }).click();
 
 const heading = (page: Page, name: string | RegExp) => page.getByRole("heading", { name });
 
@@ -21,15 +22,13 @@ test.beforeEach(async ({ page }) => {
   await syncFreshApp(page);
 });
 
-test("first launch syncs the card database and lists the cards", async ({ page, errors }) => {
-  void errors;
+test("first launch syncs the card database and lists the cards", async ({ page }) => {
   await expect(page.getByText(/Synced \d+ cards/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /^Dark Magician/ })).toBeVisible();
 });
 
 test.describe("bottom sheets", () => {
-  test("backup sheet: opens, shows the build line, closes on ×", async ({ page, errors }) => {
-    void errors;
+  test("backup sheet: opens, shows the build line, closes on ×", async ({ page }) => {
     await page.getByRole("button", { name: "💾 Backup" }).click();
     await expect(heading(page, "Backup & restore")).toBeVisible();
     await expect(page.getByText(/Browser build|Installed build/)).toBeVisible();
@@ -37,16 +36,14 @@ test.describe("bottom sheets", () => {
     await expect(heading(page, "Backup & restore")).toHaveCount(0);
   });
 
-  test("trades sheet closes on a backdrop tap", async ({ page, errors }) => {
-    void errors;
+  test("trades sheet closes on a backdrop tap", async ({ page }) => {
     await page.getByRole("button", { name: "🤝 Trades" }).click();
     await expect(heading(page, "Trades")).toBeVisible();
     await tapBackdrop(page);
     await expect(heading(page, "Trades")).toHaveCount(0);
   });
 
-  test("owned view: insights, alerts and budget sheets all open and close", async ({ page, errors }) => {
-    void errors;
+  test("owned view: insights, alerts and budget sheets all open and close", async ({ page }) => {
     // Own two cards so the owned-only sheets have something to show.
     await page.getByRole("button", { name: "+" }).first().click();
     await page.getByRole("button", { name: "+" }).nth(1).click();
@@ -68,12 +65,10 @@ test.describe("bottom sheets", () => {
     await closeTop(page);
   });
 
-  test("stacked sheets: dismissing the pack sim leaves its set open", async ({ page, errors }) => {
-    void errors;
+  test("stacked sheets: dismissing the pack sim leaves its set open", async ({ page }) => {
     await page.getByRole("button", { name: "Sets", exact: true }).click();
-    // Any set from the stubbed cardsets.php works; take the first listed.
-    const firstSet = page.locator("button").filter({ hasText: /cards?/i }).first();
-    await firstSet.click();
+    // Set rows end in "→"; any set from the stubbed cardsets.php works.
+    await page.getByRole("button", { name: /· \d+ cards →$/ }).first().click();
     await page.getByRole("button", { name: "📦 Open a pack" }).click();
     await expect(heading(page, /Pack simulator/)).toBeVisible();
 
@@ -87,8 +82,7 @@ test.describe("bottom sheets", () => {
 });
 
 test.describe("scan tab (no camera on web)", () => {
-  test("scan settings: sticky header, OCR script persists, pack errors are handled", async ({ page, errors }) => {
-    void errors;
+  test("scan settings: sticky header, OCR script persists, pack errors are handled", async ({ page }) => {
     await tab(page, "Scan");
     await page.getByRole("button", { name: "⚙ Settings" }).click();
     await expect(heading(page, "Scan settings")).toBeVisible();
@@ -110,12 +104,14 @@ test.describe("scan tab (no camera on web)", () => {
     await expect(page.getByText(/Couldn't download the printing pack/)).toBeVisible();
   });
 
-  test("foil lab opens and closes without a camera", async ({ page, errors }) => {
-    void errors;
+  test("camera features are disabled, with an explanation, where there's no camera", async ({ page }) => {
     await tab(page, "Scan");
-    await page.getByRole("button", { name: "🔦 Foil lab" }).click();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "⚙ Settings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "🔦 Foil lab" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "📷 Scan cards" })).toBeDisabled();
+    await expect(page.getByText(/works in the Android app/)).toBeVisible();
+    // The manual fallback still works — and uses the typo-tolerant search.
+    await page.getByPlaceholder("Or add a card by name…").fill("Dark Magican");
+    await expect(page.getByText("Dark Magician").first()).toBeVisible();
   });
 });
 
@@ -136,8 +132,7 @@ test.describe("decks", () => {
     "1 Despia Quaeritis", //               not in this card pool
   ].join("\n");
 
-  test("written deck list: preview, corrections, fix a line, import", async ({ page, errors }) => {
-    void errors;
+  test("written deck list: preview, corrections, fix a line, import", async ({ page }) => {
     await tab(page, "Decks");
     await page.getByRole("button", { name: "Import a written deck list" }).click();
     await page.getByRole("textbox").first().fill(LIST);
@@ -160,19 +155,18 @@ test.describe("decks", () => {
     await expect(page.getByText("Branded Test")).toBeVisible();
   });
 
-  test("new deck: add a card by search, then hand sim and odds", async ({ page, errors }) => {
-    void errors;
+  test("new deck: add cards by misspelled partial search", async ({ page }) => {
     await tab(page, "Decks");
     await page.getByRole("button", { name: "+ New deck" }).click();
-    // The add-card picker uses searchCardsForPicker (typo-tolerant).
-    const search = page.getByPlaceholder(/search|add a card/i).first();
+    const search = page.getByRole("searchbox", { name: /Add a card to Main Deck/ });
+    // A misspelled partial name — this returned nothing before the prefix
+    // matcher, which is how the suite caught it.
     await search.fill("Ash Blosom");
     await page.getByRole("button", { name: /Ash Blossom/ }).first().click();
-    await expect(page.getByText("Ash Blossom & Joyous Spring").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Main Deck \(1\)/ })).toBeVisible();
   });
 
-  test("duel tools and an invalid deck code both behave", async ({ page, errors }) => {
-    void errors;
+  test("duel tools and an invalid deck code both behave", async ({ page }) => {
     await tab(page, "Decks");
     await page.getByRole("button", { name: "Duel tools" }).click();
     await expect(heading(page, "Duel tools")).toBeVisible();
@@ -187,8 +181,7 @@ test.describe("decks", () => {
 });
 
 test.describe("meta", () => {
-  test("recommendations and buy-next both render from one data load", async ({ page, errors }) => {
-    void errors;
+  test("recommendations and buy-next both render from one data load", async ({ page }) => {
     await tab(page, "Meta");
     await expect(page.getByRole("button", { name: /Best cards to buy next/ })).toBeVisible();
     await page.getByRole("button", { name: /Best cards to buy next/ }).click();
@@ -196,8 +189,7 @@ test.describe("meta", () => {
   });
 });
 
-test("wishlist heart: toggled in the list, shown in the Wishlist view", async ({ page, errors }) => {
-  void errors;
+test("wishlist heart: toggled in the list, shown in the Wishlist view", async ({ page }) => {
   await page.getByRole("button", { name: "Add to wishlist" }).first().click();
   await page.getByRole("button", { name: "Wishlist", exact: true }).click();
   await expect(page.getByRole("button", { name: /Remove from wishlist/ }).first()).toBeVisible();

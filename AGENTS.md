@@ -16,6 +16,16 @@ superseded it.)
   validation, `.ydk`/list parsing, meta-deck HTML parsing, OCR name matching).
   Imported by the app as `@shared/*`. Keep this free of DOM/DB/network code.
 - `tests/` — Vitest unit tests for `shared/`. Run `npm test` at the repo root.
+- `mobile/e2e/` — Playwright tests of the real app in a headless browser:
+  the built bundle served by `vite preview`, with every network call
+  answered from `e2e/fixtures/` (a captured real API response — don't
+  hand-write card shapes). `smoke.spec.ts` walks the pages and sheets;
+  `upgrade.spec.ts` opens a previous release's bundle and then this one on
+  the same origin to prove the IndexedDB upgrade (needs `OLD_DIST`, set in
+  CI). Run with `npm run test:e2e` in `mobile/`; locally, set
+  `PW_CHROMIUM` to an installed Chromium to skip the browser download. The
+  shared fixture fails any test that logs a console error. CI runs this
+  before building the APK, so a broken UI blocks the release.
 - `data/static-meta-decks.json` — bundled fallback deck snapshot, imported by
   the app as `@data/*`.
 - `tools/` — standalone single-file HTML utilities, opened straight off disk

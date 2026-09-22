@@ -4,8 +4,7 @@ import { syncFreshApp, test } from "./stubs";
 // the real specs can target what's actually rendered. Skipped unless asked.
 test.skip(!process.env.EXPLORE, "exploration only");
 
-test("list buttons per tab", async ({ page, errors }) => {
-  void errors;
+test("list buttons per tab", async ({ page }) => {
   await syncFreshApp(page);
   await page.waitForTimeout(1500);
   for (const tab of ["Cards", "Scan", "Decks", "Meta"]) {

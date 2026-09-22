@@ -96,13 +96,25 @@ test("upgrading from the previous release keeps the collection, decks and wishli
   expect(errors, "page errors during upgrade").toEqual([]);
 
   // ---- and back again: an older APK over the newer schema --------------
-  // Must land on the dedicated "too old" screen — never a generic crash that
-  // invites "clear data" — and must leave the data untouched.
+  // Dexie 4 retries a VersionError by opening whatever version is on disk,
+  // so an older build normally just works over a newer database — the new
+  // tables sit unused. (The "too old" screen covers the rarer case where that
+  // retry fails too, e.g. a newer release dropped a table the old code needs.)
+  // Either outcome is acceptable. What must never happen is the old build
+  // looking EMPTY (Welcome screen — invites a re-sync or "clear data") or
+  // landing on the generic crash screen.
   await use(page, "old");
   await page.goto(ORIGIN);
-  await expect(page.getByText("This app version is too old")).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.getByText("This app version is too old").or(page.getByRole("button", { name: "Owned", exact: true }))
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Welcome 👋")).toHaveCount(0);
+  await expect(page.getByText("Something went wrong")).toHaveCount(0);
+
+  // …and the round trip loses nothing.
   await use(page, "new");
   await page.goto(ORIGIN);
   await page.getByRole("button", { name: "Wishlist", exact: true }).click();
   await expect(page.getByRole("button", { name: /Remove from wishlist/ })).toHaveCount(1);
+  expect(errors, "page errors across the round trip").toEqual([]);
 });

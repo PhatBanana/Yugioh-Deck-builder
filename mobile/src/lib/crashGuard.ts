@@ -9,7 +9,11 @@
 // "crash", which is worse than the disease.
 
 const FATAL_NAMES = new Set([
-  "VersionError", // an older APK opened a newer schema (downgrade)
+  // An older APK over a newer schema that Dexie couldn't open anyway. Dexie 4
+  // retries a VersionError itself by opening the on-disk version, so a plain
+  // downgrade normally just works (e2e/upgrade.spec.ts proves it); this only
+  // surfaces when that retry fails too.
+  "VersionError",
   "OpenFailedError",
   "UpgradeError",
   "SchemaError",

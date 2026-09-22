@@ -91,22 +91,30 @@ export async function installStubs(page: Page): Promise<void> {
 // Console noise we cause on purpose (404s above) versus real faults.
 const EXPECTED = [/Failed to load resource/i, /status of 40\d/i];
 
+// `auto: true` matters: Playwright builds fixtures lazily, only when a test or
+// hook asks for them by name. Without it, a beforeEach that only takes `page`
+// runs the sync BEFORE these routes exist — straight out to the real network,
+// where it hangs on the real 50 MB card dump. (That is exactly how the first
+// full run failed: 12/12 stuck on the Welcome screen.)
 export const test = base.extend<{ errors: string[] }>({
-  errors: async ({ page }, use) => {
-    const errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-    page.on("console", (m) => {
-      if (m.type() === "error" && !EXPECTED.some((re) => re.test(m.text()))) {
-        errors.push(`console: ${m.text()}`);
-      }
-    });
-    await installStubs(page);
-    await use(errors);
-    // Every test also asserts the app never threw or fell into the crash
-    // screen — a sheet that renders but logs an exception is still a bug.
-    expect(errors, "unexpected console errors / page errors").toEqual([]);
-    await expect(page.getByText("Something went wrong")).toHaveCount(0);
-  },
+  errors: [
+    async ({ page }, use) => {
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+      page.on("console", (m) => {
+        if (m.type() === "error" && !EXPECTED.some((re) => re.test(m.text()))) {
+          errors.push(`console: ${m.text()}`);
+        }
+      });
+      await installStubs(page);
+      await use(errors);
+      // Every test also asserts the app never threw or fell into the crash
+      // screen — a sheet that renders but logs an exception is still a bug.
+      expect(errors, "unexpected console errors / page errors").toEqual([]);
+      await expect(page.getByText("Something went wrong")).toHaveCount(0);
+    },
+    { auto: true },
+  ],
 });
 
 export { expect };
