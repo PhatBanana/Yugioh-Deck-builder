@@ -7,7 +7,7 @@ test.skip(!process.env.EXPLORE, "exploration only");
 test("list buttons per tab", async ({ page }) => {
   await syncFreshApp(page);
   await page.waitForTimeout(1500);
-  for (const tab of ["Cards", "Scan", "Decks", "Meta"]) {
+  for (const tab of ["Cards", "Add", "Decks", "Meta"]) {
     await page.getByRole("button", { name: new RegExp(`^\\S*\\s*${tab}$`) }).first().click();
     await page.waitForTimeout(800);
     const names = await page.getByRole("button").evaluateAll((els) =>

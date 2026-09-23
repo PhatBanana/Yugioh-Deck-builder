@@ -349,7 +349,7 @@ type AddMode = "scan" | "paste" | "deck";
 const ADD_MODES: { id: AddMode; label: string }[] = [
   { id: "scan", label: "📷 Scan" },
   { id: "paste", label: "📋 Paste list" },
-  { id: "deck", label: "🔎 Find a deck" },
+  { id: "deck", label: "📚 From a deck" },
 ];
 
 export default function ScanPage({
@@ -474,7 +474,7 @@ export default function ScanPage({
               onClick={() => setSettingsOpen(true)}
               className="text-sm text-neutral-400 active:text-white px-2 py-1"
             >
-              ⚙ Settings
+              ⚙ Scan settings
             </button>
           </div>
           <button

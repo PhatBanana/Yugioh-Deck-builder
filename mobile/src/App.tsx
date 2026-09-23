@@ -10,15 +10,17 @@ import { initBackButton } from "./services/backButton";
 import { migrateLegacyPrintings, recordValueSnapshot } from "./services/collection";
 import { recordPriceSnapshots } from "./services/priceHistory";
 import { checkForUpdate, openUpdate } from "./services/appUpdate";
+import SettingsSheet from "./components/SettingsSheet";
+import { onOpenSettings } from "./lib/settingsNav";
 
 type Tab = "cards" | "scan" | "decks" | "meta";
 
 // Ordered left→right along the natural workflow: your collection (Cards,
-// also home to first-run setup), getting cards in (Scan hosts camera, paste
-// and deck import), building (Decks), then optimizing against the meta.
+// also home to first-run setup), getting cards in (Add: camera scan, paste
+// and from-a-deck), building (Decks), then optimizing against the meta.
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "cards", label: "Cards", icon: "🃏" },
-  { id: "scan", label: "Scan", icon: "📷" },
+  { id: "scan", label: "Add", icon: "📷" },
   { id: "decks", label: "Decks", icon: "📚" },
   { id: "meta", label: "Meta", icon: "🏆" },
 ];
@@ -28,6 +30,9 @@ export default function App() {
   // Immersive = live camera scanning; hide app chrome so the preview (rendered
   // behind the webview) shows through.
   const [immersive, setImmersive] = useState(false);
+  // App-wide Settings (backup, card data, updates) — one place, any tab.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => onOpenSettings(() => setSettingsOpen(true)), []);
 
   useEffect(() => {
     // Android back button closes open popups/sub-views instead of minimizing.
@@ -56,13 +61,21 @@ export default function App() {
     // transparent — which the camera-scanning mode also relies on.
     <div className="min-h-dvh flex flex-col text-neutral-100">
       {!immersive && (
-        <header className="sticky top-0 z-10 bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+        <header className="sticky top-0 z-10 bg-canvas/85 backdrop-blur-md px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] flex items-center justify-between gap-3">
           <h1 className="font-bold tracking-tight">
             <span className="wordmark bg-gradient-to-r from-amber-300 via-yellow-200 to-yellow-500 bg-clip-text text-transparent">
               YGO
             </span>{" "}
             Deck Builder
           </h1>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            className="pressable -my-1 -mr-1.5 w-9 h-9 flex items-center justify-center rounded-lg text-lg text-neutral-400 active:bg-raised"
+          >
+            ⚙
+          </button>
           {/* Gold hairline instead of a flat border. */}
           <div
             aria-hidden
@@ -107,6 +120,7 @@ export default function App() {
         </nav>
       )}
 
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
       <Toaster />
       <ConfirmHost />
     </div>

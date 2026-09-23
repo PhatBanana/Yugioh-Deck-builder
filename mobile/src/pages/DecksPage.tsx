@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { DeckSection } from "@shared/deck/types";
 import { parseYdk } from "@shared/deck/ydk";
@@ -40,6 +40,7 @@ import { shareDeckImage } from "../services/deckImage";
 import ImportDeckListSheet from "../components/ImportDeckListSheet";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
+import ActionSheet from "../components/ActionSheet";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
   main: "Main Deck",
@@ -60,6 +61,8 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
   const [duelOpen, setDuelOpen] = useState(false);
   const [importCodeOpen, setImportCodeOpen] = useState(false);
   const [importListOpen, setImportListOpen] = useState(false);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const ydkRef = useRef<HTMLInputElement>(null);
 
   async function newDeck() {
     const d = await createDeck("New Deck");
@@ -84,50 +87,50 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="page p-4 flex flex-col gap-3">
+      {/* Create, import, and the table-side tools. Import is one menu instead
+          of three unlabelled icons (.ydk / 📋 / 🔗) that had to be guessed. */}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={newDeck}
-          className="btn-primary flex-1 py-3"
-        >
+        <button type="button" onClick={newDeck} className="btn-primary flex-1 py-3">
           + New deck
         </button>
-        <label className="btn-ghost px-3 py-3 text-sm cursor-pointer flex items-center">
-          .ydk
-          <input
-            type="file"
-            accept=".ydk,.txt"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && importYdk(e.target.files[0])}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => setImportListOpen(true)}
-          className="btn-ghost px-3 py-3 text-sm"
-          aria-label="Import a written deck list"
-          title="Paste a written deck list"
-        >
-          📋
-        </button>
-        <button
-          type="button"
-          onClick={() => setImportCodeOpen(true)}
-          className="btn-ghost px-3 py-3 text-sm"
-          aria-label="Import from deck code"
-          title="Import from a shared deck code"
-        >
-          🔗
-        </button>
-        <button
-          type="button"
-          onClick={() => setDuelOpen(true)}
-          className="btn-ghost px-3 py-3 text-sm"
-          aria-label="Duel tools"
-        >
-          🎲
+        <button type="button" onClick={() => setImportMenuOpen(true)} className="btn-ghost px-4 py-3 text-sm">
+          📥 Import
         </button>
       </div>
+      <input
+        ref={ydkRef}
+        type="file"
+        accept=".ydk,.txt"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) importYdk(f);
+          e.target.value = "";
+        }}
+      />
+      <button type="button" onClick={() => setDuelOpen(true)} className="btn-ghost py-2 text-sm">
+        🎲 Duel tools — life points, coin, dice
+      </button>
+
+      {importMenuOpen && (
+        <ActionSheet
+          title="Import a deck"
+          onClose={() => setImportMenuOpen(false)}
+          actions={[
+            {
+              label: "📋 Paste a written deck list",
+              hint: "\"3 Card Name\" lines — typos get fixed, with a preview",
+              onClick: () => setImportListOpen(true),
+            },
+            { label: "🔗 Paste a deck code", hint: "A code shared from this app", onClick: () => setImportCodeOpen(true) },
+            {
+              label: "📄 Open a .ydk file",
+              hint: "From Master Duel, EDOPro or YGOPRODeck",
+              onClick: () => ydkRef.current?.click(),
+            },
+          ]}
+        />
+      )}
 
       {duelOpen && <DuelToolsSheet onClose={() => setDuelOpen(false)} />}
       {importListOpen && (
@@ -174,6 +177,8 @@ function DeckTile({ deck, onOpen }: { deck: MDeck; onOpen: (id: string) => void 
     [coverId]
   );
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   async function duplicate() {
     const copy = await duplicateDeck(deck.id);
     if (copy) toast(`Duplicated "${deck.name}"`, "success");
@@ -212,22 +217,22 @@ function DeckTile({ deck, onOpen }: { deck: MDeck; onOpen: (id: string) => void 
       </button>
       <button
         type="button"
-        onClick={wishlistMissing}
+        onClick={() => setMenuOpen(true)}
         className={iconBtn}
-        aria-label="Add missing cards to wishlist"
-        title="Add missing cards to wishlist"
+        aria-label={`Actions for ${deck.name}`}
       >
-        ♡+
+        ⋯
       </button>
-      <button
-        type="button"
-        onClick={duplicate}
-        className={iconBtn}
-        aria-label="Duplicate deck"
-        title="Duplicate deck"
-      >
-        ⧉
-      </button>
+      {menuOpen && (
+        <ActionSheet
+          title={deck.name}
+          onClose={() => setMenuOpen(false)}
+          actions={[
+            { label: "♡ Add missing cards to wishlist", onClick: () => void wishlistMissing() },
+            { label: "⧉ Duplicate deck", onClick: () => void duplicate() },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -383,6 +388,7 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const [nameLoaded, setNameLoaded] = useState(false);
   const [testingHand, setTestingHand] = useState(false);
   const [showingOdds, setShowingOdds] = useState(false);
+  const [menu, setMenu] = useState<"share" | "more" | null>(null);
   const [sharingImage, setSharingImage] = useState(false);
   // Hardware back returns to the deck list.
   useBackClose(onBack);
@@ -455,6 +461,11 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
     }
   }
 
+  async function duplicateThis() {
+    const copy = await duplicateDeck(deckId);
+    if (copy) toast(`Duplicated as "${copy.name}"`, "success");
+  }
+
   async function removeDeck() {
     const snapshot = await getDeck(deckId);
     const ok = await confirmDialog({
@@ -485,8 +496,18 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => renameDeck(deckId, name)}
-          className="flex-1 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-amber-800/60"
+          className="flex-1 min-w-0 bg-transparent font-semibold text-lg focus:outline-none border-b border-transparent focus:border-amber-800/60"
         />
+        {/* Deck-level actions that aren't used mid-build — kept off the
+            main surface so Delete never sits beside an everyday button. */}
+        <button
+          type="button"
+          onClick={() => setMenu("more")}
+          aria-label="Deck actions"
+          className="pressable shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-neutral-400 active:bg-raised text-lg"
+        >
+          ⋯
+        </button>
       </div>
 
       {/* Which banlist to validate against. */}
@@ -588,6 +609,25 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
           );
         })()}
 
+      {/* Everyday deck tools, up top: they used to sit below every card,
+          a long scroll away on a full 40-card deck. */}
+      <div className="grid grid-cols-3 gap-2">
+        <button type="button" onClick={() => setTestingHand(true)} className="btn-ghost py-2.5 text-sm">
+          🎴 Test hand
+        </button>
+        <button type="button" onClick={() => setShowingOdds(true)} className="btn-ghost py-2.5 text-sm">
+          🎯 Odds
+        </button>
+        <button
+          type="button"
+          onClick={() => setMenu("share")}
+          disabled={sharingImage}
+          className="btn-ghost py-2.5 text-sm disabled:opacity-60"
+        >
+          {sharingImage ? "⏳ Rendering…" : "📤 Share"}
+        </button>
+      </div>
+
       {/* Strategy notes — remounts when the deck record changes id. */}
       <DeckNotes key={deckId} deckId={deckId} initial={enriched.deck.notes ?? ""} />
 
@@ -633,50 +673,27 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
         );
       })}
 
-      <div className="grid grid-cols-2 gap-2 mt-2">
-        <button type="button" onClick={shareCode} className="btn-ghost py-2.5 text-sm">
-          🔗 Share code
-        </button>
-        <button
-          type="button"
-          onClick={shareImage}
-          disabled={sharingImage}
-          className="btn-ghost py-2.5 text-sm disabled:opacity-60"
-        >
-          {sharingImage ? "⏳ Rendering…" : "🖼 Share image"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mt-2">
-        <button
-          type="button"
-          onClick={() => setTestingHand(true)}
-          className="btn-ghost py-2.5 text-sm"
-        >
-          🎴 Test hand
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowingOdds(true)}
-          className="btn-ghost py-2.5 text-sm"
-        >
-          🎯 Odds
-        </button>
-        <button
-          type="button"
-          onClick={exportYdk}
-          className="btn-ghost py-2.5 text-sm"
-        >
-          Export .ydk
-        </button>
-        <button
-          type="button"
-          onClick={removeDeck}
-          className="btn-danger py-2.5 text-sm"
-        >
-          Delete
-        </button>
-      </div>
+      {menu === "share" && (
+        <ActionSheet
+          title="Share deck"
+          onClose={() => setMenu(null)}
+          actions={[
+            { label: "🔗 Share code", hint: "A short text code anyone with the app can import", onClick: () => void shareCode() },
+            { label: "🖼 Share image", hint: "Every card laid out, deck-site style", onClick: () => void shareImage() },
+            { label: "💾 Export .ydk", hint: "For Master Duel, EDOPro, YGOPRODeck", onClick: () => void exportYdk() },
+          ]}
+        />
+      )}
+      {menu === "more" && (
+        <ActionSheet
+          title="Deck actions"
+          onClose={() => setMenu(null)}
+          actions={[
+            { label: "⧉ Duplicate deck", onClick: () => void duplicateThis() },
+            { label: "🗑 Delete deck", danger: true, onClick: () => void removeDeck() },
+          ]}
+        />
+      )}
 
       {testingHand && (
         <HandSimSheet cards={enriched.cards} onClose={() => setTestingHand(false)} />
