@@ -6,10 +6,20 @@ import { expect, syncFreshApp, test } from "./stubs";
 // the shared fixture fails the test on any console error or crash screen.
 
 // Scoped to the bottom nav: the Scan page has its own "📷 Scan" toggle.
-const tab = (page: Page, name: "Cards" | "Scan" | "Decks" | "Meta") =>
+const tab = (page: Page, name: "Cards" | "Add" | "Decks" | "Meta") =>
   page.getByRole("navigation").getByRole("button", { name: new RegExp(`${name}$`) }).click();
 
 const heading = (page: Page, name: string | RegExp) => page.getByRole("heading", { name });
+
+// Decks list → 📥 Import → one of the import options.
+async function importVia(page: Page, option: RegExp) {
+  await page.getByRole("button", { name: "📥 Import" }).click();
+  await page.getByRole("button", { name: option }).click();
+}
+
+// The app-wide Settings sheet, from the ⚙ in the header (any tab).
+const openAppSettings = (page: Page) =>
+  page.getByRole("banner").getByRole("button", { name: "Settings", exact: true }).click();
 
 // Top-most sheet's × — stacked sheets each render one, newest last.
 const closeTop = (page: Page) => page.getByRole("button", { name: "Close", exact: true }).last().click();
@@ -44,12 +54,20 @@ test("first launch syncs the card database and lists the cards", async ({ page }
 });
 
 test.describe("bottom sheets", () => {
-  test("backup sheet: opens, shows the build line, closes on ×", async ({ page }) => {
-    await page.getByRole("button", { name: "💾 Backup" }).click();
-    await expect(heading(page, "Backup & restore")).toBeVisible();
+  test("settings: opens from the header on any tab, grouped in three sections", async ({ page }) => {
+    // From a tab other than Cards: it's app-wide, not a Cards feature.
+    await tab(page, "Decks");
+    await openAppSettings(page);
+    await expect(heading(page, "Settings")).toBeVisible();
+    for (const section of ["Backup & restore", "Card data", "App"]) {
+      await expect(heading(page, section)).toBeVisible();
+    }
     await expect(page.getByText(/Browser build|Installed build/)).toBeVisible();
+    // The packs moved here from Scan settings; offline installs fail politely.
+    await page.getByRole("button", { name: /Install \(~0\.7 MB\)/ }).click();
+    await expect(page.getByText(/Couldn't download the printing pack/)).toBeVisible();
     await closeTop(page);
-    await expect(heading(page, "Backup & restore")).toHaveCount(0);
+    await expect(heading(page, "Settings")).toHaveCount(0);
   });
 
   test("trades sheet closes on a backdrop tap", async ({ page }) => {
@@ -98,9 +116,9 @@ test.describe("bottom sheets", () => {
 });
 
 test.describe("scan tab (no camera on web)", () => {
-  test("scan settings: sticky header, OCR script persists, pack errors are handled", async ({ page }) => {
-    await tab(page, "Scan");
-    await page.getByRole("button", { name: "⚙ Settings" }).click();
+  test("scan settings: sticky header, OCR script persists", async ({ page }) => {
+    await tab(page, "Add");
+    await page.getByRole("button", { name: "⚙ Scan settings" }).click();
     await expect(heading(page, "Scan settings")).toBeVisible();
 
     // The longest sheet: scrolled to the bottom, its close button must still
@@ -111,17 +129,15 @@ test.describe("scan tab (no camera on web)", () => {
     // Text recognition choice survives a reload (localStorage).
     await page.getByRole("button", { name: "Japanese (日本語)" }).click();
     await page.reload();
-    await tab(page, "Scan");
-    await page.getByRole("button", { name: "⚙ Settings" }).click();
+    await tab(page, "Add");
+    await page.getByRole("button", { name: "⚙ Scan settings" }).click();
     await expect(page.getByRole("button", { name: "Japanese (日本語)" })).toHaveClass(/seg-on/);
-
-    // Packs are unreachable in this harness: installs must fail politely.
-    await page.getByRole("button", { name: /Install \(~0\.7 MB\)/ }).click();
-    await expect(page.getByText(/Couldn't download the printing pack/)).toBeVisible();
+    // Card-data packs moved to app Settings.
+    await expect(page.getByText("Japanese printings")).toHaveCount(0);
   });
 
   test("camera features are disabled, with an explanation, where there's no camera", async ({ page }) => {
-    await tab(page, "Scan");
+    await tab(page, "Add");
     await expect(page.getByRole("button", { name: "🔦 Foil lab" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "📷 Scan cards" })).toBeDisabled();
     await expect(page.getByText(/works in the Android app/)).toBeVisible();
@@ -153,7 +169,7 @@ test.describe("decks", () => {
 
   test("written deck list: preview, corrections, fix a line, import", async ({ page }) => {
     await tab(page, "Decks");
-    await page.getByRole("button", { name: "Import a written deck list" }).click();
+    await importVia(page, /Paste a written deck list/);
     await page.getByRole("textbox").first().fill(LIST);
     await page.getByRole("button", { name: "Check list" }).click();
 
@@ -202,12 +218,12 @@ test.describe("decks", () => {
 
   test("duel tools and an invalid deck code both behave", async ({ page }) => {
     await tab(page, "Decks");
-    await page.getByRole("button", { name: "Duel tools" }).click();
+    await page.getByRole("button", { name: /Duel tools/ }).click();
     await expect(heading(page, "Duel tools")).toBeVisible();
     await page.getByRole("button", { name: /Coin flip/ }).click();
     await closeTop(page);
 
-    await page.getByRole("button", { name: "Import from deck code" }).click();
+    await importVia(page, /Paste a deck code/);
     await page.getByRole("textbox").fill("YGO1|definitely-not-a-deck");
     await page.getByRole("button", { name: "Import deck" }).click();
     await expect(heading(page, "Import deck code")).toBeVisible(); // stays open on error
@@ -233,14 +249,12 @@ test("diagnostics: an error the user saw ends up in the copied report", async ({
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 
   // Produce a real error toast: the printing pack is unreachable here.
-  await tab(page, "Scan");
-  await page.getByRole("button", { name: "⚙ Settings" }).click();
+  await openAppSettings(page);
   await page.getByRole("button", { name: /Install \(~0\.7 MB\)/ }).click();
   await expect(page.getByText(/Couldn't download the printing pack/)).toBeVisible();
+  // Reopen so the counts line re-reads the log.
   await closeTop(page);
-
-  await tab(page, "Cards");
-  await page.getByRole("button", { name: "💾 Backup" }).click();
+  await openAppSettings(page);
   await expect(page.getByText(/1 errors · 0 recent scans logged/)).toBeVisible();
   await page.getByRole("button", { name: "🩺 Copy diagnostics" }).click();
   await expect(page.getByText("Diagnostics copied")).toBeVisible();
@@ -271,7 +285,7 @@ test.describe("round trips", () => {
     await logTestTrade(page);
     await closeTop(page);
 
-    await page.getByRole("button", { name: "💾 Backup" }).click();
+    await openAppSettings(page);
     await page.getByRole("button", { name: "Copy", exact: true }).click();
     await expect(page.getByText("Backup copied")).toBeVisible();
     const backup = await page.evaluate(() => navigator.clipboard.readText());
@@ -314,7 +328,7 @@ test.describe("round trips", () => {
   test("deck share code → import reproduces the deck", async ({ page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await tab(page, "Decks");
-    await page.getByRole("button", { name: "Import a written deck list" }).click();
+    await importVia(page, /Paste a written deck list/);
     await page.getByRole("textbox").first().fill(
       ["Shared Deck", "", "Monsters", "3 Fallen of Albaz", "2 Dark Magician", "", "Extra Deck", "1 Mirrorjade the Iceblade Dragon"].join("\n")
     );
@@ -323,13 +337,14 @@ test.describe("round trips", () => {
 
     // The import lands straight in the deck editor.
     await expect(page.getByRole("heading", { name: /Main Deck \(5\)/ })).toBeVisible();
-    await page.getByRole("button", { name: "🔗 Share code" }).click();
+    await page.getByRole("button", { name: "📤 Share" }).click();
+    await page.getByRole("button", { name: /🔗 Share code/ }).click();
     await expect(page.getByText("Deck code copied")).toBeVisible();
     const code = await page.evaluate(() => navigator.clipboard.readText());
     expect(code).toMatch(/^YGO1\|/);
 
     await page.getByRole("button", { name: "←" }).click();
-    await page.getByRole("button", { name: "Import from deck code" }).click();
+    await importVia(page, /Paste a deck code/);
     await page.getByRole("textbox").fill(code);
     await page.getByRole("button", { name: "Import deck" }).click();
 
@@ -370,5 +385,75 @@ test.describe("trades", () => {
     await closeTop(page);
     await page.getByRole("button", { name: "Owned", exact: true }).click();
     await expect(page.getByText(/1 cards · 1 unique|1 card · 1 unique/)).toBeVisible();
+  });
+});
+
+test.describe("layout: menus and filters", () => {
+  test("deck editor: tools up top, Share menu, and ⋯ holds Duplicate / Delete", async ({ page }) => {
+    await tab(page, "Decks");
+    await page.getByRole("button", { name: "+ New deck" }).click();
+    // Everyday tools sit under the stats, not below every card.
+    for (const name of ["🎴 Test hand", "🎯 Odds", "📤 Share"]) {
+      await expect(page.getByRole("button", { name })).toBeVisible();
+    }
+    await page.getByRole("button", { name: "📤 Share" }).click();
+    await expect(heading(page, "Share deck")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Export \.ydk/ })).toBeVisible();
+    await closeTop(page);
+
+    await page.getByRole("button", { name: "Deck actions" }).click();
+    await page.getByRole("button", { name: /Duplicate deck/ }).click();
+    await expect(page.getByText(/Duplicated as "New Deck \(copy\)"/)).toBeVisible();
+
+    // Delete is a deliberate, confirmed act now — not a button beside Export.
+    await page.getByRole("button", { name: "Deck actions" }).click();
+    await page.getByRole("button", { name: /Delete deck/ }).click();
+    await expect(page.getByText("Delete this deck?")).toBeVisible();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByRole("button", { name: "+ New deck" })).toBeVisible();
+    await expect(page.getByText("New Deck (copy)", { exact: true })).toBeVisible();
+  });
+
+  test("deck list: tile ⋯ menu adds missing cards to the wishlist", async ({ page }) => {
+    await tab(page, "Decks");
+    await importVia(page, /Paste a written deck list/);
+    await page.getByRole("textbox").first().fill(["Menu Deck", "", "Monsters", "2 Dark Magician"].join("\n"));
+    await page.getByRole("button", { name: "Check list" }).click();
+    await page.getByRole("button", { name: /^Import \d+ cards$/ }).click();
+    await page.getByRole("button", { name: "←" }).click();
+
+    await page.getByRole("button", { name: "Actions for Menu Deck" }).click();
+    await page.getByRole("button", { name: /Add missing cards to wishlist/ }).click();
+    await expect(page.getByText(/Added 1 missing card to your wishlist/)).toBeVisible();
+  });
+
+  test("cards: filters collapse behind a toggle; active ones stay visible as chips", async ({ page }) => {
+    // Collapsed by default: no filter dropdowns before the list.
+    await expect(page.getByRole("combobox", { name: "Card type" })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("combobox", { name: "Card type" }).selectOption("Monster");
+    await page.getByRole("combobox", { name: "Attribute" }).selectOption("DARK");
+    await page.getByRole("button", { name: /^Filters \(2\)/ }).click(); // close
+
+    // Closed, the two filters show as chips — and they really filter.
+    await expect(page.getByRole("button", { name: "Remove filter Monsters" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Dark Magician/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Pot of Greed/ })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Remove filter Monsters" }).click();
+    await page.getByRole("button", { name: "Remove filter DARK" }).click();
+    await expect(page.getByRole("button", { name: /^Filters$|^Filters ▾$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Pot of Greed/ })).toBeVisible();
+  });
+
+  test("meta: filters collapse; side deck moved in as a labelled option", async ({ page }) => {
+    await tab(page, "Meta");
+    await expect(page.getByText("Count side deck cards")).toHaveCount(0);
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByText("Count side deck cards").click();
+    await page.getByRole("button", { name: "≤ $25" }).click();
+    await page.getByRole("button", { name: /^Filters \(2\)/ }).click();
+    await expect(page.getByRole("button", { name: "Remove filter With side deck" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove filter ≤ $25" })).toBeVisible();
   });
 });

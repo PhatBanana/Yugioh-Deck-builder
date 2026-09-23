@@ -61,7 +61,9 @@ export default function BottomSheet({
         <div className="sheet-handle" />
         <div
           className={`flex items-center justify-between gap-3 ${
-            stickyHeader ? "sticky top-0 z-10 -mx-4 px-4 -mt-1 pt-1 pb-2 bg-surface " : ""
+            stickyHeader
+              ? "sticky -top-3 z-10 -mx-4 px-4 -mt-1 pt-1 pb-2 bg-surface before:content-[''] before:absolute before:inset-x-0 before:-top-3 before:h-3 before:bg-surface "
+              : ""
           }${subtitle ? "mb-1" : "mb-3"}`}
         >
           <h2 className="text-lg font-semibold leading-tight">{title}</h2>

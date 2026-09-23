@@ -255,6 +255,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   const [era, setEra] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<string | null>(null);
   const [sort, setSort] = useState<"completion" | "cost" | "name">("completion");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 250);
   const [live, setLive] = useState<LiveSearchOutcome | null>(null);
@@ -315,6 +316,17 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
   ].sort();
 
   const filtersActive = budget != null || era != null || strategy != null || sort !== "completion";
+  // Filters narrowing the list (sort isn't one — it reorders, never hides).
+  const activeFilters = [
+    era && { key: "era", label: era, clear: () => setEra(null) },
+    strategy && { key: "style", label: strategy, clear: () => setStrategy(null) },
+    budget != null && {
+      key: "budget",
+      label: BUDGETS.find((b) => b.value === budget)?.label ?? `≤ $${budget}`,
+      clear: () => setBudget(null),
+    },
+    includeSide && { key: "side", label: "With side deck", clear: () => setIncludeSide(false) },
+  ].filter((f): f is { key: string; label: string; clear: () => void } => !!f);
   const q = debouncedSearch.trim();
 
   // A search query looks across every cached deck; otherwise the tab shows
@@ -359,20 +371,10 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
 
   return (
     <div className="page p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-neutral-500">
-          Meta decks ranked by how close you are
-          {deckSource === "static_snapshot" ? " (bundled snapshot)" : ""}
-        </p>
-        <label className="flex items-center gap-1.5 text-xs text-neutral-400 shrink-0">
-          <input
-            type="checkbox"
-            checked={includeSide}
-            onChange={(e) => setIncludeSide(e.target.checked)}
-          />
-          Side deck
-        </label>
-      </div>
+      <p className="text-xs text-neutral-500">
+        Meta decks ranked by how close you are
+        {deckSource === "static_snapshot" ? " (bundled snapshot)" : ""}
+      </p>
 
       {/* Search all known meta decks — cached ones instantly, plus an
           explicit online lookup across the supported deck sources. */}
@@ -384,60 +386,116 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
         className="input-base w-full px-4 py-2.5 text-sm"
       />
 
-      {/* Era / strategy / sort */}
+      {/* Sort + a Filters toggle. Era, style, budget and side-deck counting
+          used to take three rows above the first deck (the side-deck box sat
+          beside the intro line, reading like part of the sentence). */}
       <div className="flex gap-1.5">
-        <select
-          className={selectClass}
-          value={era ?? ""}
-          onChange={(e) => setEra(e.target.value || null)}
-        >
-          <option value="">All eras</option>
-          {eras.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
-        <select
-          className={selectClass}
-          value={strategy ?? ""}
-          onChange={(e) => setStrategy(e.target.value || null)}
-        >
-          <option value="">All styles</option>
-          {strategies.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
         <select
           className={selectClass}
           value={sort}
+          aria-label="Sort"
           onChange={(e) => setSort(e.target.value as typeof sort)}
         >
-          <option value="completion">Closest</option>
-          <option value="cost">Cheapest</option>
-          <option value="name">A–Z</option>
+          <option value="completion">Sort: Closest</option>
+          <option value="cost">Sort: Cheapest</option>
+          <option value="name">Sort: A–Z</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          className={`btn-ghost px-3 py-1.5 rounded-lg text-xs shrink-0 ${
+            activeFilters.length > 0 ? "text-amber-200 ring-1 ring-amber-700/60" : ""
+          }`}
+        >
+          Filters{activeFilters.length > 0 ? ` (${activeFilters.length})` : ""} {filtersOpen ? "▴" : "▾"}
+        </button>
       </div>
 
-      {/* Budget filter */}
-      <div className="flex gap-1.5">
-        {BUDGETS.map((b) => (
-          <button
-            key={b.label}
-            type="button"
-            onClick={() => setBudget(b.value)}
-            className={`flex-1 py-1.5 rounded-lg text-xs border transition-colors duration-150 ${
-              budget === b.value
-                ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
-                : "bg-surface border-line text-neutral-400"
-            }`}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
+      {filtersOpen && (
+        <div className="panel p-2.5 flex flex-col gap-2">
+          <div className="flex gap-1.5">
+            <select
+              className={selectClass}
+              value={era ?? ""}
+              aria-label="Era"
+              onChange={(e) => setEra(e.target.value || null)}
+            >
+              <option value="">All eras</option>
+              {eras.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass}
+              value={strategy ?? ""}
+              aria-label="Play style"
+              onChange={(e) => setStrategy(e.target.value || null)}
+            >
+              <option value="">All styles</option>
+              {strategies.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <span className="block text-[11px] text-neutral-500 mb-1">Cost to finish</span>
+            <div className="flex gap-1.5">
+              {BUDGETS.map((b) => (
+                <button
+                  key={b.label}
+                  type="button"
+                  onClick={() => setBudget(b.value)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs border transition-colors duration-150 ${
+                    budget === b.value
+                      ? "bg-amber-400/15 border-amber-900/60 text-amber-200 font-medium"
+                      : "bg-surface border-line text-neutral-400"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-neutral-300">
+            <input
+              type="checkbox"
+              checked={includeSide}
+              onChange={(e) => setIncludeSide(e.target.checked)}
+            />
+            Count side deck cards
+          </label>
+          {activeFilters.length > 0 && (
+            <button
+              type="button"
+              onClick={() => activeFilters.forEach((f) => f.clear())}
+              className="text-xs text-neutral-400 py-1"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
+
+      {!filtersOpen && activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {activeFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={f.clear}
+              aria-label={`Remove filter ${f.label}`}
+              className="text-xs px-2.5 py-1 rounded-full border border-amber-900/60 bg-amber-400/10 text-amber-200"
+            >
+              {f.label} ×
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* What to buy next */}
       {purchases.length > 0 && (

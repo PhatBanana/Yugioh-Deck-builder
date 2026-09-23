@@ -189,6 +189,13 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   fails on any console error. An upgrade test opens the previous commit's
   bundle then the new one over the same IndexedDB. The APK job waits on it,
   so a broken UI blocks the release.
+- **Navigation cleanup**: one ⚙ Settings sheet in the header (backup &
+  restore, card data and language packs, app/diagnostics) instead of
+  settings split across Cards and Scan; the deck editor gets a toolbar
+  (Test hand / Odds / Share menu) plus a ⋯ menu for duplicate/delete; Cards
+  and Meta filters fold behind a toggle with active ones shown as chips; the
+  Decks list groups its imports under one 📥 Import menu; the Scan tab is
+  now "Add".
 
 ---
 

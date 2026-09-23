@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   backupIsStale,
@@ -22,20 +22,18 @@ import { todayISO } from "../lib/util";
 import { clearDiagnostics, diagnosticsCounts } from "../lib/diagnostics";
 import { diagnosticsReport } from "../services/diagnosticsReport";
 import BottomSheet from "./BottomSheet";
+import { JapanesePrintings, LanguagePacks } from "./DataPacks";
+import { runFullSync, useSyncProgress } from "../hooks/useCardSync";
 
-// Bottom sheet for exporting the collection/decks as a JSON file and
-// restoring from one (file pick or paste) — plus app/data upkeep (card
-// re-sync, update check) so those live in one predictable place.
-export default function BackupSheet({
-  onClose,
-  syncing,
-  onSync,
-}: {
-  onClose: () => void;
-  // Card-database re-sync, provided by the page that owns the sync state.
-  syncing?: string | null;
-  onSync?: () => void;
-}) {
+// The app-wide Settings sheet, opened from the ⚙ in the header on any tab.
+// Three sections, in the order people look for them:
+//   Backup & restore — export (file / copy / CSV) and restore
+//   Card data        — re-sync, language packs, Japanese printings
+//   App              — updates, installed build, diagnostics
+// These used to be split across a "Backup" button on the Cards tab (which
+// also held updates and re-sync) and Scan settings (which held the packs).
+export default function SettingsSheet({ onClose }: { onClose: () => void }) {
+  const syncing = useSyncProgress();
   const [pasted, setPasted] = useState("");
   const [pending, setPending] = useState<BackupFile | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -167,85 +165,40 @@ export default function BackupSheet({
   }
 
   return (
-    <BottomSheet onClose={onClose} title="Backup & restore">
-      <p className="text-xs text-neutral-500 mb-1">
-        Saves your collection, decks, wishlist, trade log and value/price
-        history as one JSON file. The card database isn't included — it re-downloads on any
-        device.
-      </p>
-      <p
-        className={`text-xs mb-2 ${
-          backupIsStale(lastBackup ?? null) ? "text-orange-300" : "text-emerald-300/90"
-        }`}
-      >
-        {lastBackup
-          ? `Last backup: ${lastBackup.toISOString().slice(0, 10)}`
-          : "No backup yet — export one now, before you need it."}
-      </p>
-      <div className="flex gap-2">
-        <button type="button" onClick={() => void exportFile()} className="btn-primary flex-1 py-2.5 text-sm">
-          ⬇ Export — choose where to save
-        </button>
-        <button type="button" onClick={() => void exportCopy()} className="btn-ghost px-4 py-2.5 text-sm">
-          Copy
-        </button>
-      </div>
-      <button
-        type="button"
-        onClick={() => void exportCsv()}
-        className="btn-ghost w-full py-2.5 text-sm mt-2"
-      >
-        🧾 Export collection as CSV (spreadsheet)
-      </button>
-      <button
-        type="button"
-        disabled={checking}
-        onClick={() => void checkUpdate()}
-        className="btn-ghost w-full py-2.5 text-sm mt-2 disabled:opacity-60"
-      >
-        {checking ? "Checking…" : "🔄 Check for app updates"}
-      </button>
-      <p className="text-[11px] text-neutral-600 mt-1 text-center">
-        {build == null ? "Browser build" : `Installed build ${build}`} ·{" "}
-        <button
-          type="button"
-          onClick={() => window.open(RELEASES_PAGE, "_blank")}
-          className="text-amber-300/80"
+    <BottomSheet onClose={onClose} title="Settings" stickyHeader>
+      {/* ---- Backup & restore -------------------------------------------- */}
+      <Section title="Backup & restore" first>
+        <p className="text-xs text-neutral-500 mb-1">
+          Saves your collection, decks, wishlist, trade log and value/price
+          history as one JSON file. The card database isn't included — it
+          re-downloads on any device.
+        </p>
+        <p
+          className={`text-xs mb-2 ${
+            backupIsStale(lastBackup ?? null) ? "text-orange-300" : "text-emerald-300/90"
+          }`}
         >
-          all releases ↗
-        </button>
-      </p>
-      <div className="flex gap-2 mt-2">
-        <button
-          type="button"
-          onClick={() => void copyDiagnostics()}
-          className="btn-ghost flex-1 py-2.5 text-sm"
-        >
-          🩺 Copy diagnostics
-        </button>
-        {diag.events + diag.ocr > 0 && (
-          <button type="button" onClick={resetDiagnostics} className="btn-ghost px-4 py-2.5 text-sm">
-            Clear
+          {lastBackup
+            ? `Last backup: ${lastBackup.toISOString().slice(0, 10)}`
+            : "No backup yet — export one now, before you need it."}
+        </p>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => void exportFile()} className="btn-primary flex-1 py-2.5 text-sm">
+            ⬇ Export — choose where to save
           </button>
-        )}
-      </div>
-      <p className="text-[11px] text-neutral-600 mt-1 text-center">
-        {diag.events} errors · {diag.ocr} recent scans logged — send these when
-        something misbehaves.
-      </p>
-      {onSync && (
+          <button type="button" onClick={() => void exportCopy()} className="btn-ghost px-4 py-2.5 text-sm">
+            Copy
+          </button>
+        </div>
         <button
           type="button"
-          disabled={!!syncing}
-          onClick={onSync}
-          className="btn-ghost w-full py-2.5 text-sm mt-2 disabled:opacity-60"
+          onClick={() => void exportCsv()}
+          className="btn-ghost w-full py-2.5 text-sm mt-2"
         >
-          {syncing ? `⏳ ${syncing}` : "🔃 Re-sync card database & prices"}
+          🧾 Export collection as CSV (spreadsheet)
         </button>
-      )}
 
-      <div className="mt-4 pt-3 border-t border-line">
-        <h3 className="text-sm font-semibold mb-1.5">Restore</h3>
+        <h4 className="text-xs font-semibold text-neutral-400 mt-4 mb-1.5">Restore</h4>
         {pending ? (
           <div className="flex flex-col gap-2">
             <p className="text-sm text-neutral-300">
@@ -295,7 +248,71 @@ export default function BackupSheet({
             )}
           </div>
         )}
-      </div>
+      </Section>
+
+      {/* ---- Card data ------------------------------------------------------ */}
+      <Section title="Card data">
+        <button
+          type="button"
+          disabled={!!syncing}
+          onClick={() => void runFullSync()}
+          className="btn-ghost w-full py-2.5 text-sm disabled:opacity-60"
+        >
+          {syncing ? `⏳ ${syncing}` : "🔃 Re-sync card database & prices"}
+        </button>
+        <LanguagePacks />
+        <JapanesePrintings />
+      </Section>
+
+      {/* ---- App ------------------------------------------------------------ */}
+      <Section title="App">
+        <button
+          type="button"
+          disabled={checking}
+          onClick={() => void checkUpdate()}
+          className="btn-ghost w-full py-2.5 text-sm disabled:opacity-60"
+        >
+          {checking ? "Checking…" : "🔄 Check for app updates"}
+        </button>
+        <p className="text-[11px] text-neutral-600 mt-1 text-center">
+          {build == null ? "Browser build" : `Installed build ${build}`} ·{" "}
+          <button
+            type="button"
+            onClick={() => window.open(RELEASES_PAGE, "_blank")}
+            className="text-amber-300/80"
+          >
+            all releases ↗
+          </button>
+        </p>
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => void copyDiagnostics()}
+            className="btn-ghost flex-1 py-2.5 text-sm"
+          >
+            🩺 Copy diagnostics
+          </button>
+          {diag.events + diag.ocr > 0 && (
+            <button type="button" onClick={resetDiagnostics} className="btn-ghost px-4 py-2.5 text-sm">
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-neutral-600 mt-1 text-center">
+          {diag.events} errors · {diag.ocr} recent scans logged — send these when
+          something misbehaves.
+        </p>
+      </Section>
     </BottomSheet>
+  );
+}
+
+// A titled group with a divider above it (except the first).
+function Section({ title, first, children }: { title: string; first?: boolean; children: ReactNode }) {
+  return (
+    <section className={first ? "" : "mt-5 pt-4 border-t border-line"}>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/80 mb-2">{title}</h3>
+      {children}
+    </section>
   );
 }

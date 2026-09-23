@@ -10,20 +10,18 @@ import WishlistButton from "../components/WishlistButton";
 import { useCardDetail } from "../components/CardDetailModal";
 import CardThumb from "../components/CardThumb";
 import ValueSparkline from "../components/ValueSparkline";
-import BackupSheet from "../components/BackupSheet";
 import InsightsSheet from "../components/InsightsSheet";
 import PriceAlertsSheet from "../components/PriceAlertsSheet";
 import WishlistBudgetSheet from "../components/WishlistBudgetSheet";
 import BulkEditBar from "../components/BulkEditBar";
-import { cachedAlertCount, refreshAlertCount } from "../services/priceAlerts";
+import { cachedAlertCount } from "../services/priceAlerts";
 import SetSheet from "../components/SetSheet";
 import TradesSheet from "../components/TradesSheet";
 import { ensureSetList, searchSets } from "../services/sets";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { toast } from "../components/Toaster";
-import { syncCards } from "../services/cardSync";
-import { syncMetaDecks } from "../services/metaDecks";
-import { invalidateCandidateCache } from "../services/scanner";
+import { runFullSync, useSyncProgress } from "../hooks/useCardSync";
+import { openSettings } from "../lib/settingsNav";
 import { searchCardIds } from "../services/cardSearch";
 import { getCollectionStats, getValueDelta } from "../services/collection";
 import { usePersistentState } from "../hooks/usePersistentState";
@@ -191,14 +189,23 @@ export default function CardsPage() {
   // the way you left it.
   const [view, setView] = usePersistentState<View>("ygo-cards-view", "all");
   const [limit, setLimit] = useState(PAGE);
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [backupOpen, setBackupOpen] = useState(false);
+  const syncing = useSyncProgress();
   const [cardType, setCardType] = usePersistentState<TypeFilter>("ygo-cards-type", "");
   const [sortBy, setSortBy] = usePersistentState<SortBy>("ygo-cards-sort", "name");
   const [layout, setLayout] = usePersistentState<"list" | "grid">("ygo-cards-layout", "list");
   const [attr, setAttr] = usePersistentState("ygo-cards-attr", "");
   const [level, setLevel] = usePersistentState("ygo-cards-level", "");
   const [banStatus, setBanStatus] = usePersistentState("ygo-cards-ban", "");
+  const [filtersOpen, setFiltersOpen] = usePersistentState("ygo-cards-filters-open", false);
+  // The filters currently narrowing the list, each with its own clear — drives
+  // the Filters (n) count and the chips shown while the panel is closed.
+  const TYPE_LABEL: Record<string, string> = { Monster: "Monsters", Spell: "Spells", Trap: "Traps" };
+  const activeFilters = [
+    cardType && { key: "type", label: TYPE_LABEL[cardType] ?? cardType, clear: () => setCardType("" as TypeFilter) },
+    attr && { key: "attr", label: attr, clear: () => setAttr("") },
+    level && { key: "level", label: `Lv ${level}`, clear: () => setLevel("") },
+    banStatus && { key: "ban", label: banStatus, clear: () => setBanStatus("") },
+  ].filter((f): f is { key: string; label: string; clear: () => void } => !!f);
   const [openSet, setOpenSet] = useState<string | null>(null);
   const [tradesOpen, setTradesOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
@@ -230,7 +237,7 @@ export default function CardsPage() {
       await setSyncMeta("backup_nudge_at", String(Date.now()));
       toast("Your collection isn't backed up recently", "info", {
         label: "Back up",
-        onClick: () => setBackupOpen(true),
+        onClick: openSettings,
       });
     })().catch(() => {});
     // Once per mount is the point — not on every dependency change.
@@ -358,30 +365,6 @@ export default function CardsPage() {
   // Binder chips shown on the Owned view — derived from the collection pass.
   const tags = coll?.tags ?? [];
 
-  async function runFullSync() {
-    setSyncing("Starting…");
-    try {
-      const cards = await syncCards(setSyncing);
-      invalidateCandidateCache();
-      refreshAlertCount().catch(() => {}); // prices changed — refresh the badge
-      if (cards.rarityIndexFailed) {
-        toast("Rarity index couldn't be built — scan rarities may be slow until the next sync", "error");
-      }
-      setSyncing("Updating meta decks…");
-      const decks = await syncMetaDecks(setSyncing);
-      toast(
-        cards.skipped
-          ? `Cards already current · ${decks.deckCount} meta decks (${decks.source})`
-          : `Synced ${cards.cardCount.toLocaleString()} cards · ${decks.deckCount} meta decks`,
-        "success"
-      );
-    } catch (err) {
-      toast(`Sync failed: ${err instanceof Error ? err.message : err}`, "error");
-    } finally {
-      setSyncing(null);
-    }
-  }
-
   if (cardCount === 0) {
     return (
       <div className="page p-6 flex flex-col items-center gap-4 text-center">
@@ -397,25 +380,18 @@ export default function CardsPage() {
         <button
           type="button"
           disabled={!!syncing}
-          onClick={runFullSync}
+          onClick={() => void runFullSync()}
           className="btn-primary px-6 py-3.5 mt-2"
         >
           {syncing ?? "Download card database"}
         </button>
         <button
           type="button"
-          onClick={() => setBackupOpen(true)}
+          onClick={openSettings}
           className="text-xs text-neutral-500 underline"
         >
           Restore a backup
         </button>
-        {backupOpen && (
-        <BackupSheet
-          onClose={() => setBackupOpen(false)}
-          syncing={syncing}
-          onSync={runFullSync}
-        />
-      )}
       </div>
     );
   }
@@ -456,36 +432,37 @@ export default function CardsPage() {
         ))}
       </div>
 
-      {/* Type filter + sort order. */}
+      {/* Sort, a Filters toggle, and the layout switch on one row. The four
+          filter dropdowns used to sit open above every list — two full rows
+          before the first card. Active filters stay visible as chips when the
+          panel is closed, so a filter is never silently hiding cards. */}
       {view !== "sets" && (
       <>
       <div className="flex gap-1.5">
         <select
           className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
-          value={cardType}
-          onChange={(e) => {
-            setCardType(e.target.value as TypeFilter);
-            setLimit(PAGE);
-          }}
-        >
-          <option value="">All types</option>
-          <option value="Monster">Monsters</option>
-          <option value="Spell">Spells</option>
-          <option value="Trap">Traps</option>
-        </select>
-        <select
-          className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
           value={sortBy}
+          aria-label="Sort"
           onChange={(e) => {
             setSortBy(e.target.value as SortBy);
             setLimit(PAGE);
           }}
         >
-          <option value="name">A–Z</option>
-          <option value="price">Price ↓</option>
-          <option value="atk">ATK ↓</option>
-          <option value="level">Level ↓</option>
+          <option value="name">Sort: A–Z</option>
+          <option value="price">Sort: Price ↓</option>
+          <option value="atk">Sort: ATK ↓</option>
+          <option value="level">Sort: Level ↓</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          className={`btn-ghost px-3 py-1.5 rounded-lg text-xs shrink-0 ${
+            activeFilters.length > 0 ? "text-amber-200 ring-1 ring-amber-700/60" : ""
+          }`}
+        >
+          Filters{activeFilters.length > 0 ? ` (${activeFilters.length})` : ""} {filtersOpen ? "▴" : "▾"}
+        </button>
         <button
           type="button"
           onClick={() => setLayout((l) => (l === "list" ? "grid" : "list"))}
@@ -496,11 +473,26 @@ export default function CardsPage() {
         </button>
       </div>
 
-      {/* Advanced filters. */}
-        <div className="flex gap-1.5">
+      {filtersOpen && (
+        <div className="panel p-2.5 grid grid-cols-2 gap-1.5">
           <select
-            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            className="input-base min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            value={cardType}
+            aria-label="Card type"
+            onChange={(e) => {
+              setCardType(e.target.value as TypeFilter);
+              setLimit(PAGE);
+            }}
+          >
+            <option value="">All types</option>
+            <option value="Monster">Monsters</option>
+            <option value="Spell">Spells</option>
+            <option value="Trap">Traps</option>
+          </select>
+          <select
+            className="input-base min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
             value={attr}
+            aria-label="Attribute"
             onChange={(e) => {
               setAttr(e.target.value);
               setLimit(PAGE);
@@ -514,8 +506,9 @@ export default function CardsPage() {
             ))}
           </select>
           <select
-            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            className="input-base min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
             value={level}
+            aria-label="Level"
             onChange={(e) => {
               setLevel(e.target.value);
               setLimit(PAGE);
@@ -529,8 +522,9 @@ export default function CardsPage() {
             ))}
           </select>
           <select
-            className="input-base flex-1 min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
+            className="input-base min-w-0 rounded-lg text-neutral-300 text-xs px-2 py-1.5"
             value={banStatus}
+            aria-label="Banlist status"
             onChange={(e) => {
               setBanStatus(e.target.value);
               setLimit(PAGE);
@@ -541,7 +535,33 @@ export default function CardsPage() {
             <option value="Limited">Limited</option>
             <option value="Semi-Limited">Semi-Limited</option>
           </select>
+          {activeFilters.length > 0 && (
+            <button
+              type="button"
+              onClick={() => activeFilters.forEach((f) => f.clear())}
+              className="col-span-2 text-xs text-neutral-400 py-1"
+            >
+              Clear all filters
+            </button>
+          )}
         </div>
+      )}
+
+      {!filtersOpen && activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {activeFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={f.clear}
+              aria-label={`Remove filter ${f.label}`}
+              className="text-xs px-2.5 py-1 rounded-full border border-amber-900/60 bg-amber-400/10 text-amber-200"
+            >
+              {f.label} ×
+            </button>
+          ))}
+        </div>
+      )}
       </>
       )}
 
@@ -575,8 +595,8 @@ export default function CardsPage() {
             </div>
           </div>
           {/* One action row, one style — everything the collection offers.
-              (Re-sync lives inside Backup, the app/data home.) */}
-          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-3 gap-2">
+              (Backup, re-sync and updates live in ⚙ Settings in the header.) */}
+          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => setInsightsOpen(true)}
@@ -610,13 +630,6 @@ export default function CardsPage() {
             >
               🤝 Trades
             </button>
-            <button
-              type="button"
-              onClick={() => setBackupOpen(true)}
-              className="btn-ghost py-2 text-xs"
-            >
-              💾 Backup{syncing ? "…" : ""}
-            </button>
           </div>
         </div>
       ) : (
@@ -645,13 +658,6 @@ export default function CardsPage() {
               className="btn-ghost px-2.5 py-1.5 text-xs"
             >
               🤝 Trades
-            </button>
-            <button
-              type="button"
-              onClick={() => setBackupOpen(true)}
-              className="btn-ghost px-2.5 py-1.5 text-xs"
-            >
-              💾 Backup
             </button>
           </span>
         </div>
@@ -782,13 +788,6 @@ export default function CardsPage() {
         </button>
       )}
 
-      {backupOpen && (
-        <BackupSheet
-          onClose={() => setBackupOpen(false)}
-          syncing={syncing}
-          onSync={runFullSync}
-        />
-      )}
       {tradesOpen && <TradesSheet onClose={() => setTradesOpen(false)} />}
       {insightsOpen && <InsightsSheet onClose={() => setInsightsOpen(false)} />}
       {alertsOpen && <PriceAlertsSheet onClose={() => setAlertsOpen(false)} />}
@@ -799,7 +798,6 @@ export default function CardsPage() {
         !insightsOpen &&
         !alertsOpen &&
         !budgetOpen &&
-        !backupOpen &&
         !tradesOpen &&
         !openSet && <BulkEditBar ids={[...selected]} onDone={exitSelect} />}
     </div>
