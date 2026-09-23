@@ -446,6 +446,31 @@ test.describe("layout: menus and filters", () => {
     await expect(page.getByRole("button", { name: /^Pot of Greed/ })).toBeVisible();
   });
 
+  test("cards: Select sits above the owned list; card detail leads with owned + wishlist", async ({ page }) => {
+    await page.getByRole("button", { name: "+" }).first().click();
+    await page.getByRole("button", { name: "+" }).nth(2).click();
+    await page.getByRole("button", { name: "Owned", exact: true }).click();
+
+    // The value card keeps the collection's tools; Select moved to the list.
+    await expect(page.getByRole("button", { name: "🤝 Trades" })).toBeVisible();
+    await expect(page.getByText("2 cards", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "☑ Select" }).click();
+    await expect(page.getByText("Tap cards to pick")).toBeVisible();
+    await page.getByRole("button", { name: "× Cancel" }).click();
+
+    // In the detail sheet, the Owned stepper comes before the art and stats.
+    await page.getByRole("button", { name: /^Albion the Branded Dragon/ }).click();
+    // Read both positions in one frame — the sheet is still sliding up.
+    const sheet = page.locator(".sheet").last();
+    await expect(sheet.getByText("Owned", { exact: true })).toBeVisible();
+    const ownedFirst = await sheet.evaluate((el) => {
+      const y = (text: string) =>
+        [...el.querySelectorAll("span, dt")].find((n) => n.textContent === text)!.getBoundingClientRect().top;
+      return y("Owned") < y("Type");
+    });
+    expect(ownedFirst).toBe(true);
+  });
+
   test("meta: filters collapse; side deck moved in as a labelled option", async ({ page }) => {
     await tab(page, "Meta");
     await expect(page.getByText("Count side deck cards")).toHaveCount(0);

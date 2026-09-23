@@ -594,9 +594,9 @@ export default function CardsPage() {
               )}
             </div>
           </div>
-          {/* One action row, one style — everything the collection offers.
-              (Backup, re-sync and updates live in ⚙ Settings in the header.) */}
-          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-4 gap-2">
+          {/* The collection's own tools. (Select acts on the list, so it sits
+              above the list; backup and re-sync live in ⚙ Settings.) */}
+          <div className="relative mt-3 pt-3 border-t border-line/70 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setInsightsOpen(true)}
@@ -615,13 +615,6 @@ export default function CardsPage() {
                   {alertCount}
                 </span>
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
-              className={`btn-ghost py-2 text-xs ${selectMode ? "ring-1 ring-amber-400 text-amber-200" : ""}`}
-            >
-              {selectMode ? "× Cancel" : "☑ Select"}
             </button>
             <button
               type="button"
@@ -735,6 +728,27 @@ export default function CardsPage() {
                 : "No sets match."}
             </div>
           )}
+        </div>
+      )}
+
+      {/* List strip: how many cards the filters left, and bulk select —
+          next to the rows it acts on. Owned only: bulk edit changes copies. */}
+      {view === "owned" && (results?.length ?? 0) > 0 && (
+        <div className="flex items-center justify-between gap-2 text-xs text-neutral-500 -mb-1">
+          <span>
+            {selectMode
+              ? "Tap cards to pick" // the bulk bar below shows the count
+              : `${results!.length} card${results!.length === 1 ? "" : "s"}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+            className={`btn-ghost px-2.5 py-1 text-xs shrink-0 ${
+              selectMode ? "ring-1 ring-amber-400 text-amber-200" : ""
+            }`}
+          >
+            {selectMode ? "× Cancel" : "☑ Select"}
+          </button>
         </div>
       )}
 
