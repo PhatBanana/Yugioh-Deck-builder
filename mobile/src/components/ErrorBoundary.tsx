@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createBackup, exportTextFile } from "../services/backup";
 import { onFatalError } from "../lib/crashGuard";
+import { logEvent } from "../lib/diagnostics";
 
 // Catches any render-time crash app-wide and shows a recoverable screen
 // instead of a silent black one. This exists because a bad record in
@@ -26,7 +27,10 @@ export default class AppErrorBoundary extends Component<{ children: ReactNode },
   }
 
   componentDidMount(): void {
-    this.unsubscribe = onFatalError((error) => this.setState({ error }));
+    this.unsubscribe = onFatalError((error) => {
+      logEvent("error", `fatal — ${error.name}: ${error.message}`);
+      this.setState({ error });
+    });
   }
 
   componentWillUnmount(): void {
@@ -36,6 +40,9 @@ export default class AppErrorBoundary extends Component<{ children: ReactNode },
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // eslint-disable-next-line no-console
     console.error("Render crash caught by AppErrorBoundary:", error, info.componentStack);
+    // Persisted, so the crash is still in the diagnostics report after the
+    // user restarts the app — the screen alone is gone once they do.
+    logEvent("error", `render crash — ${error.name}: ${error.message}\n${(info.componentStack ?? "").trim().split("\n").slice(0, 6).join("\n")}`);
   }
 
   render() {

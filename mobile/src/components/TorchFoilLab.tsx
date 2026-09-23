@@ -12,6 +12,8 @@ import { exportTextFile } from "../services/backup";
 import { useBackClose } from "../hooks/useBackClose";
 import { toast } from "./Toaster";
 import { todayISO } from "../lib/util";
+import { usePersistentState } from "../hooks/usePersistentState";
+import { confirmDialog } from "./Confirm";
 
 // Every tier you might be holding, straight from the rarity guide — a short
 // hand-picked list meant you couldn't tag the very cards the classifier is
@@ -34,10 +36,19 @@ function shortTruth(rarity: string): string {
 // window. (As a sheet it sat on an opaque backdrop — the camera was running
 // and aiming was pure guesswork.) The readout sits over a dark scrim at the
 // bottom; the card frame above it stays see-through.
+const SAMPLES_KEY = "ygo-foil-lab-samples";
+const MAX_SAMPLES = 300;
+
 export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
   useBackClose(onClose);
   const [busy, setBusy] = useState<string | null>(null);
-  const [samples, setSamples] = useState<TorchDiffSample[]>([]);
+  // Persisted: a capture session is minutes of careful card-by-card work, and
+  // it used to live only in component state — closing the lab, or Android
+  // killing the app in the background, threw every sample away unexported.
+  const [samples, setSamplesRaw] = usePersistentState<TorchDiffSample[]>(SAMPLES_KEY, []);
+  // Capped so a long-running bank can't fill localStorage (~1 KB a sample).
+  const setSamples = (next: (prev: TorchDiffSample[]) => TorchDiffSample[]) =>
+    setSamplesRaw((prev) => next(prev).slice(0, MAX_SAMPLES));
   const [thresholds, setThresholds] = useState<TorchThresholds>(DEFAULT_TORCH_THRESHOLDS);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [selected, setSelected] = useState(0);
@@ -81,6 +92,18 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
     setSamples((prev) =>
       prev.map((s, i) => (i === selected ? { ...s, groundTruth: truth } : s))
     );
+  }
+
+  // Now that samples outlive the lab, a mis-tap on Clear would destroy a whole
+  // banked session — so it asks first.
+  async function clearSamples() {
+    const ok = await confirmDialog({
+      title: `Delete ${samples.length} sample${samples.length === 1 ? "" : "s"}?`,
+      message: "Share them first if you want to keep the readings.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (ok) setSamples(() => []);
   }
 
   async function shareLog() {
@@ -321,12 +344,15 @@ export default function TorchFoilLab({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 type="button"
-                onClick={() => setSamples([])}
+                onClick={() => void clearSamples()}
                 className="btn-ghost px-4 py-2.5 text-sm text-neutral-500"
               >
                 Clear
               </button>
             </div>
+            <p className="text-[11px] text-neutral-600 mt-1.5 text-center">
+              Kept on this phone until you clear them — closing the lab is safe.
+            </p>
           </>
         )}
       </div>

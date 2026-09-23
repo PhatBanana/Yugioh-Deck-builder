@@ -19,6 +19,8 @@ import {
 } from "../services/appUpdate";
 import { toast } from "./Toaster";
 import { todayISO } from "../lib/util";
+import { clearDiagnostics, diagnosticsCounts } from "../lib/diagnostics";
+import { diagnosticsReport } from "../services/diagnosticsReport";
 import BottomSheet from "./BottomSheet";
 
 // Bottom sheet for exporting the collection/decks as a JSON file and
@@ -39,6 +41,7 @@ export default function BackupSheet({
   const fileRef = useRef<HTMLInputElement>(null);
   const [checking, setChecking] = useState(false);
   const [build, setBuild] = useState<number | null>(null);
+  const [diag, setDiag] = useState(diagnosticsCounts);
   // Live so the "last backup" line updates the moment an export succeeds.
   const lastBackup = useLiveQuery(lastBackupAt, [], null);
 
@@ -100,6 +103,27 @@ export default function BackupSheet({
     const reader = new FileReader();
     reader.onload = () => stage(String(reader.result ?? ""));
     reader.readAsText(file);
+  }
+
+  // For device testing: one paste gives the build, settings, recent OCR reads
+  // and every error the user saw. Clipboard first (fastest to send); if the
+  // webview refuses it, fall back to saving a file.
+  async function copyDiagnostics() {
+    const report = await diagnosticsReport();
+    try {
+      await navigator.clipboard.writeText(report);
+      toast("Diagnostics copied — paste them into your message", "success");
+    } catch {
+      const outcome = await exportTextFile(`ygo-diagnostics-${todayISO()}.txt`, "text/plain", report);
+      if (outcome === "saved") toast("Diagnostics saved", "success");
+      else if (outcome === "failed") toast("Couldn't copy or save diagnostics", "error");
+    }
+  }
+
+  function resetDiagnostics() {
+    clearDiagnostics();
+    setDiag(diagnosticsCounts());
+    toast("Diagnostics cleared", "info");
   }
 
   async function checkUpdate() {
@@ -189,6 +213,24 @@ export default function BackupSheet({
         >
           all releases ↗
         </button>
+      </p>
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button"
+          onClick={() => void copyDiagnostics()}
+          className="btn-ghost flex-1 py-2.5 text-sm"
+        >
+          🩺 Copy diagnostics
+        </button>
+        {diag.events + diag.ocr > 0 && (
+          <button type="button" onClick={resetDiagnostics} className="btn-ghost px-4 py-2.5 text-sm">
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-neutral-600 mt-1 text-center">
+        {diag.events} errors · {diag.ocr} recent scans logged — send these when
+        something misbehaves.
       </p>
       {onSync && (
         <button

@@ -194,3 +194,105 @@ test("wishlist heart: toggled in the list, shown in the Wishlist view", async ({
   await page.getByRole("button", { name: "Wishlist", exact: true }).click();
   await expect(page.getByRole("button", { name: /Remove from wishlist/ }).first()).toBeVisible();
 });
+
+test("diagnostics: an error the user saw ends up in the copied report", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+
+  // Produce a real error toast: the printing pack is unreachable here.
+  await tab(page, "Scan");
+  await page.getByRole("button", { name: "⚙ Settings" }).click();
+  await page.getByRole("button", { name: /Install \(~0\.7 MB\)/ }).click();
+  await expect(page.getByText(/Couldn't download the printing pack/)).toBeVisible();
+  await closeTop(page);
+
+  await tab(page, "Cards");
+  await page.getByRole("button", { name: "💾 Backup" }).click();
+  await expect(page.getByText(/1 errors · 0 recent scans logged/)).toBeVisible();
+  await page.getByRole("button", { name: "🩺 Copy diagnostics" }).click();
+  await expect(page.getByText("Diagnostics copied")).toBeVisible();
+
+  const report = await page.evaluate(() => navigator.clipboard.readText());
+  expect(report).toContain("build: browser");
+  expect(report).toContain("card database: 22");
+  expect(report).toContain("toast: Couldn't download the printing pack");
+  expect(report).toContain("(none — scan a card first)");
+
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await expect(page.getByText(/0 errors · 0 recent scans logged/)).toBeVisible();
+});
+
+test.describe("round trips", () => {
+  test("backup → wiped app → restore from the Welcome screen brings everything back", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+
+    // Data worth losing: 3 copies of one card, 1 of another, a wishlist entry.
+    const plus = page.getByRole("button", { name: "+" });
+    await plus.first().click();
+    await plus.first().click();
+    await plus.first().click();
+    await plus.nth(1).click();
+    await page.getByRole("button", { name: "Add to wishlist" }).nth(4).click();
+
+    await page.getByRole("button", { name: "💾 Backup" }).click();
+    await page.getByRole("button", { name: "Copy", exact: true }).click();
+    await expect(page.getByText("Backup copied")).toBeVisible();
+    const backup = await page.evaluate(() => navigator.clipboard.readText());
+
+    // What "clear app data" does on the phone: the whole database is gone.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const req = indexedDB.deleteDatabase("ygo-deck-builder");
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+          req.onblocked = () => resolve();
+        })
+    );
+    await page.reload();
+    await expect(page.getByText("Welcome 👋")).toBeVisible();
+
+    // The recovery path a user actually has at that moment.
+    await page.getByRole("button", { name: "Restore a backup" }).click();
+    await page.getByPlaceholder("…or paste a backup here").fill(backup);
+    await page.getByRole("button", { name: "Check pasted backup" }).click();
+    await page.getByRole("button", { name: "Restore now" }).click();
+    await expect(page.getByText(/Restored 2 cards, 0 decks, 1 wishlisted/)).toBeVisible();
+
+    // The card database isn't in a backup (it re-downloads); after it does,
+    // the restored quantities must be intact.
+    await page.getByRole("button", { name: /download/i }).first().click();
+    await expect(page.getByText("Welcome 👋")).toHaveCount(0, { timeout: 30_000 });
+    await page.getByRole("button", { name: "Owned", exact: true }).click();
+    // Albion ×3 + Aluber ×1 — the exact quantities, not just the cards.
+    await expect(page.getByText(/4 cards · 2 unique/)).toBeVisible();
+    await page.getByRole("button", { name: "Wishlist", exact: true }).click();
+    await expect(page.getByRole("button", { name: /Remove from wishlist/ })).toHaveCount(1);
+  });
+
+  test("deck share code → import reproduces the deck", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await tab(page, "Decks");
+    await page.getByRole("button", { name: "Import a written deck list" }).click();
+    await page.getByRole("textbox").first().fill(
+      ["Shared Deck", "", "Monsters", "3 Fallen of Albaz", "2 Dark Magician", "", "Extra Deck", "1 Mirrorjade the Iceblade Dragon"].join("\n")
+    );
+    await page.getByRole("button", { name: "Check list" }).click();
+    await page.getByRole("button", { name: /^Import \d+ cards$/ }).click();
+
+    // The import lands straight in the deck editor.
+    await expect(page.getByRole("heading", { name: /Main Deck \(5\)/ })).toBeVisible();
+    await page.getByRole("button", { name: "🔗 Share code" }).click();
+    await expect(page.getByText("Deck code copied")).toBeVisible();
+    const code = await page.evaluate(() => navigator.clipboard.readText());
+    expect(code).toMatch(/^YGO1\|/);
+
+    await page.getByRole("button", { name: "←" }).click();
+    await page.getByRole("button", { name: "Import from deck code" }).click();
+    await page.getByRole("textbox").fill(code);
+    await page.getByRole("button", { name: "Import deck" }).click();
+
+    // Same composition in the copy: 5 main, 1 extra.
+    await expect(page.getByRole("heading", { name: /Main Deck \(5\)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Extra Deck \(1\)/ })).toBeVisible();
+  });
+});
