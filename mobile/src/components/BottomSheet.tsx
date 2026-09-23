@@ -13,7 +13,8 @@ import { useBackClose } from "../hooks/useBackClose";
 // Stacking order for floating layers. Sheets open over the page at `base`; a
 // sheet opened *from* a sheet needs `stacked` to sit on top of its parent;
 // `above` is for the one sheet (the rarity guide) that opens from a stacked
-// one. Confirms and toasts live above all of these, in their own components.
+// one. Above all of these: the confirm dialog (z-90), then toasts (z-100) —
+// a toast's action has to stay tappable while a sheet is open.
 export const SHEET_Z = {
   base: "z-[70]",
   stacked: "z-[80]",

@@ -18,6 +18,7 @@ import {
   restoreDeck,
   saveDeckFromYdk,
   setDeckCard,
+  setDeckFormat,
   setDeckNotes,
   type BanlistFormat,
   type EnrichedDeck,
@@ -383,14 +384,17 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
   const [testingHand, setTestingHand] = useState(false);
   const [showingOdds, setShowingOdds] = useState(false);
   const [sharingImage, setSharingImage] = useState(false);
-  const [format, setFormat] = useState<BanlistFormat>("tcg");
   // Hardware back returns to the deck list.
   useBackClose(onBack);
 
+  // The format is saved on the deck, so it survives leaving and coming back;
+  // the live query re-runs on the write and the view follows.
   const enriched = useLiveQuery(async () => {
     const d = await getDeck(deckId);
-    return d ? await enrichDeck(d, format) : null;
-  }, [deckId, format]);
+    return d ? await enrichDeck(d, d.format ?? "tcg") : null;
+  }, [deckId]);
+  const format: BanlistFormat = enriched?.deck.format ?? "tcg";
+  const setFormat = (f: BanlistFormat) => void setDeckFormat(deckId, f);
 
   // Seed the name field once when the deck loads.
   useEffect(() => {

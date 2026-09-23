@@ -18,6 +18,22 @@ const closeTop = (page: Page) => page.getByRole("button", { name: "Close", exact
 // top strip of the screen is always backdrop).
 const tapBackdrop = (page: Page) => page.mouse.click(200, 12);
 
+
+// Logs a trade through the real form: gives one Albion, gets one Aluber.
+async function logTestTrade(page: Page) {
+  await page.getByRole("button", { name: "🤝 Trades" }).click();
+  await page.getByRole("button", { name: "＋ Log a trade" }).click();
+  await page.getByPlaceholder("Search cards to add…").fill("Albion");
+  const sheet = page.locator(".sheet").last();
+  await sheet.getByRole("button", { name: /Albion the Branded Dragon/ }).first().click();
+  await page.getByRole("button", { name: "Adding to: You got" }).click();
+  await page.getByPlaceholder("Search cards to add…").fill("Aluber");
+  await sheet.getByRole("button", { name: /Aluber the Jester of Despia/ }).first().click();
+  await page.getByRole("button", { name: "Save trade" }).click();
+  await expect(page.getByText(/Trade logged/)).toBeVisible();
+}
+
+
 test.beforeEach(async ({ page }) => {
   await syncFreshApp(page);
 });
@@ -112,6 +128,9 @@ test.describe("scan tab (no camera on web)", () => {
     // The manual fallback still works — and uses the typo-tolerant search.
     await page.getByPlaceholder("Or add a card by name…").fill("Dark Magican");
     await expect(page.getByText("Dark Magician").first()).toBeVisible();
+    // …including a misspelled partial name, which found nothing before.
+    await page.getByPlaceholder("Or add a card by name…").fill("Ash Blosom");
+    await expect(page.getByText("Ash Blossom & Joyous Spring").first()).toBeVisible();
   });
 });
 
@@ -164,6 +183,21 @@ test.describe("decks", () => {
     await search.fill("Ash Blosom");
     await page.getByRole("button", { name: /Ash Blossom/ }).first().click();
     await expect(page.getByRole("heading", { name: /Main Deck \(1\)/ })).toBeVisible();
+  });
+
+  test("a deck remembers its format", async ({ page }) => {
+    await tab(page, "Decks");
+    await page.getByRole("button", { name: "+ New deck" }).click();
+    await page.getByRole("button", { name: "Speed", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Speed", exact: true })).toHaveClass(/seg-on/);
+
+    // Leave and come back: used to reset to TCG every time.
+    await page.getByRole("button", { name: "←" }).click();
+    // exact: getByText is a case-insensitive substring match by default, which
+    // hits the "+ New deck" button first and quietly makes a second deck.
+    await page.getByText("New Deck", { exact: true }).click();
+    await expect(page.getByRole("button", { name: "Speed", exact: true })).toHaveClass(/seg-on/);
+    await expect(page.getByRole("button", { name: "TCG", exact: true })).not.toHaveClass(/seg-on/);
   });
 
   test("duel tools and an invalid deck code both behave", async ({ page }) => {
@@ -233,6 +267,10 @@ test.describe("round trips", () => {
     await plus.nth(1).click();
     await page.getByRole("button", { name: "Add to wishlist" }).nth(4).click();
 
+    // …and a trade, which backups used to leave out entirely.
+    await logTestTrade(page);
+    await closeTop(page);
+
     await page.getByRole("button", { name: "💾 Backup" }).click();
     await page.getByRole("button", { name: "Copy", exact: true }).click();
     await expect(page.getByText("Backup copied")).toBeVisible();
@@ -256,15 +294,19 @@ test.describe("round trips", () => {
     await page.getByPlaceholder("…or paste a backup here").fill(backup);
     await page.getByRole("button", { name: "Check pasted backup" }).click();
     await page.getByRole("button", { name: "Restore now" }).click();
-    await expect(page.getByText(/Restored 2 cards, 0 decks, 1 wishlisted/)).toBeVisible();
+    await expect(page.getByText(/Restored 2 cards, 0 decks, 1 wishlisted, 1 trades/)).toBeVisible();
 
     // The card database isn't in a backup (it re-downloads); after it does,
     // the restored quantities must be intact.
     await page.getByRole("button", { name: /download/i }).first().click();
     await expect(page.getByText("Welcome 👋")).toHaveCount(0, { timeout: 30_000 });
     await page.getByRole("button", { name: "Owned", exact: true }).click();
-    // Albion ×3 + Aluber ×1 — the exact quantities, not just the cards.
+    // Albion 3→2 and Aluber 1→2 after the trade — exact quantities, not just
+    // the cards — plus the trade itself.
     await expect(page.getByText(/4 cards · 2 unique/)).toBeVisible();
+    await page.getByRole("button", { name: "🤝 Trades" }).click();
+    await expect(page.getByRole("button", { name: "Delete entry" })).toHaveCount(1);
+    await closeTop(page);
     await page.getByRole("button", { name: "Wishlist", exact: true }).click();
     await expect(page.getByRole("button", { name: /Remove from wishlist/ })).toHaveCount(1);
   });
@@ -294,5 +336,39 @@ test.describe("round trips", () => {
     // Same composition in the copy: 5 main, 1 extra.
     await expect(page.getByRole("heading", { name: /Main Deck \(5\)/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Extra Deck \(1\)/ })).toBeVisible();
+  });
+});
+
+test.describe("trades", () => {
+  test("deleting a trade undoes what it did to the collection", async ({ page }) => {
+    // Own 2 Albion (first card A–Z); Aluber (second) starts at 0.
+    await page.getByRole("button", { name: "+" }).first().click();
+    await page.getByRole("button", { name: "+" }).first().click();
+
+    await logTestTrade(page);
+    await closeTop(page);
+    await page.getByRole("button", { name: "Owned", exact: true }).click();
+    // Gave one Albion (2→1), got one Aluber (0→1).
+    await expect(page.getByText(/2 cards · 2 unique/)).toBeVisible();
+
+    await page.getByRole("button", { name: "🤝 Trades" }).click();
+    await page.getByRole("button", { name: "Delete entry" }).click();
+    await expect(page.getByText(/Your collection goes back to how it was/)).toBeVisible();
+    await page.getByRole("button", { name: "Delete & undo" }).click();
+    await expect(page.getByText("Trade undone")).toBeVisible();
+    await closeTop(page);
+    // Back to exactly 2 Albion and no Aluber.
+    await expect(page.getByText(/2 cards · 1 unique/)).toBeVisible();
+  });
+
+  test("the Undo on 'Trade logged' reverses it too", async ({ page }) => {
+    await page.getByRole("button", { name: "+" }).first().click();
+    await logTestTrade(page);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByText("Trade undone")).toBeVisible();
+    await expect(page.getByText(/No trades logged yet/)).toBeVisible();
+    await closeTop(page);
+    await page.getByRole("button", { name: "Owned", exact: true }).click();
+    await expect(page.getByText(/1 cards · 1 unique|1 card · 1 unique/)).toBeVisible();
   });
 });

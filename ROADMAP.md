@@ -34,7 +34,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   with era-accurate pull ratios picked from the set's release date (classic
   2002–2019 vs modern guaranteed-foil boosters; approximate), with foils and
   pack value.
-- CSV export; full JSON backup & restore through a real **Save-as dialog**
+- CSV export (with edition, and a flag on rarities that are only a best
+  guess); full JSON backup & restore — collection, decks, wishlist, trade
+  log, price history — through a real **Save-as dialog**
   (choose the folder — Drive, Downloads), with
   **backup freshness tracking**: the sheet shows when you last exported, and
   a throttled reminder nudges when a 10+ card collection hasn't been backed
@@ -92,7 +94,8 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 
 ### Decks
 - Deck builder with Main / Extra / Side sections and divider UI.
-- Multi-format legality validation: TCG / OCG / Goat, plus **Master Duel**
+- Multi-format legality validation, remembered per deck: TCG / OCG / Goat,
+  plus **Master Duel**
   and **Speed Duel** (regulations from the CI-built yaml-yugi data packs;
   Speed checks the 20–30 card sizes and the Speed card pool — Skill cards
   out of scope).
@@ -125,7 +128,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - Save any meta deck into your editable decks.
 
 ### Trades & prices
-- Trade log: what you gave/got, valued at log time, with net value + undo.
+- Trade log: what you gave/got, valued at log time, with net value. Undo
+  (from the "Trade logged" toast, or deleting the entry) reverses exactly
+  the collection changes the trade made.
 - **Real market price history** per printing (TCGplayer + Cardmarket), from
   YGOPRODeck's trend data — months of history, not just since you added the
   card. Falls back to the app's own recorded points when a card has no trend

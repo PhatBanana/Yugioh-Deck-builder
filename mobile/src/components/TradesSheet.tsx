@@ -8,6 +8,7 @@ import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
 import { formatUsd, signedUsd } from "../lib/util";
 import BottomSheet from "./BottomSheet";
+import { confirmDialog } from "./Confirm";
 
 // Trade tracker: history of logged trades with net value, and a form to log a
 // new one (search cards into "You gave" / "You got" piles).
@@ -47,6 +48,26 @@ function SideEditor({
   );
 }
 
+// Deleting a trade that moved cards puts them back — that's the undo the
+// trade log promised. The message says what will happen for each kind of
+// entry, since older trades didn't record their changes and can't be reversed.
+async function removeTrade(trade: MTrade) {
+  const reversible = (trade.applied?.length ?? 0) > 0;
+  const ok = await confirmDialog({
+    title: "Delete this trade?",
+    message: reversible
+      ? "Your collection goes back to how it was: cards you gave return, cards you got are removed."
+      : trade.applied
+        ? "It didn't change your collection, so nothing else changes."
+        : "It was logged before trades recorded their collection changes, so your collection stays as it is.",
+    confirmLabel: reversible ? "Delete & undo" : "Delete",
+    danger: true,
+  });
+  if (!ok) return;
+  await deleteTrade(trade.id, { revert: reversible });
+  toast(reversible ? "Trade undone" : "Trade deleted", "success");
+}
+
 function TradeRow({ trade }: { trade: MTrade }) {
   const net = trade.gotValueUsd - trade.gaveValueUsd;
   const summary = useLiveQuery(async () => {
@@ -77,7 +98,7 @@ function TradeRow({ trade }: { trade: MTrade }) {
       {trade.note && <p className="text-xs text-neutral-500 mt-0.5">{trade.note}</p>}
       <button
         type="button"
-        onClick={() => void deleteTrade(trade.id)}
+        onClick={() => void removeTrade(trade)}
         className="text-[11px] text-neutral-600 underline mt-1"
       >
         Delete entry
@@ -120,7 +141,11 @@ export default function TradesSheet({ onClose }: { onClose: () => void }) {
     if (gave.length === 0 && got.length === 0) return;
     const trade = await logTrade(gave, got, { note, applyToCollection: apply });
     const net = trade.gotValueUsd - trade.gaveValueUsd;
-    toast(`Trade logged (${signedUsd(net)})`, "success");
+    toast(`Trade logged (${signedUsd(net)})`, "success", {
+      label: "Undo",
+      onClick: () =>
+        void deleteTrade(trade.id, { revert: true }).then(() => toast("Trade undone", "info")),
+    });
     setGave([]);
     setGot([]);
     setNote("");
