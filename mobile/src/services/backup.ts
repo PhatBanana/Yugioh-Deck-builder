@@ -11,6 +11,7 @@ import {
   type MCollectionEntry,
   type MDeck,
   type MPricePoint,
+  type MTrade,
   type MValueSnapshot,
 } from "../db";
 
@@ -51,6 +52,10 @@ export interface BackupFile {
   decks: MDeck[];
   valueHistory: MValueSnapshot[];
   priceHistory: MPricePoint[];
+  // The trade log. Optional so older backups (made before trades were
+  // included) still load — and restoring one leaves the current log alone
+  // rather than wiping it.
+  trades?: MTrade[];
 }
 
 export type ExportOutcome = "saved" | "dismissed" | "failed";
@@ -129,6 +134,8 @@ export async function createCollectionCsv(): Promise<string> {
         condition: c.condition ?? e.condition ?? null,
         printingCode: c.code ?? null,
         rarity: c.rarity ?? null,
+        rarityGuessed: c.ambiguous === true,
+        edition: c.edition ?? null,
         priceUsd: priceOf(c.code, c.rarity) ?? generic,
         tags: e.tags ?? null,
       });
@@ -141,6 +148,7 @@ export async function createCollectionCsv(): Promise<string> {
         condition: e.condition ?? null,
         printingCode: e.printing?.code ?? null,
         rarity: e.printing?.rarity ?? null,
+        edition: e.edition ?? null, // legacy single-edition field
         priceUsd: generic,
         tags: e.tags ?? null,
       });
@@ -157,11 +165,12 @@ export async function createCollectionCsv(): Promise<string> {
 const BACKUP_PRICE_DAYS = 90;
 
 export async function createBackup(): Promise<BackupFile> {
-  const [collection, wishlist, decks, valueHistory] = await Promise.all([
+  const [collection, wishlist, decks, valueHistory, trades] = await Promise.all([
     db.collection.toArray(),
     db.wishlist.toArray(),
     db.decks.toArray(),
     db.valueHistory.toArray(),
+    db.trades.toArray(),
   ]);
   const tracked = new Set<number>([
     ...collection.map((e) => e.cardId),
@@ -182,6 +191,7 @@ export async function createBackup(): Promise<BackupFile> {
     decks,
     valueHistory,
     priceHistory,
+    trades,
   };
 }
 
@@ -189,6 +199,7 @@ export interface RestoreSummary {
   cards: number; // collection entries
   decks: number;
   wishlist: number;
+  trades: number | null; // null = the backup predates trades; log left as-is
 }
 
 // Parses and validates a pasted/loaded backup without applying it, so the UI
@@ -221,6 +232,11 @@ export function parseBackup(json: string): BackupFile {
     priceHistory: Array.isArray(b.priceHistory)
       ? b.priceHistory.filter((p) => typeof p?.cardId === "number" && typeof p?.date === "string")
       : [],
+    trades: Array.isArray(b.trades)
+      ? b.trades.filter(
+          (tr) => typeof tr?.id === "string" && Array.isArray(tr?.gave) && Array.isArray(tr?.got)
+        )
+      : undefined,
   };
 }
 
@@ -229,7 +245,7 @@ export function parseBackup(json: string): BackupFile {
 export async function restoreBackup(backup: BackupFile): Promise<RestoreSummary> {
   await db.transaction(
     "rw",
-    [db.collection, db.wishlist, db.decks, db.valueHistory, db.priceHistory],
+    [db.collection, db.wishlist, db.decks, db.valueHistory, db.priceHistory, db.trades],
     async () => {
       await db.collection.clear();
       await db.collection.bulkPut(backup.collection);
@@ -239,11 +255,16 @@ export async function restoreBackup(backup: BackupFile): Promise<RestoreSummary>
       await db.decks.bulkPut(backup.decks);
       await db.valueHistory.bulkPut(backup.valueHistory);
       await db.priceHistory.bulkPut(backup.priceHistory);
+      if (backup.trades) {
+        await db.trades.clear();
+        await db.trades.bulkPut(backup.trades);
+      }
     }
   );
   return {
     cards: backup.collection.length,
     decks: backup.decks.length,
     wishlist: backup.wishlist.length,
+    trades: backup.trades ? backup.trades.length : null,
   };
 }

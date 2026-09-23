@@ -16,6 +16,9 @@ superseded it.)
   validation, `.ydk`/list parsing, meta-deck HTML parsing, OCR name matching).
   Imported by the app as `@shared/*`. Keep this free of DOM/DB/network code.
 - `tests/` — Vitest unit tests for `shared/`. Run `npm test` at the repo root.
+- Typecheck the app with `npx tsc -b` in `mobile/`. Plain `tsc --noEmit`
+  there checks **nothing** — `mobile/tsconfig.json` is a solution file whose
+  only content is project references, so it exits 0 on any code.
 - `mobile/e2e/` — Playwright tests of the real app in a headless browser:
   the built bundle served by `vite preview`, with every network call
   answered from `e2e/fixtures/` (a captured real API response — don't

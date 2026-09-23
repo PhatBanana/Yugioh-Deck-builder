@@ -1,3 +1,4 @@
+import Dexie from "dexie";
 import { parseImportText } from "@shared/collection/importParser";
 import { matchCardName } from "@shared/scan/nameMatcher";
 import type { OwnedCollection } from "@shared/recommendation/types";
@@ -37,7 +38,14 @@ export async function setOwnedQuantity(cardId: number, quantity: number): Promis
     if (quantity < prev) await trimCopiesToQuantity(cardId);
     // Start the card's price history at add time (best-effort) rather than
     // waiting for the next launch snapshot.
-    recordPricePoints([cardId]).catch(() => {});
+    //
+    // ignoreTransaction: this is fire-and-forget, and callers sometimes run
+    // inside a transaction (logging a trade moves several cards in one).
+    // Started in there, Dexie made it part of that transaction — still in
+    // flight when the transaction went to commit, which failed it with
+    // PrematureCommitError and rolled the whole trade back. Any trade with
+    // cards on both sides never saved.
+    Dexie.ignoreTransaction(() => recordPricePoints([cardId])).catch(() => {});
   }
 }
 

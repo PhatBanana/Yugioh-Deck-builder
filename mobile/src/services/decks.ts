@@ -8,7 +8,7 @@ import {
 import { serializeYdk } from "@shared/deck/ydk";
 import { strategyBlurb } from "@shared/metaDecks/strategy";
 import { uid } from "../lib/util";
-import { db, type MCard, type MDeck } from "../db";
+import { db, type BanlistFormat, type MCard, type MDeck } from "../db";
 
 export interface DeckUsageEntry {
   id: string;
@@ -63,6 +63,12 @@ export async function createDeck(name: string): Promise<MDeck> {
 
 export async function renameDeck(id: string, name: string): Promise<void> {
   await db.decks.update(id, { name: name.trim() || "Untitled", updatedAt: new Date().toISOString() });
+}
+
+// A setting, not an edit to the list — updatedAt is left alone so switching
+// the format doesn't reorder the deck list.
+export async function setDeckFormat(id: string, format: BanlistFormat): Promise<void> {
+  await db.decks.update(id, { format: format === "tcg" ? undefined : format });
 }
 
 export async function setDeckNotes(id: string, notes: string): Promise<void> {
@@ -176,7 +182,7 @@ export interface EnrichedDeckCard extends DeckCard {
 // Master Duel checks card-pool membership only: the upstream data says which
 // cards are in the game, but carries no MD Forbidden/Limited list, so copy
 // limits aren't enforced for it (the UI says as much).
-export type BanlistFormat = "tcg" | "ocg" | "goat" | "master" | "speed";
+export type { BanlistFormat } from "../db";
 
 export interface EnrichedDeck {
   deck: MDeck;

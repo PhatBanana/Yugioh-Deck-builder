@@ -120,6 +120,12 @@ export interface MTrade {
   gaveValueUsd: number;
   gotValueUsd: number;
   note?: string;
+  // The collection changes the trade actually made — after quantities clamp
+  // to 0..99, so giving away a card you don't own records nothing. Reversed
+  // exactly when the trade is undone. [] = logged without touching the
+  // collection; absent = logged before trades recorded this (can't be
+  // reversed safely). Non-indexed — no Dexie version bump.
+  applied?: { cardId: number; delta: number }[];
 }
 
 // One collection-value snapshot per day, recorded on app launch, so the Cards
@@ -172,7 +178,14 @@ export interface MDeck {
   // Card ids the owner marked as "starters" in the deck-odds analyzer, so the
   // consistency reading persists between visits.
   starters?: number[];
+  // Which format the deck is built for. Unset = TCG. Used to be editor-only
+  // state that reset to TCG on every visit, so a Speed Duel deck reopened
+  // flagged "needs at least 40 cards". (Non-indexed — no Dexie version bump.)
+  format?: BanlistFormat;
 }
+
+// Formats a deck can be validated against — see enrichDeck in services/decks.
+export type BanlistFormat = "tcg" | "ocg" | "goat" | "master" | "speed";
 
 export interface MWishlistEntry {
   cardId: number;

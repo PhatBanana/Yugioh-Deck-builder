@@ -156,7 +156,8 @@ export default function BackupSheet({
       // counts as backed up.
       await markBackedUp();
       toast(
-        `Restored ${summary.cards} cards, ${summary.decks} decks, ${summary.wishlist} wishlisted`,
+        `Restored ${summary.cards} cards, ${summary.decks} decks, ${summary.wishlist} wishlisted` +
+          (summary.trades != null ? `, ${summary.trades} trades` : ""),
         "success"
       );
       onClose();
@@ -168,8 +169,8 @@ export default function BackupSheet({
   return (
     <BottomSheet onClose={onClose} title="Backup & restore">
       <p className="text-xs text-neutral-500 mb-1">
-        Saves your collection, decks, wishlist and value/price history as one
-        JSON file. The card database isn't included — it re-downloads on any
+        Saves your collection, decks, wishlist, trade log and value/price
+        history as one JSON file. The card database isn't included — it re-downloads on any
         device.
       </p>
       <p
@@ -253,7 +254,8 @@ export default function BackupSheet({
               cards{pending.exportedAt ? ` (exported ${pending.exportedAt.slice(0, 10)})` : ""}.
             </p>
             <p className="text-xs text-orange-300">
-              Restoring replaces your current collection, decks and wishlist.
+              Restoring replaces your current collection, decks and wishlist
+              {pending.trades ? ", and your trade log" : " (backups this old have no trades, so your trade log is kept)"}.
             </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => void applyRestore()} className="btn-primary flex-1 py-2.5 text-sm">

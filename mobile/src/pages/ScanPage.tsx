@@ -394,7 +394,9 @@ export default function ScanPage({
     (async () => {
       if (debouncedManual.trim().length < 3) return [] as NameMatch[];
       const candidates = await getNameCandidates();
-      return matchCardName(debouncedManual, candidates, { limit: 6, minScore: 0.4 });
+      // Typed search, not OCR: prefix mode lets a misspelled partial name
+      // ("Ash Blosom") find its card, as in the deck pickers.
+      return matchCardName(debouncedManual, candidates, { limit: 6, minScore: 0.4, prefix: true });
     })().then((m) => !cancelled && setManualMatches(m));
     return () => {
       cancelled = true;
