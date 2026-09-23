@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { CameraPreview } from "@capgo/camera-preview";
 import { KeepAwake } from "@capacitor-community/keep-awake";
 import { Ocr, type OcrScript } from "./ocr";
+import { recordOcrRead } from "../lib/diagnostics";
 import {
   extractPasscodes,
   matchOcrLines,
@@ -382,6 +383,7 @@ async function ocrAndMatch(
   for (const id of extractPasscodes(rawLines)) {
     const card = await db.cards.get(id);
     if (card) {
+      recordOcrRead({ script: script ?? "latin", lines: rawLines, top: `${card.name} (passcode)`, byPasscode: true, setCode });
       return {
         matches: [{ id: card.id, name: card.name, score: 1 }],
         rawLines,
@@ -396,5 +398,14 @@ async function ocrAndMatch(
 
   const candidates = await getNameCandidates();
   const matches = matchOcrLines(rawLines, candidates, { limit: 6, minScore: 0.55 });
+  // Every read, including misses: "the recognizer returned nothing useful"
+  // and "it read the name but nothing matched" need opposite fixes.
+  const top = matches[0];
+  recordOcrRead({
+    script: script ?? "latin",
+    lines: rawLines,
+    top: top ? `${top.name} (${top.score.toFixed(2)})` : undefined,
+    setCode,
+  });
   return { matches, rawLines, setCode, edition, foil, modelRarity };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logEvent } from "../lib/diagnostics";
 
 export type ToastType = "success" | "error" | "info";
 
@@ -20,6 +21,9 @@ let nextId = 1;
 const listeners = new Set<Listener>();
 
 export function toast(message: string, type: ToastType = "info", action?: ToastAction) {
+  // Error toasts are the app's own record of a failure the user saw — keep
+  // them for the diagnostics report, since they vanish from screen in seconds.
+  if (type === "error") logEvent("toast", message);
   const t: Toast = { id: nextId++, message, type, action };
   for (const listener of listeners) listener(t);
 }

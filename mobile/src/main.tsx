@@ -5,7 +5,9 @@ import App from './App.tsx'
 import { CardDetailProvider } from './components/CardDetailModal'
 import AppErrorBoundary from './components/ErrorBoundary'
 import { installCrashGuard } from './lib/crashGuard'
+import { installDiagnostics } from './lib/diagnostics'
 
+installDiagnostics()
 installCrashGuard()
 
 createRoot(document.getElementById('root')!).render(

@@ -82,7 +82,9 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   flash frame of the same card and compares them per region — torch glare
   alone can't separate foils, so the flash-free frame's colour spread is what
   tells rainbow foil from Ultra. Tag the true rarity, export the readings as
-  JSON; real-device readings are pinned as test fixtures.
+  JSON; real-device readings are pinned as test fixtures. Captures persist
+  on the phone (closing the lab or the app no longer loses them); clearing
+  asks first.
 - **`tools/scan-lab.html`**: a standalone page (open off disk, no install)
   that reads flatbed/sheet-fed scans and reports the same foil numbers the
   phone measures, for building a labelled reference set.
@@ -149,6 +151,11 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
   gated behind `prefers-reduced-motion`.
 
 ### Infrastructure
+- **Diagnostics report**: Backup & restore → "Copy diagnostics" gives one
+  block of text with the build, scan settings, pack state, the last few OCR
+  reads (what the recognizer returned and what it matched) and every error
+  or error toast — kept on the phone across restarts, so a device-test
+  failure comes back as evidence rather than "it didn't work".
 - GitHub Actions builds a debug APK on every push to `main`, published to the
   rolling `apk-latest` release + a versioned release (auto-pruned to the last
   10; build artifacts not retained, to bound storage).
@@ -190,8 +197,6 @@ logic in `shared/` (unit-tested in `tests/`). See `AGENTS.md` for layout.
 - [ ] **Foil calibration from scanner readings** — waiting on scan-lab JSON
       for the reference cards (both Dark Magicians, both Ash Blossoms). Tells
       us whether a flatbed scan can serve as a repeatable measuring bench.
-- [ ] **Bank labelled foil-lab captures** — keep every tagged no-flash/flash
-      pair for export, so tuning works from dozens of fixtures, not a handful.
 - [ ] **On-device rarity ML classifier** — train/bundle a TensorFlow-Lite model
       and wire it into the scan pipeline (the seam already exists in
       `services/rarityModel.ts`); needs the labelled dataset above.
