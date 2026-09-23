@@ -628,6 +628,16 @@ export default function CardDetailModal({
           </button>
         </div>
 
+        {/* What you tap most — the owned count and the wishlist heart — sits
+            right under the name, before the art and stats. */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 text-sm text-neutral-400">
+            <span>Owned</span>
+            <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
+          </div>
+          <WishlistButton cardId={card.id} className="text-2xl" />
+        </div>
+
         <div className="flex gap-4">
           {card.img ? (
             <button
@@ -669,23 +679,6 @@ export default function CardDetailModal({
           </div>
         </div>
 
-        {hasAltArts(card) && (
-          <ArtworkPicker
-            card={card}
-            owned={owned > 0}
-            selected={effectiveArtId ?? card.id}
-            onPick={setPicked}
-          />
-        )}
-
-        <div className="flex items-center justify-between gap-3 mt-3">
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <span>Owned</span>
-            <QuantityStepper cardId={card.id} quantity={owned} max={stepperMax(card.banlist)} />
-          </div>
-          <WishlistButton cardId={card.id} className="text-2xl" />
-        </div>
-
         {owned > 0 && <ConditionRow cardId={card.id} condition={entry?.condition} />}
         {owned > 0 && (
           <PrintingRow
@@ -697,6 +690,15 @@ export default function CardDetailModal({
           />
         )}
         {owned > 0 && <BindersRow cardId={card.id} tags={entry?.tags ?? []} />}
+
+        {hasAltArts(card) && (
+          <ArtworkPicker
+            card={card}
+            owned={owned > 0}
+            selected={effectiveArtId ?? card.id}
+            onPick={setPicked}
+          />
+        )}
 
         <PriceHistory cardId={card.id} cardName={card.name} />
 
