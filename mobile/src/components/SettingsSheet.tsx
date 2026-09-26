@@ -165,7 +165,10 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <BottomSheet onClose={onClose} title="Settings" stickyHeader>
+    // `stacked`: Settings opens from anywhere — the header, or the backup
+    // toast while another sheet is up — so it sits above page sheets and the
+    // Cards page's bulk-edit bar (z-75).
+    <BottomSheet onClose={onClose} title="Settings" layer="stacked" stickyHeader>
       {/* ---- Backup & restore -------------------------------------------- */}
       <Section title="Backup & restore" first>
         <p className="text-xs text-neutral-500 mb-1">

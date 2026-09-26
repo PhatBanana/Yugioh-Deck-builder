@@ -456,6 +456,17 @@ test.describe("layout: menus and filters", () => {
     await expect(page.getByText("2 cards", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "☑ Select" }).click();
     await expect(page.getByText("Tap cards to pick")).toBeVisible();
+    // Settings opens over the bulk-edit bar, not under it: where the bar
+    // sits, the top-most element must belong to the Settings sheet.
+    const bar = (await page.getByText("0 selected").boundingBox())!;
+    await openAppSettings(page);
+    await expect(heading(page, "Settings")).toBeVisible();
+    const onTop = await page.evaluate(
+      ([x, y]) => !!document.elementFromPoint(x, y)?.closest(".sheet-backdrop"),
+      [bar.x + bar.width / 2, bar.y + bar.height / 2]
+    );
+    expect(onTop).toBe(true);
+    await closeTop(page);
     await page.getByRole("button", { name: "× Cancel" }).click();
 
     // In the detail sheet, the Owned stepper comes before the art and stats.

@@ -11,7 +11,8 @@ import { useBackClose } from "../hooks/useBackClose";
 // (becomes a centered dialog on wide screens). Those own their own chrome.
 
 // Stacking order for floating layers. Sheets open over the page at `base`; a
-// sheet opened *from* a sheet needs `stacked` to sit on top of its parent;
+// sheet opened *from* a sheet needs `stacked` to sit on top of its parent
+// (so does app Settings, which can open over anything);
 // `above` is for the one sheet (the rarity guide) that opens from a stacked
 // one. Above all of these: the confirm dialog (z-90), then toasts (z-100) —
 // a toast's action has to stay tappable while a sheet is open.
