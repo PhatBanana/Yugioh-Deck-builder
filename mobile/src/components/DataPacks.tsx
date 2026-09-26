@@ -89,7 +89,8 @@ export function LanguagePacks() {
       <span className="block text-xs text-neutral-500 mt-0.5 mb-2">
         Adds a language's card names to search and scanning (~0.5 MB each,
         Japanese 1.2 MB). Install Japanese to scan OCG cards by name — the
-        camera reads them once Text recognition below is set to Japanese.
+        camera reads them once Text recognition in Scan settings (Add tab)
+        is set to Japanese.
         Korean names are searchable by typing, but can't be read by the
         camera.
       </span>
