@@ -21,8 +21,9 @@ export interface YamlYugiSet {
   rarities?: (string | null | undefined)[] | null;
 }
 
-// Maps yaml-yugi's regulation words onto the app's banlist strings (matching
-// what YGOPRODeck uses for TCG/OCG, so `maxCopies` reads them unchanged).
+// Maps yaml-yugi's regulation words onto the app's banlist strings. (The card
+// API's TCG list says "Forbidden" where this says "Banned"; `maxCopies` and
+// `isForbidden` accept both.)
 //
 // Two vocabularies share this function. Standard formats use Forbidden /
 // Limited / Semi-Limited; Speed Duel instead uses a "Limit 1/2/3" ladder,
