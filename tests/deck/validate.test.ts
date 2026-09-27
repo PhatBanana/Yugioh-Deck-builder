@@ -66,6 +66,17 @@ describe("validateDeck", () => {
     const v = validateDeck(cards);
     expect(v.errors.some((e) => /Banned Guy is Forbidden/.test(e))).toBe(true);
   });
+
+  it("marks the card API's own spelling, \"Forbidden\", too", () => {
+    // YGOPRODeck's ban_tcg says "Forbidden"; only the data packs say
+    // "Banned". Checking one spelling let Pot of Greed x3 pass as legal.
+    const cards = [
+      card({ cardId: 1, name: "Pot of Greed", quantity: 1, banlist: "Forbidden" }),
+      card({ cardId: 2, quantity: 40 }),
+    ];
+    const v = validateDeck(cards);
+    expect(v.errors.some((e) => /Pot of Greed is Forbidden/.test(e))).toBe(true);
+  });
 });
 
 describe("Speed Duel size profile", () => {

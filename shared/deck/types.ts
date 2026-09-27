@@ -10,11 +10,16 @@ export interface DeckCard {
   section: DeckSection;
 }
 
-// Deck-building copy limits by TCG banlist status.
+// A 0-copy card. Two spellings reach us: the card API's TCG list says
+// "Forbidden" (the official term); the data packs store "Banned".
+export function isForbidden(banlist: string | null): boolean {
+  return banlist === "Forbidden" || banlist === "Banned";
+}
+
+// Deck-building copy limits by banlist status.
 export function maxCopies(banlist: string | null): number {
+  if (isForbidden(banlist)) return 0;
   switch (banlist) {
-    case "Banned":
-      return 0;
     case "Limited":
       return 1;
     case "Semi-Limited":

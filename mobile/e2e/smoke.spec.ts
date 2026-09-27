@@ -444,6 +444,13 @@ test.describe("layout: menus and filters", () => {
     await page.getByRole("button", { name: "Remove filter DARK" }).click();
     await expect(page.getByRole("button", { name: /^Filters$|^Filters ▾$/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Pot of Greed/ })).toBeVisible();
+
+    // The API spells it "Forbidden"; the filter used to look for "Banned"
+    // and found nothing.
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    await page.getByRole("combobox", { name: "Banlist status" }).selectOption("Forbidden");
+    await expect(page.getByRole("button", { name: /^Pot of Greed/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Dark Magician/ })).toHaveCount(0);
   });
 
   test("cards: Select sits above the owned list; card detail leads with owned + wishlist", async ({ page }) => {

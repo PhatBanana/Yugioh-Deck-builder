@@ -26,6 +26,7 @@ import { searchCardIds } from "../services/cardSearch";
 import { getCollectionStats, getValueDelta } from "../services/collection";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { formatUsd } from "../lib/util";
+import { isForbidden } from "@shared/deck/types";
 
 const PAGE = 50;
 
@@ -195,7 +196,9 @@ export default function CardsPage() {
   const [layout, setLayout] = usePersistentState<"list" | "grid">("ygo-cards-layout", "list");
   const [attr, setAttr] = usePersistentState("ygo-cards-attr", "");
   const [level, setLevel] = usePersistentState("ygo-cards-level", "");
-  const [banStatus, setBanStatus] = usePersistentState("ygo-cards-ban", "");
+  const [savedBan, setBanStatus] = usePersistentState("ygo-cards-ban", "");
+  // Older builds saved this filter as "Banned".
+  const banStatus = savedBan === "Banned" ? "Forbidden" : savedBan;
   const [filtersOpen, setFiltersOpen] = usePersistentState("ygo-cards-filters-open", false);
   // The filters currently narrowing the list, each with its own clear — drives
   // the Filters (n) count and the chips shown while the panel is closed.
@@ -355,7 +358,10 @@ export default function CardsPage() {
     if (cardType) rows = rows.filter((c) => c.type.includes(cardType));
     if (attr) rows = rows.filter((c) => c.attribute === attr);
     if (level) rows = rows.filter((c) => c.level === Number(level));
-    if (banStatus) rows = rows.filter((c) => c.banlist === banStatus);
+    if (banStatus)
+      rows = rows.filter((c) =>
+        banStatus === "Forbidden" ? isForbidden(c.banlist) : c.banlist === banStatus
+      );
     rows.sort(SORTERS[sortBy]);
     // Every card view paginates — a 3,000-card collection otherwise renders
     // 3,000 rows (each with its own wishlist live query) in one go.
@@ -531,7 +537,7 @@ export default function CardsPage() {
             }}
           >
             <option value="">Any status</option>
-            <option value="Banned">Banned</option>
+            <option value="Forbidden">Forbidden</option>
             <option value="Limited">Limited</option>
             <option value="Semi-Limited">Semi-Limited</option>
           </select>
