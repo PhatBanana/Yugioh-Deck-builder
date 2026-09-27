@@ -155,12 +155,15 @@ function DeckCard({ rec, rank }: { rec: DeckRecommendation; rank: number }) {
       )}
 
       <div className="mt-2 flex items-center justify-between gap-2">
+        {/* Styled as a button with a chevron — as plain text it read like a
+            label, not something to tap. */}
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="text-sm text-neutral-300 shrink-0"
+          aria-expanded={expanded}
+          className="btn-ghost text-xs px-2.5 py-1.5 rounded-lg shrink-0"
         >
-          {expanded ? "Hide" : "Show"} cards
+          {expanded ? "Hide cards ▴" : "Show cards ▾"}
         </button>
         <div className="flex items-center gap-2">
           <button
@@ -525,7 +528,7 @@ export default function RecommendationsPage({ onGoToCards }: { onGoToCards: () =
       {recs !== null && displayed.length === 0 && (
         <div className="text-neutral-500 text-sm">
           {allRecs.length === 0
-            ? "No meta decks cached yet — run a sync from the Cards tab."
+            ? "No meta decks cached yet — re-sync in ⚙ Settings → Card data."
             : q
               ? "No cached decks match — try the online search below."
               : "No decks match these filters. Try widening era, style, or budget."}

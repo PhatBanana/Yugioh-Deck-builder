@@ -3,6 +3,7 @@ import type { Agreement, FoilClass } from "@shared/scan/rarityVision";
 import type { RarityCandidate } from "@shared/scan/rarityPrior";
 import { db } from "../db";
 import { addOwned, addPrintingCopy, refilePrintingCopy } from "../services/collection";
+import { logAdd, setAddPrinting, takeAdd } from "../lib/recentAdds";
 import { applyScannedPrinting } from "../services/printings";
 import { buzz } from "../lib/haptics";
 import { formatUsd } from "../lib/util";
@@ -121,7 +122,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
   // Commit order for undo. Each entry later learns which printing was filed
   // for it, so undo can remove that exact printing (not just any copy).
   const orderRef = useRef<
-    { id: number; printing?: { code?: string; rarity?: string; edition?: string } }[]
+    { id: number; printing?: { code?: string; rarity?: string; edition?: string }; logId?: string }[]
   >([]);
   const torchWantedRef = useRef(false); // 🔦 toggle state, readable inside the loop
   const pausedRef = useRef(false); // picker open — keep the loop alive but idle
@@ -178,7 +179,10 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     async (id: number, name: string, byPasscode = false, marks?: CardMarks) => {
       const nextCount = await addOwned(id, 1);
       const card = await db.cards.get(id);
-      const order: (typeof orderRef.current)[number] = { id };
+      const order: (typeof orderRef.current)[number] = {
+        id,
+        logId: logAdd({ cardId: id, name, delta: 1, source: "scan" }),
+      };
       orderRef.current.push(order);
       setSession((prev) => {
         const existing = prev.find((e) => e.id === id);
@@ -231,6 +235,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
                 rarity: resolved.rarity,
                 edition: resolved.edition,
               };
+              setAddPrinting(order.logId, order.printing);
             }
             tagSession(id, resolved);
           })
@@ -406,8 +411,12 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
     if (idx < 0 || idx >= orderRef.current.length) return;
     const [commit] = orderRef.current.splice(idx, 1);
     const id = commit.id;
-    if (commit.printing) await addPrintingCopy(id, commit.printing, -1);
-    await addOwned(id, -1);
+    // Skip the database if the Add tab's "Recently added" list already took
+    // this copy back — the session entry still needs to go.
+    if (takeAdd(commit.logId)) {
+      if (commit.printing) await addPrintingCopy(id, commit.printing, -1);
+      await addOwned(id, -1);
+    }
     setSession((prev) => {
       const entry = prev.find((e) => e.id === id);
       if (!entry) return prev;
@@ -454,6 +463,7 @@ export function useAutoScan(settings: ScanSettings = DEFAULT_SCAN_SETTINGS): Aut
         (o.printing.rarity ?? "") === (from.rarity ?? "")
       ) {
         o.printing = to;
+        setAddPrinting(o.logId, to);
       }
     }
     setSession((prev) =>

@@ -7,6 +7,8 @@ import { foilClass } from "../lib/foil";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { addOwned } from "../services/collection";
+import { logAdd } from "../lib/recentAdds";
+import RecentAdds from "../components/RecentAdds";
 import { getNameCandidates, isScanSupported } from "../services/scanner";
 import { useAutoScan, type AutoScanState, type ScannedEntry } from "../hooks/useAutoScan";
 import RarityPickSheet from "../components/RarityPickSheet";
@@ -33,6 +35,7 @@ function ManualMatchRow({ match }: { match: NameMatch }) {
   const openCard = useCardDetail();
   async function add() {
     const next = await addOwned(match.id, 1);
+    logAdd({ cardId: match.id, name: match.name, delta: 1, source: "search" });
     toast(`${match.name} — now own ${next}`, "success");
   }
   return (
@@ -507,6 +510,8 @@ export default function ScanPage({
               </div>
             )}
           </div>
+
+          <RecentAdds />
         </>
       )}
       {settingsSheet}

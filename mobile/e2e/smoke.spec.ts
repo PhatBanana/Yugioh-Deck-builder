@@ -500,3 +500,72 @@ test.describe("layout: menus and filters", () => {
     await expect(page.getByRole("button", { name: "Remove filter ≤ $25" })).toBeVisible();
   });
 });
+
+test.describe("design pass: summaries and recent adds", () => {
+  test("cards: each view's summary line is about that view", async ({ page }) => {
+    await expect(page.getByText("You own 0 cards")).toBeVisible();
+    await page.getByRole("button", { name: "+" }).first().click();
+    await expect(page.getByText(/^You own 1 card · /)).toBeVisible();
+
+    // Wishlist: its own count and cost, with the budget planner beside it —
+    // not the collection's totals.
+    await page.getByRole("button", { name: "Add to wishlist" }).nth(1).click(); // Aluber, 2nd A–Z
+    await page.getByRole("button", { name: "Wishlist", exact: true }).click();
+    await expect(page.getByText(/^1 wanted · ≈\$\d/)).toBeVisible();
+    await expect(page.getByText(/You own/)).toHaveCount(0);
+    await page.getByRole("button", { name: "💰 Budget planner" }).click();
+    await expect(heading(page, /Budget planner/)).toBeVisible();
+  });
+
+  test("decks: tiles summarise legality and ownership; rows say what's missing", async ({ page }) => {
+    await tab(page, "Decks");
+    await importVia(page, /Paste a written deck list/);
+    await page.getByRole("textbox").first().fill(["Tile Deck", "", "Monsters", "2 Dark Magician", "2 Pot of Greed"].join("\n"));
+    await page.getByRole("button", { name: "Check list" }).click();
+    await page.getByRole("button", { name: /^Import \d+ cards$/ }).click();
+
+    // Rows: what to do, not a fraction; Forbidden flagged in the legality box.
+    await expect(page.getByText("need 2 more").first()).toBeVisible();
+    await expect(page.getByText(/Pot of Greed is Forbidden/)).toBeVisible();
+
+    await page.getByRole("button", { name: "←" }).click();
+    await expect(page.getByText(/4 main · TCG · ⚠ Not legal/)).toBeVisible();
+    await expect(page.getByText(/own 0\/2 cards/)).toBeVisible();
+    // Duel tools now follow the deck list.
+    const tileY = (await page.getByText("Tile Deck", { exact: true }).boundingBox())!.y;
+    const duelY = (await page.getByRole("button", { name: /Duel tools/ }).boundingBox())!.y;
+    expect(duelY).toBeGreaterThan(tileY);
+  });
+
+  test("add: recently added lists adds from any path, and undo takes them back", async ({ page }) => {
+    await tab(page, "Add");
+    await page.getByPlaceholder("Or add a card by name…").fill("Dark Magician");
+    await page.getByRole("button", { name: "+1" }).first().click();
+    await expect(page.getByRole("heading", { name: "Recently added" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Undo adding Dark Magician" })).toBeVisible();
+
+    // A pasted list lands in the same list.
+    await page.getByRole("button", { name: /Paste list/ }).click();
+    await page.getByRole("textbox").first().fill("2 Ash Blossom & Joyous Spring");
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await page.getByRole("button", { name: "📷 Scan", exact: true }).click();
+    await expect(page.getByText("2× Ash Blossom & Joyous Spring")).toBeVisible();
+
+    // Undo really removes the copies.
+    await page.getByRole("button", { name: "Undo adding Ash Blossom & Joyous Spring" }).click();
+    await expect(page.getByRole("button", { name: "Undo adding Ash Blossom & Joyous Spring" })).toHaveCount(0);
+    await tab(page, "Cards");
+    await page.getByRole("button", { name: "Owned", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^Dark Magician/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Ash Blossom/ })).toHaveCount(0);
+  });
+
+  test("meta: the card list toggle is a labelled button", async ({ page }) => {
+    await tab(page, "Meta");
+    const toggle = page.getByRole("button", { name: "Show cards ▾" }).first();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(page.getByRole("button", { name: "Hide cards ▴" }).first()).toHaveAttribute("aria-expanded", "true");
+  });
+});
