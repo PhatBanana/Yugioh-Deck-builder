@@ -27,6 +27,7 @@ import { getCollectionStats, getValueDelta } from "../services/collection";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { formatUsd } from "../lib/util";
 import { isForbidden } from "@shared/deck/types";
+import { getWishlistItems } from "../services/wishlist";
 
 const PAGE = 50;
 
@@ -75,11 +76,20 @@ function GridCell({
     <button
       type="button"
       onClick={() => (selectable ? onToggleSelect?.(card.id) : openCard(card.id))}
-      className={`pressable relative text-left ${selectable && !selected ? "opacity-60" : ""}`}
+      // self-start: a two-line name makes one cell taller than its row
+      // neighbours, and a button centres its content — shifting their art.
+      className={`pressable relative self-start text-left ${selectable && !selected ? "opacity-60" : ""}`}
     >
       {src ? (
         <span className="relative block">
-          <img src={src} alt={card.name} className="w-full rounded-md ring-1 ring-white/10" loading="lazy" />
+          {/* Fixed card shape: a missing/slow image keeps its slot, so the
+              grid's rows stay aligned. */}
+          <img
+            src={src}
+            alt={card.name}
+            className="w-full aspect-[59/86] object-cover rounded-md ring-1 ring-white/10 bg-raised text-[10px] text-neutral-500 overflow-hidden"
+            loading="lazy"
+          />
           {foil && <span aria-hidden className={`foil ${foil}`} />}
         </span>
       ) : (
@@ -294,6 +304,19 @@ export default function CardsPage() {
   const artMap = view === "owned" ? coll?.artMap : undefined;
   const ambiguousCount = coll?.ambiguousCount ?? 0;
   const stats = useLiveQuery(() => getCollectionStats(), [], null);
+  // Wishlist view's summary: how many cards, and what the unowned ones cost.
+  const wishSummary = useLiveQuery(
+    async () => {
+      if (view !== "wishlist") return null;
+      const items = await getWishlistItems();
+      return {
+        count: items.length,
+        toBuy: items.filter((i) => i.owned === 0).reduce((sum, i) => sum + i.price, 0),
+      };
+    },
+    [view],
+    null
+  );
   const valueDelta = useLiveQuery(
     () => (stats ? getValueDelta(stats.estimatedValueUsd) : Promise.resolve(null)),
     [stats?.estimatedValueUsd],
@@ -632,11 +655,32 @@ export default function CardsPage() {
           </div>
         </div>
       ) : (
+        view === "wishlist" ? (
+        // The wishlist's own numbers — what's on it and what the rest costs —
+        // with its tool beside them. (Collection totals here read as if they
+        // were about the wishlist.)
+        <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
+          <span className="truncate">
+            {wishSummary && wishSummary.count > 0
+              ? `${wishSummary.count} wanted` +
+                (wishSummary.toBuy > 0 ? ` · ≈${formatUsd(wishSummary.toBuy)} to buy` : " · all owned")
+              : ""}
+          </span>
+          <button
+            type="button"
+            onClick={() => setBudgetOpen(true)}
+            className="btn-ghost px-2.5 py-1.5 text-xs shrink-0"
+          >
+            💰 Budget planner
+          </button>
+        </div>
+        ) : (
         <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
           <span className="flex items-center gap-1.5 min-w-0">
             <span className="truncate">
               {stats
-                ? `${stats.totalCopies} cards (${stats.uniqueCards} unique)` +
+                ? `You own ${stats.totalCopies} card${stats.totalCopies === 1 ? "" : "s"}` +
+                  (stats.uniqueCards !== stats.totalCopies ? ` (${stats.uniqueCards} unique)` : "") +
                   (stats.estimatedValueUsd > 0 ? ` · ≈$${stats.estimatedValueUsd.toFixed(0)}` : "")
                 : ""}
             </span>
@@ -660,17 +704,7 @@ export default function CardsPage() {
             </button>
           </span>
         </div>
-      )}
-
-      {/* Budget planner entry (wishlist view). */}
-      {view === "wishlist" && (
-        <button
-          type="button"
-          onClick={() => setBudgetOpen(true)}
-          className="btn-ghost w-full py-2 text-xs"
-        >
-          💰 Budget planner
-        </button>
+        )
       )}
 
       {/* Binder + rarity-confirmation filter chips (owned view). */}

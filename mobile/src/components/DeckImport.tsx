@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db";
 import { formatUsd } from "../lib/util";
 import { setOwnedMany } from "../services/collection";
+import { logAdds } from "../lib/recentAdds";
 import {
   getArchetypeCards,
   getMetaDeckCards,
@@ -64,7 +65,16 @@ export default function DeckImport() {
       cardId: c.cardId,
       quantity: Math.min(stepperMax(c.banlist), qtyOf(c)),
     }));
+    const before = await db.collection.bulkGet(entries.map((e) => e.cardId));
     await setOwnedMany(entries);
+    logAdds(
+      entries.map((e, i) => ({
+        cardId: e.cardId,
+        name: cards[i].name,
+        delta: e.quantity - (before[i]?.quantity ?? 0),
+        source: "deck" as const,
+      }))
+    );
     toast(`Updated ${entries.length} cards`, "success");
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import type { DeckSection } from "@shared/deck/types";
+import { isForbidden, type DeckSection } from "@shared/deck/types";
 import { parseYdk } from "@shared/deck/ydk";
 import { computeDeckStats } from "@shared/deck/stats";
 import { formatUsd } from "../lib/util";
@@ -41,6 +41,7 @@ import ImportDeckListSheet from "../components/ImportDeckListSheet";
 import { toast } from "../components/Toaster";
 import { confirmDialog } from "../components/Confirm";
 import ActionSheet from "../components/ActionSheet";
+import { openSettings } from "../lib/settingsNav";
 
 const SECTION_LABEL: Record<DeckSection, string> = {
   main: "Main Deck",
@@ -87,8 +88,8 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="page p-4 flex flex-col gap-3">
-      {/* Create, import, and the table-side tools. Import is one menu instead
-          of three unlabelled icons (.ydk / 📋 / 🔗) that had to be guessed. */}
+      {/* Create and import. Import is one menu instead of three unlabelled
+          icons (.ydk / 📋 / 🔗) that had to be guessed. */}
       <div className="flex gap-2">
         <button type="button" onClick={newDeck} className="btn-primary flex-1 py-3">
           + New deck
@@ -108,10 +109,6 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
           e.target.value = "";
         }}
       />
-      <button type="button" onClick={() => setDuelOpen(true)} className="btn-ghost py-2 text-sm">
-        🎲 Duel tools — life points, coin, dice
-      </button>
-
       {importMenuOpen && (
         <ActionSheet
           title="Import a deck"
@@ -163,6 +160,16 @@ function DeckList({ onOpen }: { onOpen: (id: string) => void }) {
           <DeckTile key={d.id} deck={d} onOpen={onOpen} />
         ))}
       </div>
+
+      {/* Table-side tools, after the decks: used mid-duel, not while building,
+          so they don't push the deck list down. */}
+      <button
+        type="button"
+        onClick={() => setDuelOpen(true)}
+        className="btn-ghost self-center px-4 py-2 text-xs text-neutral-400 mt-1"
+      >
+        🎲 Duel tools — life points, coin, dice
+      </button>
     </div>
   );
 }
@@ -176,6 +183,18 @@ function DeckTile({ deck, onOpen }: { deck: MDeck; onOpen: (id: string) => void 
     () => (coverId != null ? db.cards.get(coverId) : undefined),
     [coverId]
   );
+  // The same numbers the editor shows, so decks can be compared from the
+  // list: format, legality, and how much of it you still need.
+  const summary = useLiveQuery(async () => {
+    const e = await enrichDeck(deck, deck.format ?? "tcg");
+    const unique = e.cards.length;
+    const owned = e.cards.filter((c) => c.owned >= c.quantity).length;
+    const toFinish = e.cards.reduce(
+      (sum, c) => sum + Math.max(0, c.quantity - c.owned) * (c.price ?? 0),
+      0
+    );
+    return { legal: e.validation.legal, unknown: e.formatDataMissing, unique, owned, toFinish };
+  }, [deck]);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -212,7 +231,28 @@ function DeckTile({ deck, onOpen }: { deck: MDeck; onOpen: (id: string) => void 
         <CardThumb img={cover?.img} w="w-10" h="h-14" />
         <div className="min-w-0">
           <div className="font-medium truncate">{deck.name}</div>
-          <div className="text-xs text-neutral-500">{total} main →</div>
+          <div className="text-xs text-neutral-500 truncate">
+            {total} main · {FORMAT_SHORT[deck.format ?? "tcg"]}
+            {summary && !summary.unknown && (
+              <span className={summary.legal ? "text-emerald-400/90" : "text-orange-400"}>
+                {" "}· {summary.legal ? "✓ Legal" : "⚠ Not legal"}
+              </span>
+            )}
+          </div>
+          {summary && summary.unique > 0 && (
+            <div className="text-xs text-neutral-500 truncate">
+              {summary.owned === summary.unique ? (
+                <span className="text-emerald-400/90">✓ You own every card</span>
+              ) : (
+                <>
+                  own {summary.owned}/{summary.unique} cards
+                  {summary.toFinish > 0 && (
+                    <span className="text-orange-400/90"> · ≈{formatUsd(summary.toFinish)} to finish</span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </button>
       <button
@@ -317,9 +357,21 @@ function DeckCardRow({
         <CardThumb img={c.img} w="w-8" h="h-11" />
         <div className="min-w-0 flex-1">
           <div className="text-sm leading-snug truncate">{c.name}</div>
-          <div className={`text-xs ${short ? "text-orange-400" : "text-neutral-500"}`}>
-            own {c.owned}/{c.quantity}
-            {c.banlist ? ` · ${c.banlist}` : ""}
+          {/* Colour only where there's something to do: cards you're short on
+              say how many more; covered ones get a quiet tick. */}
+          <div className="text-xs">
+            {short ? (
+              <span className="text-orange-400">
+                need {c.quantity - c.owned} more{c.owned > 0 ? ` (own ${c.owned})` : ""}
+              </span>
+            ) : (
+              <span className="text-neutral-500">✓ owned</span>
+            )}
+            {c.banlist && (
+              <span className={isForbidden(c.banlist) ? "text-red-400" : "text-amber-300/80"}>
+                {" "}· {c.banlist}
+              </span>
+            )}
           </div>
         </div>
       </button>
@@ -373,6 +425,14 @@ function DeckNotes({ deckId, initial }: { deckId: string; initial: string }) {
     </div>
   );
 }
+
+const FORMAT_SHORT: Record<BanlistFormat, string> = {
+  tcg: "TCG",
+  ocg: "OCG",
+  goat: "Goat",
+  master: "MD",
+  speed: "Speed",
+};
 
 const FORMAT_NAMES: Record<BanlistFormat, string> = {
   tcg: "TCG banlist",
@@ -536,7 +596,11 @@ function DeckEditor({ deckId, onBack }: { deckId: string; onBack: () => void }) 
       </div>
       {enriched.formatDataMissing && (
         <p className="text-[11px] text-orange-300 -mt-1">
-          No {FORMAT_NAMES[format]} data yet — re-sync cards on the Cards tab to load it.
+          No {FORMAT_NAMES[format]} data yet —{" "}
+          <button type="button" onClick={openSettings} className="underline">
+            re-sync in ⚙ Settings
+          </button>{" "}
+          to load it.
         </p>
       )}
       {format === "speed" && !enriched.formatDataMissing && (

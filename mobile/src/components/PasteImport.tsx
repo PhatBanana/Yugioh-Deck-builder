@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { applyImport, resolveImport, type ImportResult } from "../services/collection";
+import { db } from "../db";
+import { logAdds } from "../lib/recentAdds";
 import CardThumb from "./CardThumb";
 import { toast } from "./Toaster";
 
@@ -28,7 +30,16 @@ export default function PasteImport() {
     if (!preview || preview.matched.length === 0) return;
     setBusy(true);
     try {
+      const before = await db.collection.bulkGet(preview.matched.map((m) => m.cardId));
       await applyImport(preview.matched, mode);
+      logAdds(
+        preview.matched.map((m, i) => ({
+          cardId: m.cardId,
+          name: m.name,
+          delta: mode === "add" ? m.quantity : m.quantity - (before[i]?.quantity ?? 0),
+          source: "paste" as const,
+        }))
+      );
       toast(`Imported ${preview.matched.length} cards`, "success");
       setText("");
       setPreview(null);
